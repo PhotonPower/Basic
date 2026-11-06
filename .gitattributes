@@ -1,0 +1,8 @@
+# Normalise line endings for text files...
+* text=auto
+
+# Binary snapshot / image files
+*.sna binary
+*.bin binary
+*.hunk binary
+*.dsk binary

@@ -1,0 +1,75 @@
+# Entscheidungen
+
+Festgehaltene Entwurfsentscheidungen mit Begründung. Eine Änderung bekommt einen neuen Eintrag, der
+den alten ausdrücklich ersetzt.
+
+<a id="d1"></a>
+## D1 – Zwischencode in zwei Ebenen
+
+Drei sehr verschiedene Ziele (C++, MC68000, Z80) teilen sich ein Frontend. Die **HIR** behält die
+Programmstruktur für lesbaren C++-Code; die **LIR** (Drei-Adress-Code, explizite Typen bis `i8`/`i16`,
+Runtime-Aufrufe als eigene Operation) dient den Assembler-Backends. → [ir.md](ir.md)
+
+<a id="d2"></a>
+## D2 – Zielsystem = CPU × Plattform
+
+Mathematik, Strings und Formatierung hängen nur von der CPU ab, alles Maschinenspezifische liegt in
+einer kleinen Plattformschicht (`plat_*`). Neue Ziele mit bekannter CPU, insbesondere FPGA-Implementierungen
+von Z80 und MC68000, brauchen nur eine neue Plattform. → [architecture.md](architecture.md), [targets.md](targets.md)
+
+<a id="d3"></a>
+## D3 – Eigene, bitgleiche Numerik auf allen Zielen
+
+Weder CPC-Firmware noch Amiga-Mathe-Bibliotheken noch `libm` liefern gleiche Ergebnisse. Die Numerik
+wird selbst geschrieben; eine C-Referenz definiert die Semantik, die Assembler-Ports werden bitgenau
+dagegen getestet. → [numerics.md](numerics.md)
+
+<a id="d4"></a>
+## D4 – IEEE binary64 ohne Denormale, Unendlich und NaN
+
+Speicherformat IEEE (einfache Konvertierung an `DOUBLE{}`/`SINGLE{}`-Schnittstellen, mehr Stellen als
+GFA), aber vereinfachte Semantik (nur Rundung zur nächsten geraden Zahl, Denormale → 0, Überlauf und
+Division durch 0 → GFA-Laufzeitfehler, kein −0). Das spart auf dem Z80 viel Code.
+Verworfen: eigenes 8-Bit-freundliches Format (Konvertierungskosten an jeder IEEE-Schnittstelle).
+
+<a id="d5"></a>
+## D5 – Feinkörnige Runtime, gelinkt auf Quelltextebene
+
+Eine Routine je Modul, explizite `requires`; Formatieren und Ausgeben getrennt; `PRINT` zerlegt;
+Fehlertexte und Initialisierung nur bei Bedarf. Weil die Assembler der Schwesterprojekte keinen Linker
+haben, bildet der Compiler die Hülle der benötigten Module selbst und fügt sie zu einem Quelltext
+zusammen. → [runtime.md](runtime.md)
+
+<a id="d6"></a>
+## D6 – Emulierter Big-Endian-Speicher im C++-Ziel
+
+Damit `PEEK`/`POKE`, `VARPTR`, `*x`, `BYTE{}` …, `MKx$`/`CVx` und `TYPE()` auf dem PC dieselben Ergebnisse
+liefern wie auf dem Amiga, liegen alle BASIC-Daten im C++-Ziel in einem Byte-Array mit Amiga-Layout.
+Sonst taugt das C++-Ziel nicht als Testreferenz.
+
+<a id="d7"></a>
+## D7 – Befehlsgruppen statt Stubs
+
+Jede Plattform deklariert ihre Gruppen; der Compiler lehnt Programme ab, die eine fehlende Gruppe
+benutzen, statt Stubs zu erzeugen, die zur Laufzeit nichts tun. → [language.md](language.md)
+
+<a id="d8"></a>
+## D8 – Zielsysteme Amiga und Amstrad CPC
+
+Der MC68000 wird für den Amiga übersetzt (Heimat von GFA-BASIC, voller Funktionsumfang), der Z80 für
+den Amstrad CPC (eingeschränkter Umfang: kein `file-random`, keine GUI, Firmware-Grafik).
+
+<a id="d9"></a>
+## D9 – Werkzeuge der Schwesterprojekte als Bibliothek, fest auf einen Commit
+
+Assembler und Emulatoren kommen aus PhotonPower/Z80 und PhotonPower/MC68000 über `FetchContent` mit
+festem Commit. Kein Aufruf externer Programme, keine fremden Toolchains (SDCC, vbcc) nötig. Die Runtime
+für MC68000 und Z80 ist deshalb handgeschriebener Assembler; C gibt es nur in der Referenz und im
+PC-Ziel.
+→ [toolchain.md](toolchain.md)
+
+<a id="d10"></a>
+## D10 – Testplattformen als FPGA-Vorlage
+
+`z80-test` und `m68k-test` sind nackte Prozessoren mit minimaler Ein-/Ausgabe. Sie dienen den
+automatischen Tests und sind die Vorlage für Plattformen auf FPGA-Boards.

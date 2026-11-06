@@ -1,0 +1,21 @@
+' Hallo - erstes Zielprogramm des Compilers (Sprachkern, Meilenstein 0.2-0.5)
+' test: groups core float print
+'
+PRINT "Hallo aus GFA-BASIC"
+FOR i%=1 TO 5
+  PRINT i%,quadrat(i%)
+NEXT i%
+@summe(10)
+PRINT "Wurzel 2 = ";SQR(2)
+'
+PROCEDURE summe(n%)
+  LOCAL k%,s%
+  FOR k%=1 TO n%
+    ADD s%,k%
+  NEXT k%
+  PRINT "Summe 1..";n%;" = ";s%
+RETURN
+'
+FUNCTION quadrat(x%)
+  RETURN x%*x%
+ENDFUNC
