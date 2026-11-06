@@ -17,3 +17,6 @@ CMakeUserPresets.json
 *.a
 *.lib
 *.exe
+
+# local FS-UAE setup (tools/gfa)
+/tools/gfa/gfa.fs-uae

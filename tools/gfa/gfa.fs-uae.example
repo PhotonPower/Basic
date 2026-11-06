@@ -1,0 +1,22 @@
+# FS-UAE configuration for running GFA-BASIC 3.5 programs with tools/gfa/gfa_run.py.
+# Copy to tools/gfa/gfa.fs-uae (ignored by git) or to ~/Documents/FS-UAE/Configurations/
+# and adjust the paths. See docs/gfa-original.md.
+
+[fs-uae]
+amiga_model = A500
+
+# Kickstart ROM: not part of this repository.
+kickstart_file = ~/Documents/FS-UAE/Kickstarts/kick13.rom
+
+# GFA-BASIC 3.5 disk (boots into GFA-BASIC, or into a Workbench from which it is started).
+floppy_drive_0 = ~/Documents/FS-UAE/GFABasic35.adf
+
+# Shared Mac directory, visible on the Amiga as DH0:. Programs go in, results come out.
+# The negative boot priority keeps booting from the floppy.
+hard_drive_0 = ~/Documents/FS-UAE/gfa-share
+hard_drive_0_priority = -128
+
+# Faster disk access while loading; the result file is written to DH0: anyway.
+floppy_drive_speed = 0
+
+# Keyboard: gfa_run.py --amiga-layout must match the keymap selected on the Amiga (de or us).

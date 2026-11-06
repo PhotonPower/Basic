@@ -50,7 +50,7 @@ Gruppe benutzen, die ein Ziel nicht hat, werden dort übersprungen (die Gruppen 
 Kopfzeile des Testprogramms). Zufallszahlen laufen mit festem Startwert.
 
 Erwartete Ausgaben, die das Verhalten des Originals festhalten, werden am echten GFA-BASIC 3.5 (im
-Amiga-Emulator) erzeugt und mit dem Vermerk `; source: GFA-BASIC 3.5` gekennzeichnet; so sind sie von
+Amiga-Emulator FS-UAE, [gfa-original.md](gfa-original.md)) erzeugt und mit dem Vermerk `; source: GFA-BASIC 3.5` gekennzeichnet; so sind sie von
 Ausgaben unterscheidbar, die nur unsere eigene Festlegung dokumentieren.
 
 ## Konformanz der Runtime

@@ -67,8 +67,9 @@ Geplanter Umfang (✓ geplant, – nicht vorgesehen, (✓) mit Einschränkung):
 
 ## Offene Sprachfragen
 
-Diese Punkte sind aus dem Handbuch nicht sicher zu entnehmen und müssen am Original (Emulator mit
-GFA-BASIC 3.5) geklärt werden. Ergebnisse werden als Testprogramme unter `tests/programs` festgehalten.
+Diese Punkte sind aus dem Handbuch nicht sicher zu entnehmen und werden am Original geklärt
+(`tests/probes/probe1.lst`, Ablauf in [gfa-original.md](gfa-original.md)). Ergebnisse werden als
+Testprogramme unter `tests/programs` festgehalten.
 
 - **Arithmetik in Ausdrücken:** Rechnet GFA `a%=b%+c%` in Integer oder in Float, und gibt es eine
   Überlaufprüfung? (Befehle `ADD`/`INC` sind laut Referenz ohne Prüfung.)

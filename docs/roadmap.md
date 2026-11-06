@@ -52,9 +52,9 @@ Dokumentation von Architektur, Zwischencode, Runtime, Numerik, Zielsystemen und 
    werden kann; die Firmware-Sprungleiste für Text/Grafik/Dateien ist gleich.)
 2. **Befehlsreferenz im Repository?** Die Referenz ist aus dem Handbuch von 1988 extrahiert. Soll sie
    unter `docs/` liegen, oder bleibt sie außerhalb (Rechtefrage des Handbuchtextes)?
-3. **Zugang zum Original:** Gibt es ein lauffähiges GFA-BASIC 3.5 (z. B. im Amiga-Emulator), um die
-   offenen Sprachfragen ([language.md](language.md#offene-sprachfragen)) zu klären und Golden-Ausgaben
-   zu erzeugen?
+3. ~~**Zugang zum Original**~~ – vorhanden: GFA-BASIC 3.5 im FS-UAE auf dem Mac; automatisiert über
+   `tools/gfa/gfa_run.py` ([gfa-original.md](gfa-original.md)). Erstes Prüfprogramm:
+   `tests/probes/probe1.lst`, Ergebnis steht aus.
 4. **GFA-Float-Format** (`FLOAT{}`, `MKD$`/`CVD`): genaue Bitbelegung.
 5. **Amiga-Ausgabe:** Shell-Ausgabe (`Output()`) als Standard oder von Anfang an ein eigenes Fenster
    wie im Original?

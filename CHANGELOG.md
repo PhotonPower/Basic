@@ -7,6 +7,12 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 ## [Unreleased]
 
 ### Hinzugefügt
+- Abgleich mit dem Original: `tools/gfa/gfa_run.py` führt `.lst`-Programme im echten GFA-BASIC 3.5
+  unter FS-UAE (macOS) aus (gemeinsames Verzeichnis als `DH0:`, Tastendrücke über `osascript`,
+  Bildschirmfoto bei Zeitüberschreitung); Beispielkonfiguration, Tastenfolge `keys.json`, Python-Tests.
+- Erstes Prüfprogramm `tests/probes/probe1.lst` (54 Tests zu Überlauf, Rundung, `FOR`, Zahlenausgabe,
+  `==`, Float-Format, Fehlernummern).
+- `CLAUDE.md` mit Hinweisen für Agenten; `docs/gfa-original.md`.
 - Projektgerüst: Verzeichnisstruktur, CMake, CI (Linux/macOS/Windows, Sanitizer, Build ohne Emulatoren).
 - Einbindung der Schwesterprojekte PhotonPower/Z80 (`e74cf00`) und PhotonPower/MC68000 (`0074b8b`)
   über `FetchContent` mit festem Commit. Unter Windows baut die CI vorerst ohne Emulatoren, weil der

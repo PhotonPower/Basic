@@ -65,10 +65,12 @@ ersten Konfigurieren.
 | [docs/language.md](docs/language.md) | Sprachumfang, Befehlsgruppen, Unterstützung je Ziel, offene Sprachfragen |
 | [docs/toolchain.md](docs/toolchain.md) | Schwesterprojekte, Einbindung, Grenzen der Werkzeuge |
 | [docs/testing.md](docs/testing.md) | Emulator-Harness, Differenz- und Konformanztests, Größenbudgets |
+| [docs/gfa-original.md](docs/gfa-original.md) | Abgleich mit dem echten GFA-BASIC 3.5 im FS-UAE (`tools/gfa/gfa_run.py`) |
 | [docs/usage.md](docs/usage.md) | Kommandozeile (geplant) |
 | [docs/decisions.md](docs/decisions.md) | Entwurfsentscheidungen mit Begründung |
 | [docs/roadmap.md](docs/roadmap.md) | Meilensteine und offene Fragen |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Bauen, Regeln |
+| [CLAUDE.md](CLAUDE.md) | Hinweise für Agenten (Claude Code) |
 | [CHANGELOG.md](CHANGELOG.md) | Änderungen |
 
 ## Projektstruktur
