@@ -20,3 +20,7 @@ CMakeUserPresets.json
 
 # local FS-UAE setup (tools/gfa)
 /tools/gfa/gfa.fs-uae
+
+# Python
+__pycache__/
+*.pyc
