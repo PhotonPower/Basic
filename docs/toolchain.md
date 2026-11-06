@@ -27,6 +27,14 @@ Ohne Emulatoren bauen (nur Compiler, keine Harness-Tests): `-DBASIC_WITH_EMULATO
 Die Kommandozeilenwerkzeuge `z80tool` und `m68ktool` werden dabei mitgebaut und sind zum Untersuchen
 erzeugter Programme nützlich (Disassembler, Monitor).
 
+### Bekanntes Problem: Windows
+
+Der eingebundene MC68000-Commit enthält im Wurzelverzeichnis Dateien mit Namen wie `"x"` oder `"`,
+vermutlich Überbleibsel von Monitor-Tests. Solche Namen sind unter Windows ungültig; das Klonen
+scheitert (auch die CI des MC68000-Projekts schlägt deshalb unter Windows beim Checkout fehl).
+Bis die Dateien dort entfernt sind und der Commit hier angehoben ist, baut die CI unter Windows
+ohne Emulatoren (`-DBASIC_WITH_EMULATORS=OFF`).
+
 ## Was die Werkzeuge nicht können – und wie der Compiler damit umgeht
 
 | Einschränkung | Folge für den Compiler |
@@ -45,6 +53,8 @@ erzeugter Programme nützlich (Disassembler, Monitor).
 ## Wünsche an die Schwesterprojekte
 
 Nicht nötig für den Start, aber hilfreich:
+
+- MC68000: die versehentlich eingecheckten Dateien im Wurzelverzeichnis entfernen (Windows, siehe oben).
 
 - Z80: Ausgabe eines Binarys mit AMSDOS-Header; optional `.dsk`-Image.
 - Z80: Speicher mit 6128-Bankumschaltung im Emulator.
