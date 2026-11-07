@@ -181,11 +181,11 @@ Differenztests Ausgaben vergleichen.
   Ergebnisse verlieren also die **führenden** Ziffern und das Minus (`STR$(12345.6,4,1)` = `"45.6"`,
   `STR$(12345.6,3,0)` = `"346"`, `STR$(-1.25,3,1)` = `"1.3"`, `STR$(1,0)` = `""`). Ebenso
   `USING "##"`: −5 → `-5`, −15 → `15`; `"#.#"`, 99,96 → `0.0` (probe5 T20, T25–T27).
-- **Eigenheiten, offen** (Festlegung nach [D11](decisions.md#d11) noch zu treffen):
-  - Formate ohne Stelle vor dem Punkt sind fehlerhaft: `".##"`, 0,25 → `. 0`, 0,5 → `. 1`; `".#"`,
-    0,25 → `.0` (probe4 T29, probe5 T21–T24).
-  - Mehrere Werte mit einem Format: Nur der erste wird formatiert, der zweite erscheint als `?2.75`
-    (probe4 T31, probe5 T30, T31).
+- **Eigenheiten des Originals, nicht nachgebildet** ([D12](decisions.md#d12)):
+  - Formate ohne Stelle vor dem Punkt sind im Original fehlerhaft (`".##"`, 0,25 → `. 0`, 0,5 →
+    `. 1`; probe4 T29, probe5 T21–T24). Wir formatieren korrekt (`.25`, `.50`).
+  - Mehrere Werte mit einem Format: Im Original wird nur der erste formatiert, der zweite erscheint
+    als `?2.75` (probe4 T31, probe5 T30, T31). Wir wenden das Format auf jeden Wert an.
 - `VAL` liest Dezimal, `&H`/`$`, `&X`/`%`, `&O` (✔ `VAL("1.5E3")` = 1500, `VAL("&HFF")` = 255,
   `VAL("%101")` = 5, `VAL(".5x")` = 0,5 – Lesen endet am ersten ungültigen Zeichen, probe1 T54) und ist korrekt gerundet (Text → nächstgelegene
   darstellbare Zahl), damit `VAL(STR$(x))` stabil ist.

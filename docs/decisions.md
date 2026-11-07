@@ -84,6 +84,18 @@ die ungenaue Konstante `PI` (wir nehmen den nächstgelegenen binary64-Wert), das
 Ganzzahl- und Rundungsregeln, `FOR`-Semantik, Ausgabeformat, Fehlernummern und -texte, die Regel von
 `==` (siehe [numerics.md](numerics.md)).
 
+<a id="d12"></a>
+## D12 – Ersatzverhalten für Eigenheiten von `INSTR` und `PRINT USING`
+
+Ergänzt [D11](#d11) für Fälle, in denen das Original sich offensichtlich fehlerhaft verhält und wir
+trotzdem ein Verhalten festlegen müssen (probe4, probe5):
+
+| Fall | Original | Festlegung |
+|---|---|---|
+| `INSTR(a$,"",n)` | `INSTR("abc","",n)` für n = 1…5: 0, 1, 2, 4, 0 | n, solange 1 ≤ n ≤ `LEN(a$)`+1, sonst 0 (Startposition 0 zählt wie 1, negative → Fehler 10 wie im Original); `INSTR(a$,"")` = 1 |
+| Format ohne Stelle vor dem Punkt | `USING ".##"`, 0,5 → `. 1` | korrekt formatiert: `.50` |
+| mehrere Werte, ein Format | `USING "##.#",1.25,2.75` → ` 1.3?2.75` | Format für jeden Wert wiederholen: ` 1.3 2.8` |
+
 <a id="d10"></a>
 ## D10 – Testplattformen als FPGA-Vorlage
 

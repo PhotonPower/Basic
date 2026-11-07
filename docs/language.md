@@ -152,8 +152,9 @@ Diese Punkte sind aus dem Handbuch nicht sicher zu entnehmen und werden am Origi
   - `STRING$(3,"ab")` = `ababab`, `ASC("")` = 0, `CHR$(0)` ist ein normales Zeichen.
   - `INSTR`: `INSTR("","")` = 1, `INSTR("abc","")` = 0, `INSTR("abcabc","c",4)` =
     `INSTR(4,"abcabc","c")` = 6. Startposition 0 zählt wie 1, eine negative meldet Fehler 10.
-  - Eigenheit: Mit leerem Suchstring liefert `INSTR("abc","",n)` für n = 1…5 die Werte 0, 1, 2, 4, 0
-    (probe5 T15); `INSTR("","",n)` ist 1.
+  - Eigenheit: Mit leerem Suchstring liefert `INSTR("abc","",n)` im Original für n = 1…5 die Werte 0,
+    1, 2, 4, 0 (probe5 T15). Wir liefern n für 1 ≤ n ≤ `LEN(a$)`+1, sonst 0
+    ([D12](decisions.md#d12)).
 - **Ausgabe auf dem Amiga:** Ein GFA-Programm gibt in ein Fenster aus (öffnet es bei Bedarf). Für
   den ersten Stand schreibt das kompilierte Programm auf `Output()` der Shell; Fensterausgabe folgt mit
   der Gruppe `gui`.

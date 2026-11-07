@@ -35,6 +35,8 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 - probe5 am Original ausgewertet (`tests/probes/results/probe5.txt`): vollständige Rangfolge der
   Operatoren (`AND`/`OR`/`XOR` gleichrangig, `NOT` am schwächsten), `STR$(x,n)` behält die linken
   Zeichen, Eigenheiten von `INSTR` und `PRINT USING`.
+- Entscheidung D12: Ersatzverhalten für `INSTR` mit leerem Suchstring, `PRINT USING` ohne Stelle vor
+  dem Punkt und mit mehreren Werten.
 - Entscheidung D11: IEEE binary64 bleibt, Eigenheiten des Originals (`PI`, `MKS$`, ungenaue
   Funktionen) werden nicht nachgebildet.
 - `CLAUDE.md` mit Hinweisen für Agenten; `docs/gfa-original.md`.
