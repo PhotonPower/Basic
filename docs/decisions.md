@@ -96,6 +96,14 @@ Mit `runtime/ref` festgelegt, wo weder Handbuch noch Original eine Antwort geben
 - **`VAL`** behält höchstens 800 signifikante Ziffern; weitere wirken nur als Rundungsinformation.
   Das ist exakt, weil jeder Mittelpunkt zwischen zwei binary64-Zahlen höchstens 767 Ziffern hat.
 - **`DEFNUM`** über 13 zählt als 13.
+- **`PRINT USING`:**
+  - Ein Format ohne Feld gibt seinen Text und danach den Wert wie `PRINT` aus.
+  - Eine Zahl in einem Stringfeld erscheint in der `PRINT`-Form, ein String in einem Zahlenfeld
+    unverändert.
+  - Nach dem letzten Wert wird der Text bis zum nächsten Feld bzw. zum Formatende ausgegeben.
+  - Ein auf 0 gerundeter negativer Wert erscheint ohne Minus (`0.00`, nicht `-0.00`).
+  - Braucht der Exponent mehr Ziffern als `^` vorhanden sind, wird er breiter (`1.00E+100`).
+  - `**$##.##` füllt mit `*` bis zum `$`.
 
 <a id="d12"></a>
 ## D12 – Ersatzverhalten für Eigenheiten von `INSTR` und `PRINT USING`

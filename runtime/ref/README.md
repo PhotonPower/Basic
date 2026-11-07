@@ -18,12 +18,13 @@ Umgebung bereitstellt (erzeugtes Programm, Konstantenfaltung, Tests).
 | `fp_from_i32`, `fp_to_int` | Ganzzahl → Float; Zuweisung an `%`/`&`/`\|` (abschneiden, Fehler 2/4/3) |
 | `fp_round_int`, `fp_round` | `TRUNC`, `INT`, `FRAC`, `CINT`, `ROUND` |
 | `ix_bn` | kleine Big-Integer für die exakten Umwandlungen |
+| `rt_flt_dec` | Dezimalziffern des exakten Binärwerts (gemeinsame Grundlage der Ausgabe) |
 | `rt_fmt_flt`, `rt_val` | Zahl → Text (`PRINT`, `STR$`, `DEFNUM`), Text → Zahl (`VAL`, `VAL?`) |
+| `rt_using`, `rt_str_fmt` | `PRINT USING`, `STR$(x,n)`, `STR$(x,y,z)`, mit `MODE` |
 | `rt_rnd` | Zufallsgenerator xorshift32 |
 
 Tests: `tests/test_runtime_ref.cpp` vergleicht mit der IEEE-Arithmetik des Rechners (Zufallsoperanden
 mit festem Startwert), mit `strtod`/`printf` und mit den Ergebnissen der Prüfprogramme
 (`tests/probes/results`).
 
-Noch offen für 0.1: `PRINT USING`/`STR$(x,y,z)` und der Generator für die Konformanzfälle der
-Assembler-Ports.
+Noch offen für 0.1: der Generator für die Konformanzfälle der Assembler-Ports.

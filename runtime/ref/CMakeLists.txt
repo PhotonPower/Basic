@@ -14,7 +14,10 @@ add_library(basic_rt_ref STATIC
   fp_round_int.c
   fp_round.c
   ix_bn.c
+  rt_flt_dec.c
   rt_fmt_flt.c
+  rt_using.c
+  rt_str_fmt.c
   rt_val.c
   rt_rnd.c)
 target_include_directories(basic_rt_ref PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

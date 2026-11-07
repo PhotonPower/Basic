@@ -15,7 +15,7 @@ Dokumentation von Architektur, Zwischencode, Runtime, Numerik, Zielsystemen und 
 - ✔ Zahl → Text (13 Stellen, `DEFNUM`) und Text → Zahl (`VAL`, `VAL?`), korrekt gerundet.
 - ✔ Zufallsgenerator.
 - ✔ Unit-Tests der Referenz gegen die IEEE-Arithmetik des Rechners und die Ergebnisse am Original.
-- `PRINT USING` und `STR$(x,y,z)` (Regeln aus probe4/probe5).
+- ✔ `PRINT USING`, `STR$(x,n)` und `STR$(x,y,z)` (Regeln aus probe4/probe5, D12, D13).
 - Generator für Konformanzfälle (`tools/`).
 
 ## 0.2 – Frontend und IR

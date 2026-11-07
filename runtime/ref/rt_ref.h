@@ -74,6 +74,33 @@ f64 fp_finish(int neg, int32_t e, uint64_t m);
  * Writes a 0-terminated string and returns its length. */
 int rt_fmt_flt(char *buf, f64 x, int digits);
 
+/* Decimal digits of |x|: `digits` (1..13) significant digits of the exact binary value, ties away
+ * from 0, written to ds without terminator; *d = decimal exponent of the first digit. For 0 all
+ * digits are '0' and *d = 0. Returns 1 if x is negative. */
+int rt_flt_dec(f64 x, int digits, char *ds, int32_t *d);
+
+/* STR$(x,n): STR$(x) padded on the left to n characters, or its first n characters. */
+int32_t rt_str_n(char *out, int32_t cap, f64 x, int32_t n);
+/* STR$(x,y,z): like PRINT USING with y positions, z of them decimals (mode = MODE 0..3). */
+int32_t rt_str_fmt(char *out, int32_t cap, f64 x, int32_t y, int32_t z, int mode);
+
+/* PRINT USING. One rt_using per statement: rt_using_begin, then for every value rt_using_num or
+ * rt_using_str (each writes the literal text up to the next field and the formatted field; the
+ * format starts over when its end is reached), finally rt_using_end (literal text up to the next
+ * field). The functions write at most cap characters (no terminator) and return the number
+ * written. mode = MODE 0..3: 2 and 3 swap '.' and ',' in the format and in the output. */
+typedef struct {
+    const char *f;
+    int32_t len;
+    int32_t pos;
+    int mode;
+    int has_field;
+} rt_using;
+void rt_using_begin(rt_using *u, const char *f, int32_t len, int mode);
+int32_t rt_using_num(rt_using *u, char *out, int32_t cap, f64 x);
+int32_t rt_using_str(rt_using *u, char *out, int32_t cap, const char *s, int32_t slen);
+int32_t rt_using_end(rt_using *u, char *out, int32_t cap);
+
 /* VAL: reads a number from s[0..len). *used (may be NULL) receives the number of characters
  * consumed (VAL?). Out of range -> 0 without error, as in the original. */
 f64 rt_val(const char *s, int32_t len, int32_t *used);

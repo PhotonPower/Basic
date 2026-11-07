@@ -11,6 +11,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <initializer_list>
 #include <string>
 
 #include "rt_ref.h"
@@ -438,6 +439,113 @@ void testVal() {
     }
 }
 
+std::string usingNum(const char* f, std::initializer_list<double> xs, int mode = 0) {
+    rt_using u;
+    rt_using_begin(&u, f, static_cast<std::int32_t>(std::strlen(f)), mode);
+    std::string r;
+    char buf[512];
+    for (double x : xs) r.append(buf, static_cast<std::size_t>(rt_using_num(&u, buf, sizeof buf, bits(x))));
+    r.append(buf, static_cast<std::size_t>(rt_using_end(&u, buf, sizeof buf)));
+    return r;
+}
+
+std::string usingStr(const char* f, const char* s) {
+    rt_using u;
+    rt_using_begin(&u, f, static_cast<std::int32_t>(std::strlen(f)), 0);
+    char buf[512];
+    std::string r(buf, static_cast<std::size_t>(rt_using_str(&u, buf, sizeof buf, s, static_cast<std::int32_t>(std::strlen(s)))));
+    r.append(buf, static_cast<std::size_t>(rt_using_end(&u, buf, sizeof buf)));
+    return r;
+}
+
+std::string strFmt(double x, int y, int z, int mode = 0) {
+    char buf[300];
+    return std::string(buf, static_cast<std::size_t>(rt_str_fmt(buf, sizeof buf, bits(x), y, z, mode)));
+}
+
+std::string strN(double x, int n) {
+    char buf[300];
+    return std::string(buf, static_cast<std::size_t>(rt_str_n(buf, sizeof buf, bits(x), n)));
+}
+
+void testUsing() {
+    const double pi = 3.141592653589793;
+    // probe4 T10-T30 (handbook examples included)
+    CHECK_EQ(usingNum("#.####", {pi}), std::string("3.1416"));
+    CHECK_EQ(usingNum("###.##^^^^", {16}), std::string(" 16.00E+00"));
+    CHECK_EQ(usingNum("###.##^^^^", {4100}), std::string("  4.10E+03"));
+    CHECK_EQ(usingNum("#.##^^^^", {0.000123}), std::string("1.23E-04"));
+    CHECK_EQ(usingNum("#", {0.5}), std::string("1"));
+    CHECK_EQ(usingNum("#", {1.5}), std::string("2"));
+    CHECK_EQ(usingNum("#", {2.5}), std::string("3"));
+    CHECK_EQ(usingNum("#.#", {0.25}), std::string("0.3"));
+    CHECK_EQ(usingNum("#.#", {0.35}), std::string("0.4"));  // rounded from the 13-digit decimal
+    CHECK_EQ(usingNum("#", {-2.5}), std::string("3"));     // no room for the sign
+    CHECK_EQ(usingNum("##", {1234}), std::string("34"));   // leading digits dropped
+    CHECK_EQ(usingNum("-##.#", {-1.25}), std::string("- 1.3"));
+    CHECK_EQ(usingNum("-##.#", {1.25}), std::string("  1.3"));
+    CHECK_EQ(usingNum("+##", {5}), std::string("+ 5"));
+    CHECK_EQ(usingNum("##.#-", {-3}), std::string(" 3.0-"));
+    CHECK_EQ(usingNum("***#", {12}), std::string("**12"));
+    CHECK_EQ(usingNum("$##.##", {3.5}), std::string(" $3.50"));
+    CHECK_EQ(usingNum("###.##", {-0.5}), std::string(" -0.50"));
+    CHECK_EQ(usingNum("#,###.##", {1234.5}), std::string("1,234.50"));
+    CHECK_EQ(usingNum("PI_._._. #.###", {pi}), std::string("PI... 3.142"));
+    CHECK_EQ(usingStr("&", "abc"), std::string("abc"));
+    CHECK_EQ(usingStr("!", "abc"), std::string("a"));
+    CHECK_EQ(usingStr("\\  \\", "abcdef"), std::string("abcd"));
+    CHECK_EQ(usingStr("\\  \\", "ab"), std::string("ab  "));
+    // probe5 T21-T29; formats without a digit before the point as decided in D12
+    CHECK_EQ(usingNum(".##", {0.5}), std::string(".50"));
+    CHECK_EQ(usingNum(".##", {0.25}), std::string(".25"));
+    CHECK_EQ(usingNum(".#", {0.25}), std::string(".3"));
+    CHECK_EQ(usingNum("#.##", {0.5}), std::string("0.50"));
+    CHECK_EQ(usingNum("##", {-5}), std::string("-5"));
+    CHECK_EQ(usingNum("##", {-15}), std::string("15"));
+    CHECK_EQ(usingNum("#.#", {99.96}), std::string("0.0"));
+    CHECK_EQ(usingNum("##.##", {0.004999}), std::string(" 0.00"));
+    CHECK_EQ(usingNum("##.##", {0.005}), std::string(" 0.01"));
+    // several values: the format starts over (D12)
+    CHECK_EQ(usingNum("##.#", {1.25, 2.75}), std::string(" 1.3 2.8"));
+    CHECK_EQ(usingNum("##.# ", {1.25, 2.75}), std::string(" 1.3  2.8 "));
+    CHECK_EQ(usingNum("A## B## C", {1, 2, 3}), std::string("A 1 B 2 CA 3 B"));
+    // MODE (probe4 T32)
+    CHECK_EQ(usingNum("#,###.##", {1234.5}, 1), std::string("1,234.50"));
+    CHECK_EQ(usingNum("#.###,##", {1234.5}, 2), std::string("1.234,50"));
+    CHECK_EQ(usingNum("#,###.##", {1234.5}, 3).substr(0, 5), std::string("4,500"));
+    // further cases
+    CHECK_EQ(usingNum("#,###", {12}), std::string("   12"));
+    CHECK_EQ(usingNum("#,###,###", {1234567}), std::string("1,234,567"));
+    CHECK_EQ(usingNum("-#.##^^^^", {-1234}), std::string("-1.23E+03"));
+    CHECK_EQ(usingNum("#.##^^^^", {0}), std::string("0.00E+00"));
+    CHECK_EQ(usingNum("#.##^^^^", {1e100}), std::string("1.00E+100"));
+    CHECK_EQ(usingNum("#.#^^^^", {9.96}), std::string("1.0E+01"));
+    CHECK_EQ(usingNum("###.#^^^^", {0.000123}), std::string("123.0E-06"));
+    CHECK_EQ(usingNum("##.##", {-0.001}), std::string(" 0.00"));  // no "-0.00"
+    CHECK_EQ(usingNum("**$##.##", {3.5}), std::string("***$3.50"));
+    CHECK_EQ(usingNum("Summe:", {5}), std::string("Summe:5"));  // no field: as by PRINT
+    CHECK_EQ(usingNum("###.##", {1e300}).size(), std::size_t{6});
+    CHECK_EQ(usingStr("##", "x"), std::string("x"));
+    // STR$(x,y,z) and STR$(x,n): probe4 T33/T34/T32, probe5 T19/T20
+    CHECK_EQ(strFmt(123.4567, 6, 2), std::string("123.46"));
+    CHECK_EQ(strFmt(pi, 5, 3), std::string("3.142"));
+    CHECK_EQ(strFmt(-1.5, 4, 0), std::string("  -2"));
+    CHECK_EQ(strFmt(2.5, 3, 0), std::string("  3"));
+    CHECK_EQ(strFmt(0.05, 4, 1), std::string(" 0.1"));
+    CHECK_EQ(strFmt(12345.6, 4, 1), std::string("45.6"));
+    CHECK_EQ(strFmt(12345.6, 3, 0), std::string("346"));
+    CHECK_EQ(strFmt(-1.25, 3, 1), std::string("1.3"));
+    CHECK_EQ(strFmt(1, 0, 0), std::string(""));
+    CHECK_EQ(strFmt(1234.5, 8, 2, 2), std::string(" 1234,50"));
+    CHECK_EQ(strN(42, 5), std::string("   42"));
+    CHECK_EQ(strN(123456, 3), std::string("123"));
+    CHECK_EQ(strN(-12, 2), std::string("-1"));
+    CHECK_EQ(strN(1.5, 2), std::string("1."));
+    CHECK_EQ(strN(12, 5), std::string("   12"));
+    CHECK_EQ(strN(-0.5, 3), std::string("-0."));
+    CHECK_EQ(strN(1, 0), std::string(""));
+}
+
 void testRandom() {
     rt_randomize(1);
     std::uint32_t x = 1;
@@ -473,6 +581,7 @@ int main() {
     testApproxEq();
     testFormat();
     testVal();
+    testUsing();
     testRandom();
     return report("runtime_ref");
 }
