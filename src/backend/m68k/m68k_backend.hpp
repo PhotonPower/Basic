@@ -2,8 +2,9 @@
 
 // MC68000 backend: LIR -> Motorola assembler source for the assembler of PhotonPower/MC68000.
 // Every virtual register lives in an 8-byte slot of the stack frame (LINK A6); registers whose
-// lifetimes do not overlap share a slot. Operations go through D0-D3. Keeping values in the
-// processor's registers is a later optimisation.
+// lifetimes do not overlap share a slot. Operations go through D0-D3. Small foldings: constants
+// as immediates, compare and branch together, a %-variable loaded or stored right next to its use
+// is read or written directly. Keeping values in the processor's registers is a later step.
 
 #include <string>
 #include <vector>

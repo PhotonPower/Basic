@@ -40,6 +40,9 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 - `RESUME` setzt `ERR` auf 0 (probe12 T1); damit ist `errors2` am Original gleich.
 - `gfa_run.py`: Startmenü der Diskette nach einem Kaltstart (`boot` in `keys.json`), längere
   Wartezeiten für den Merge-Dialog und das Einlesen.
+- MC68000-Backend: Konstanten als Direktwerte, Vergleich und Sprung zusammengezogen, Laden und
+  Speichern einer `%`-Variablen direkt neben ihrer Verwendung gefaltet (Zählschleife nochmals
+  ein Viertel weniger Befehle).
 - MC68000: Ganzzahl-Abkürzungen (D16, Nachtrag): `a%+b%`, `-`, `*` mit Überlaufprüfung statt über
   Float, Vergleiche zweier Ganzzahlen als `CMP`, `FOR` mit `%`-Variable in 32 Bit. Eine einfache
   Zählschleife braucht 23-mal weniger Befehle, die Testprogramme bis zu 3-mal weniger. Testprogramm

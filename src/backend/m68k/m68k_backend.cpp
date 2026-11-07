@@ -4,6 +4,7 @@
 #include "link/embedded.hpp"
 
 #include <algorithm>
+#include <map>
 #include <set>
 
 namespace basic {
@@ -155,9 +156,63 @@ private:
     }
 
     // slot of a virtual register in the frame
-    // frame slot of a virtual register (shared by registers whose lifetimes do not overlap)
+    // frame slot of a virtual register (shared by registers whose lifetimes do not overlap); a
+    // register that only ever holds one integer constant is the immediate value instead (reads
+    // only: such a register is never written after its ConstI, which is not emitted)
     std::string slot(const Reg& r, int offset = 0) const {
-        return std::to_string(-8 * (slotOf_[static_cast<std::size_t>(r.id)] + 1) + offset) + "(A6)";
+        const auto k = static_cast<std::size_t>(r.id);
+        if (k < alias_.size() && !alias_[k].empty() && offset == 0) return alias_[k];
+        if (k < constOf_.size() && constKnown_[k]) {
+            const std::int32_t v = constOf_[k];
+            if (offset == 2) return "#" + std::to_string(static_cast<std::int16_t>(v & 0xFFFF));
+            if (offset == 3) return "#" + std::to_string(v & 0xFF);
+            return "#" + std::to_string(v);
+        }
+        return std::to_string(-8 * (slotOf_[k] + 1) + offset) + "(A6)";
+    }
+    // a %-variable addressed directly (not through a VAR pointer)
+    bool directLong(int v) const { return v >= 0 && !indirect(v) && varType(v) == hir::Type::Int; }
+    static bool reads(const Instr& in, const Reg& r) {
+        if (in.a.id == r.id || in.b.id == r.id) return true;
+        for (const Reg& x : in.args)
+            if (x.id == r.id) return true;
+        return false;
+    }
+
+    bool isConst(const Reg& r) const {
+        return r.id >= 0 && static_cast<std::size_t>(r.id) < constKnown_.size() && constKnown_[static_cast<std::size_t>(r.id)];
+    }
+
+    // a register that is a direct %-variable: loaded and read right after (Load folded into its
+    // single use), or computed and stored right after (the Store folded into its definition)
+    std::vector<std::string> alias_;
+    std::vector<std::int32_t> constOf_;
+    std::vector<bool> constKnown_;
+    std::vector<int> uses_count_;
+
+    // registers defined exactly once, by ConstI; number of reads of every register
+    void scanConsts(const lir::Function& f) {
+        const std::size_t n = static_cast<std::size_t>(f.regs);
+        std::vector<int> defs(n, 0);
+        alias_.assign(n, std::string());  // per routine, before the prologue reads the slots
+        constOf_.assign(n, 0);
+        constKnown_.assign(n, false);
+        uses_count_.assign(n, 0);
+        for (const Reg& r : f.params) defs[static_cast<std::size_t>(r.id)] += 2;  // set on entry
+        for (const Instr& in : f.code) {
+            if (in.dst.id >= 0) {
+                const auto k = static_cast<std::size_t>(in.dst.id);
+                ++defs[k];
+                if (in.kind == Kind::ConstI) constOf_[k] = in.imm;
+            }
+            for (const Reg* r : {&in.a, &in.b})
+                if (r->id >= 0) ++uses_count_[static_cast<std::size_t>(r->id)];
+            for (const Reg& r : in.args)
+                if (r.id >= 0) ++uses_count_[static_cast<std::size_t>(r.id)];
+        }
+        for (const Instr& in : f.code)
+            if (in.kind == Kind::ConstI && in.dst.id >= 0 && defs[static_cast<std::size_t>(in.dst.id)] == 1)
+                constKnown_[static_cast<std::size_t>(in.dst.id)] = true;
     }
 
     std::vector<int> slotOf_;  // virtual register -> slot
@@ -283,6 +338,7 @@ private:
         f_ = &f;
         const std::string name = fname(f.routine);
         out_.code += "; ---- " + (f.routine < 0 ? std::string("main program") : f.name) + "\n" + name + ":\n";
+        scanConsts(f);
         assignSlots(f);
         line("LINK    A6,#" + std::to_string(-8 * slots_ - (p_.onError ? 24 : 0)));
         if (hasRecord()) {  // own statement record; until the first statement a copy of the caller's
@@ -309,12 +365,52 @@ private:
             line("MOVE.L  " + std::to_string(8 + 8 * k) + "(A6)," + slot(r));
             if (r.type == VT::F64) line("MOVE.L  " + std::to_string(12 + 8 * k) + "(A6)," + slot(r, 4));
         }
-        for (const Instr& i : f.code) instr(i);
+        for (std::size_t k = 0; k < f.code.size(); ++k) {
+            const Instr& i = f.code[k];
+            const bool once = i.dst.id >= 0 && uses_count_[static_cast<std::size_t>(i.dst.id)] == 1;
+            if (once && i.kind == Kind::Load && k + 1 < f.code.size() && directLong(i.var) && reads(f.code[k + 1], i.dst)) {
+                alias_[static_cast<std::size_t>(i.dst.id)] = varLabel(i.var);  // read from the variable itself
+                continue;
+            }
+            if (once && (i.kind == Kind::Op || i.kind == Kind::RtCall) && i.dst.type == VT::I32 && k + 1 < f.code.size()) {
+                const Instr& n = f.code[k + 1];
+                if (n.kind == Kind::Store && n.a.id == i.dst.id && directLong(n.var)) {
+                    alias_[static_cast<std::size_t>(i.dst.id)] = varLabel(n.var);  // result straight into the variable
+                    instr(i);
+                    ++k;
+                    continue;
+                }
+            }
+            // a comparison only read by the branch right after it: CMP and a conditional branch
+            if (i.kind == Kind::Cmp && k + 1 < f.code.size() && uses_count_[static_cast<std::size_t>(i.dst.id)] == 1) {
+                const Instr& b = f.code[k + 1];
+                if ((b.kind == Kind::BranchZ || b.kind == Kind::BranchNZ) && b.a.id == i.dst.id) {
+                    cmpBranch(i, b.kind == Kind::BranchNZ, b.label);
+                    ++k;
+                    continue;
+                }
+            }
+            instr(i);
+        }
+    }
+
+    // Cmp a <cond> b followed by a branch on its result (taken if the result is non-zero for BranchNZ,
+    // zero for BranchZ)
+    void cmpBranch(const Instr& c, bool ifTrue, int target) {
+        static const std::map<std::string, std::pair<const char*, const char*>> cc = {
+            {"eq", {"BEQ", "BNE"}}, {"ne", {"BNE", "BEQ"}}, {"lt", {"BLT", "BGE"}},
+            {"le", {"BLE", "BGT"}}, {"gt", {"BGT", "BLE"}}, {"ge", {"BGE", "BLT"}}};
+        const auto& [yes, no] = cc.at(c.op);
+        line("MOVE.L  " + slot(c.a) + ",D0");
+        line("CMP.L   " + slot(c.b) + ",D0");
+        line(std::string(ifTrue ? yes : no) + "     .L" + std::to_string(target));
     }
 
     void instr(const Instr& i) {
         switch (i.kind) {
-            case Kind::ConstI: line("MOVE.L  #" + std::to_string(i.imm) + "," + slot(i.dst)); return;
+            case Kind::ConstI:
+                if (!isConst(i.dst)) line("MOVE.L  #" + std::to_string(i.imm) + "," + slot(i.dst));
+                return;
             case Kind::ConstF:
                 line("MOVE.L  #" + hex32(static_cast<std::uint32_t>(i.fimm >> 32)) + "," + slot(i.dst));
                 line("MOVE.L  #" + hex32(static_cast<std::uint32_t>(i.fimm)) + "," + slot(i.dst, 4));
@@ -426,12 +522,14 @@ private:
             }
             case Kind::Jump: line("BRA     .L" + std::to_string(i.label)); return;
             case Kind::BranchZ:
-                line("TST.L   " + slot(i.a));
-                line("BEQ     .L" + std::to_string(i.label));
-                return;
             case Kind::BranchNZ:
+                if (isConst(i.a)) {  // a known condition
+                    const bool zero = constOf_[static_cast<std::size_t>(i.a.id)] == 0;
+                    if (zero == (i.kind == Kind::BranchZ)) line("BRA     .L" + std::to_string(i.label));
+                    return;
+                }
                 line("TST.L   " + slot(i.a));
-                line("BNE     .L" + std::to_string(i.label));
+                line(std::string(i.kind == Kind::BranchZ ? "BEQ" : "BNE") + "     .L" + std::to_string(i.label));
                 return;
             case Kind::Label: out_.code += ".L" + std::to_string(i.label) + ":\n"; return;
             case Kind::Return:
