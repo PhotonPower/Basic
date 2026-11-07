@@ -84,6 +84,28 @@ die ungenaue Konstante `PI` (wir nehmen den nächstgelegenen binary64-Wert), das
 Ganzzahl- und Rundungsregeln, `FOR`-Semantik, Ausgabeformat, Fehlernummern und -texte, die Regel von
 `==` (siehe [numerics.md](numerics.md)).
 
+<a id="d18"></a>
+## D18 – Strings der Assembler-Ziele: Deskriptoren, Rückverweise, Zusammenschieben
+
+Wie im Original hält jede String-Variable einen **Deskriptor** (Adresse, Länge). Jeder String-Block
+im Heap beginnt mit einem **Rückverweis** auf den Deskriptor, dem er gehört, und seiner Länge. Ist der
+Heap voll, schiebt die **Speicherbereinigung** alle Blöcke mit Besitzer zusammen und trägt die neue
+Adresse im jeweiligen Deskriptor ein; Blöcke ohne Besitzer sind Abfall. Reicht der Platz danach nicht,
+folgt Fehler 8 „out of memory“.
+
+- **Zwischenergebnisse** (`LEFT$(a$,3)`, `a$+b$` …) gehören Deskriptoren in einem **Temp-Bereich** mit
+  Stapeldisziplin. An jeder Anweisungsgrenze werden die Zwischenergebnisse der laufenden Routine
+  freigegeben; eine Routine merkt sich beim Eintritt den Stand und gibt beim Verlassen alles darüber
+  frei. Eine String-Funktion übergibt ihr Ergebnis über einen eigenen Rückgabe-Deskriptor.
+- **Zuweisung** übernimmt den Block eines Zwischenergebnisses (kein Kopieren), Variablen und
+  Konstanten werden kopiert.
+- **`LOCAL` und Parameter** sichern den Deskriptor auf dem Stapel und setzen den Rückverweis des
+  Blocks auf die gesicherte Kopie, beim Wiederherstellen zurück.
+- Ein virtuelles Register vom Typ String hält die Adresse eines Deskriptors.
+
+Das passt zu beiden CPUs: Es gibt keine Referenzzähler, und die Bereinigung läuft nur, wenn
+Speicher fehlt.
+
 <a id="d17"></a>
 ## D17 – Interpreter auf der HIR, LIR mit dem ersten Assembler-Backend
 

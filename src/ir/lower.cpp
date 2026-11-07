@@ -1,5 +1,6 @@
 #include "lower.hpp"
 
+#include <functional>
 #include <map>
 #include <string>
 
@@ -27,6 +28,7 @@ public:
     Lowering(const hir::Program& p, Diagnostics& d) : p_(p), diags_(d) {}
 
     lir::Program run() {
+        strings_ = usesStrings();
         lir::Program out;
         out.hir = &p_;
         lir::Function main;
@@ -52,11 +54,13 @@ private:
     std::vector<int> exitLabels_;   // EXIT IF targets
     std::vector<int> saved_;        // variables saved in this routine (restore in reverse order)
     int exitLabel_ = -1;            // end of the routine
-    Reg result_;                    // function result
+    Reg result_;                    // function result (numbers; strings go through rt_str_set_ret)
+    bool strings_ = false;          // the program uses string values: release temporaries (D18)
+    Reg base_;                      // number of string temporaries at the entry of the routine
 
     [[noreturn]] void unsupported(const std::string& what) { throw Unsupported{line_, what}; }
 
-    static VT vt(Type t) { return t == Type::Float ? VT::F64 : VT::I32; }
+    static VT vt(Type t) { return t == Type::Float ? VT::F64 : t == Type::Str ? VT::Str : VT::I32; }
 
     Reg reg(VT t) {
         Reg r;
@@ -138,7 +142,6 @@ private:
     const hir::Var& var(int v) const { return p_.vars[static_cast<std::size_t>(v)]; }
 
     Reg load(int v) {
-        if (var(v).type == Type::Str) unsupported("string variables");
         if (var(v).array) unsupported("arrays");
         Reg r = reg(vt(var(v).type));
         Instr& i = emit(Kind::Load);
@@ -148,9 +151,52 @@ private:
     }
 
     void store(int v, Reg x) {
+        if (var(v).type == Type::Str) {  // assignment of strings: the runtime takes over or copies
+            rtcallVoid("rt_str_assign", {load(v), x});
+            return;
+        }
         Instr& i = emit(Kind::Store);
         i.var = v;
         i.a = x;
+    }
+
+    // Does the program compute with strings (beyond constants printed directly)?
+    bool usesStrings() const {
+        for (const hir::Var& v : p_.vars)
+            if (v.type == Type::Str) return true;
+        for (const hir::Routine& r : p_.routines)
+            if (r.result == Type::Str && r.kind != hir::Routine::Procedure) return true;
+        bool found = false;
+        std::function<void(const hir::Expr&)> ex = [&](const hir::Expr& e) {
+            if (e.type == Type::Str) found = true;
+            for (const auto& a : e.args) ex(*a);
+        };
+        std::function<void(const hir::Block&)> blk = [&](const hir::Block& b) {
+            for (const auto& st : b) {
+                for (const hir::PrintItem& it : st->items)
+                    if (it.expr && it.expr->op != Op::ConstStr) ex(*it.expr);
+                for (const hir::ExprPtr* e : {&st->value, &st->cond, &st->cond2, &st->start, &st->end, &st->usingFmt})
+                    if (*e) ex(**e);
+                for (const auto& a : st->args) ex(*a);
+                for (const auto& br : st->branches) {
+                    ex(*br.cond);
+                    blk(br.body);
+                }
+                for (const auto& c : st->cases) blk(c.body);
+                blk(st->body);
+                blk(st->elseBody);
+            }
+        };
+        blk(p_.main);
+        for (const hir::Routine& r : p_.routines) {
+            blk(r.body);
+            if (r.expr) ex(*r.expr);
+        }
+        return found;
+    }
+
+    void releaseTemps() {
+        if (strings_) rtcallVoid("rt_str_release", {base_});
     }
 
     // ---- routines -------------------------------------------------------------------------------
@@ -161,13 +207,13 @@ private:
         exitLabels_.clear();
         exitLabel_ = label();
         try {
+            if (strings_) base_ = rtcall("rt_str_mark", {}, VT::I32);
             if (r != nullptr) {
-                f.returnsValue = r->kind != hir::Routine::Procedure;
                 f.result = vt(r->result);
+                f.returnsValue = r->kind != hir::Routine::Procedure && f.result != VT::Str;
                 if (f.returnsValue) result_ = reg(f.result);
                 for (const hir::Param& prm : r->params) {
                     if (prm.byRef) unsupported("VAR parameters");
-                    if (var(prm.var).type == Type::Str) unsupported("string parameters");
                     f.params.push_back(reg(vt(var(prm.var).type)));
                 }
                 for (std::size_t k = 0; k < r->params.size(); ++k) {
@@ -175,8 +221,7 @@ private:
                     store(r->params[k].var, f.params[k]);
                 }
                 if (r->kind == hir::Routine::DefFn) {
-                    Reg v = expr(*r->expr);
-                    copyTo(result_, v);
+                    setResult(expr(*r->expr));
                 } else {
                     block(body);
                     if (r->kind == hir::Routine::Function) rtcallVoid("rt_no_return", {});
@@ -188,16 +233,22 @@ private:
             diags_.push_back({u.line, 0, u.what + " not supported by the MC68000 backend yet"});
         }
         place(exitLabel_);
+        releaseTemps();
         for (auto it = saved_.rbegin(); it != saved_.rend(); ++it) emit(Kind::Restore).var = *it;
         Instr& ret = emit(Kind::Return);
         if (f.returnsValue) ret.a = result_;
+    }
+
+    // function result: numbers in the result register, strings through rt_str_set_ret (D18)
+    void setResult(Reg v) {
+        if (v.type == VT::Str) rtcallVoid("rt_str_set_ret", {v});
+        else copyTo(result_, v);
     }
 
     void save(int v) {
         for (int s : saved_)
             if (s == v) return;
         if (var(v).array) unsupported("LOCAL arrays");
-        if (var(v).type == Type::Str) unsupported("string variables");
         saved_.push_back(v);
         emit(Kind::Save).var = v;
     }
@@ -224,6 +275,7 @@ private:
     void statement(const hir::Stmt& s) {
         line_ = s.line;
         emit(Kind::Line).imm = s.line;
+        releaseTemps();
         switch (s.kind) {
             case SKind::Assign:
                 if (s.target->op != Op::Load) unsupported("arrays");
@@ -247,6 +299,7 @@ private:
             case SKind::While: {
                 const int top = label(), end = label();
                 place(top);
+                releaseTemps();
                 branchZ(truth(*s.cond), end);
                 exitLabels_.push_back(end);
                 block(s.body);
@@ -261,6 +314,7 @@ private:
                 exitLabels_.push_back(end);
                 block(s.body);
                 exitLabels_.pop_back();
+                releaseTemps();
                 branchZ(truth(*s.cond), top);
                 place(end);
                 return;
@@ -268,11 +322,13 @@ private:
             case SKind::Do: {
                 const int top = label(), end = label();
                 place(top);
+                releaseTemps();
                 if (s.pre == 1) branchZ(truth(*s.cond), end);
                 if (s.pre == 2) branchNZ(truth(*s.cond), end);
                 exitLabels_.push_back(end);
                 block(s.body);
                 exitLabels_.pop_back();
+                releaseTemps();
                 if (s.post == 1) branchZ(truth(*s.cond2), end);
                 if (s.post == 2) branchNZ(truth(*s.cond2), end);
                 jump(top);
@@ -296,7 +352,7 @@ private:
                 return;
             }
             case SKind::Return:
-                copyTo(result_, expr(*s.value));
+                setResult(expr(*s.value));
                 jump(exitLabel_);
                 return;
             case SKind::Local:
@@ -331,9 +387,8 @@ private:
                 if (it.kind == hir::PrintItem::Value && it.expr->op == Op::ConstStr) {
                     emit(Kind::PrintStr).text = it.expr->sval;
                 } else if (it.kind == hir::PrintItem::Value) {
-                    if (it.expr->type == Type::Str) unsupported("string expressions");
                     Reg v = expr(*it.expr);
-                    rtcallVoid(v.type == VT::F64 ? "rt_print_flt" : "rt_print_int", {v});
+                    rtcallVoid(v.type == VT::F64 ? "rt_print_flt" : v.type == VT::Str ? "rt_print_sdesc" : "rt_print_int", {v});
                 } else {
                     Reg n = rtcall("fp_to_i32", {expr(*it.expr)}, VT::I32);
                     rtcallVoid(it.kind == hir::PrintItem::Tab ? "rt_print_tab" : "rt_print_spc", {n});
@@ -464,7 +519,13 @@ private:
         switch (e.op) {
             case Op::ConstInt: return constI(e.ival);
             case Op::ConstFloat: return constF(e.fval);
-            case Op::ConstStr: unsupported("string expressions");
+            case Op::ConstStr: {
+                Reg r = reg(VT::Str);
+                Instr& i = emit(Kind::ConstS);
+                i.dst = r;
+                i.text = e.sval;
+                return r;
+            }
             case Op::Load: return load(e.var);
             case Op::LoadElem: unsupported("arrays");
             case Op::Conv: return conv(e);
@@ -502,11 +563,14 @@ private:
                 Reg b = expr(*e.args[1]);
                 return cmp("ne", rtcall("fp_approx_eq", {a, b}, VT::I32), constI(0));
             }
-            case Op::Concat: unsupported("string expressions");
+            case Op::Concat: {
+                Reg a = expr(*e.args[0]);
+                Reg b = expr(*e.args[1]);
+                return rtcall("rt_str_concat", {a, b}, VT::Str);
+            }
             case Op::Builtin: return builtin(e);
             case Op::CallFunc: {
                 const hir::Routine& r = p_.routines[static_cast<std::size_t>(e.func)];
-                if (r.result == Type::Str) unsupported("string functions");
                 Instr i;
                 i.kind = Kind::Call;
                 i.routine = e.func;
@@ -541,10 +605,9 @@ private:
     }
 
     Reg fcmp(const char* cond, const hir::Expr& e) {
-        if (e.args[0]->type == Type::Str) unsupported("string comparisons");
         Reg a = expr(*e.args[0]);
         Reg b = expr(*e.args[1]);
-        return cmp(cond, rtcall("fp_cmp", {a, b}, VT::I32), constI(0));
+        return cmp(cond, rtcall(a.type == VT::Str ? "rt_str_cmp" : "fp_cmp", {a, b}, VT::I32), constI(0));
     }
 
     Reg conv(const hir::Expr& e) {
@@ -559,9 +622,9 @@ private:
             case Type::Bool:
                 if (fromF) v = rtcall("fp_cmp", {v, constF(0)}, VT::I32);
                 return cmp("ne", v, constI(0));
-            case Type::Str: break;
+            case Type::Str: return v;
         }
-        unsupported("string conversion");
+        unsupported("conversion");
     }
 
     Reg arg(const hir::Expr& e, std::size_t k) { return expr(*e.args[k]); }
@@ -597,6 +660,79 @@ private:
             return rtcall("fp_to_i32", {rtcall("fp_int", {rtcall("fp_mul", {r, x}, VT::F64)}, VT::F64)}, VT::I32);
         }
         if (n == "RAND") return rtcall("rt_rand", {rtcall("fp_to_i32", {arg(e, 0)}, VT::I32)}, VT::I32);
+        return stringBuiltin(e);
+    }
+
+    Reg toI(Reg v) { return v.type == VT::F64 ? rtcall("fp_to_i32", {v}, VT::I32) : v; }
+
+    // MIN/MAX: the first value, replaced by every later one that is smaller/greater
+    Reg minMax(const hir::Expr& e, bool isMax) {
+        Reg best = arg(e, 0);
+        Reg result = reg(best.type);
+        copyTo(result, best);
+        for (std::size_t k = 1; k < e.args.size(); ++k) {
+            Reg v = arg(e, k);
+            Reg c = rtcall(v.type == VT::Str ? "rt_str_cmp" : "fp_cmp", {v, result}, VT::I32);
+            const int skip = label();
+            branchZ(cmp(isMax ? "gt" : "lt", c, constI(0)), skip);
+            copyTo(result, v);
+            place(skip);
+        }
+        return result;
+    }
+
+    Reg stringBuiltin(const hir::Expr& e) {
+        const std::string& n = e.sval;
+        const std::size_t argc = e.args.size();
+        if (n == "MIN" || n == "MAX") return minMax(e, n == "MAX");
+        if (n == "LEN") return rtcall("rt_str_len", {arg(e, 0)}, VT::I32);
+        if (n == "ASC") return rtcall("rt_str_asc", {arg(e, 0)}, VT::I32);
+        if (n == "#PACK") return rtcall("rt_str_pack", {arg(e, 0)}, VT::I32);
+        if (n == "CHR$") return rtcall("rt_str_chr", {toI(arg(e, 0))}, VT::Str);
+        if (n == "SPACE$") return rtcall("rt_str_space", {toI(arg(e, 0))}, VT::Str);
+        if (n == "LEFT$" || n == "RIGHT$") {
+            Reg s = arg(e, 0);
+            Reg k = argc > 1 ? toI(arg(e, 1)) : constI(1);
+            return rtcall(n == "LEFT$" ? "rt_str_left" : "rt_str_right", {s, k}, VT::Str);
+        }
+        if (n == "MID$") {
+            Reg s = arg(e, 0);
+            Reg from = toI(arg(e, 1));
+            Reg len = argc > 2 ? toI(arg(e, 2)) : constI(32767);
+            return rtcall("rt_str_mid", {s, from, len}, VT::Str);
+        }
+        if (n == "STRING$") {
+            Reg k = toI(arg(e, 0));
+            Reg u = arg(e, 1);
+            if (u.type != VT::Str) u = rtcall("rt_str_chr", {toI(u)}, VT::Str);
+            return rtcall("rt_str_string", {k, u}, VT::Str);
+        }
+        if (n == "INSTR") {
+            if (e.args[0]->type == Type::Str) {
+                Reg a = arg(e, 0);
+                Reg b = arg(e, 1);
+                Reg from = argc > 2 ? toI(arg(e, 2)) : constI(1);
+                return rtcall("rt_str_instr", {a, b, from}, VT::I32);
+            }
+            Reg from = toI(arg(e, 0));
+            Reg a = arg(e, 1);
+            Reg b = arg(e, 2);
+            return rtcall("rt_str_instr", {a, b, from}, VT::I32);
+        }
+        if (n == "UPPER$") return rtcall("rt_str_upper", {arg(e, 0)}, VT::Str);
+        if (n == "TRIM$") return rtcall("rt_str_trim", {arg(e, 0)}, VT::Str);
+        if (n == "STR$" && argc == 1) return rtcall("rt_str_str", {arg(e, 0)}, VT::Str);
+        if (n == "HEX$" || n == "BIN$" || n == "OCT$") {
+            Reg v = toI(arg(e, 0));
+            Reg base = constI(n == "HEX$" ? 16 : n == "BIN$" ? 2 : 8);
+            Reg w = argc > 1 ? toI(arg(e, 1)) : constI(0);
+            return rtcall("rt_str_radix", {v, base, w}, VT::Str);
+        }
+        if ((n == "PRED" || n == "SUCC") && e.type == Type::Str) {
+            Reg c = rtcall("rt_str_asc", {arg(e, 0)}, VT::I32);
+            return rtcall("rt_str_chr", {op(n == "PRED" ? "sub" : "add", c, constI(1))}, VT::Str);
+        }
+        if (n == "PRED" || n == "SUCC") return op(n == "PRED" ? "sub" : "add", toI(arg(e, 0)), constI(1));
         unsupported(n);
     }
 };

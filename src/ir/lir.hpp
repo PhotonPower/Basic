@@ -12,7 +12,7 @@
 
 namespace basic::lir {
 
-enum class VT : std::uint8_t { I32, F64 };  // types of virtual registers
+enum class VT : std::uint8_t { I32, F64, Str };  // Str: address of a string descriptor (D18)
 
 struct Reg {
     int id = -1;
@@ -22,7 +22,8 @@ struct Reg {
 enum class Kind : std::uint8_t {
     ConstI,   // dst = imm
     ConstF,   // dst = fimm
-    Load,     // dst = var (widened: Bool/Byte/Word -> I32)
+    ConstS,   // dst = descriptor of the string constant `text`
+    Load,     // dst = var (widened: Bool/Byte/Word -> I32; Str: the variable's descriptor)
     Store,    // var = a (the value already fits the variable)
     Op,       // dst = a <op> b (I32): add sub and or xor not neg (b unused for not/neg)
     Cmp,      // dst = (a <cond> b) ? -1 : 0, I32 operands

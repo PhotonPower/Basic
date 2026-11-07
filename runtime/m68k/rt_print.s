@@ -1,5 +1,5 @@
 ;! module    rt_print
-;! provides  rt_print_flt rt_print_int rt_print_str rt_print_nl rt_print_comma rt_print_apos rt_print_tab rt_print_spc rt_set_defnum
+;! provides  rt_print_flt rt_print_int rt_print_str rt_print_nl rt_print_comma rt_print_apos rt_print_tab rt_print_spc rt_set_defnum rt_defnum
 ;! requires  plat_putc rt_fmt_flt fp_from_i32
 ;! group     print
 ;! clobbers  D0-D3/A0-A1
@@ -13,7 +13,7 @@ rt_print_int:
 rt_print_flt:
         LINK    A6,#-32
         LEA     -32(A6),A0
-        MOVE.W  rt_print__defnum,D2
+        MOVE.W  rt_defnum,D2
         JSR     rt_fmt_flt
         LEA     -32(A6),A0
         BSR     rt_print_str
@@ -86,7 +86,7 @@ rt_set_defnum:
 .lo:    CMP.L   #13,D0
         BLE     .hi
         MOVEQ   #13,D0
-.hi:    MOVE.W  D0,rt_print__defnum
+.hi:    MOVE.W  D0,rt_defnum
         RTS
 
 rt_print__putc:
@@ -100,5 +100,5 @@ rt_print__putc:
 ;! section data
 rt_print__col:
         DC.W    0
-rt_print__defnum:
+rt_defnum:
         DC.W    13

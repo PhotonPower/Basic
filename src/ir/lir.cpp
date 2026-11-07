@@ -5,7 +5,7 @@ namespace basic::lir {
 namespace {
 
 std::string reg(const Reg& r) {
-    return (r.type == VT::F64 ? "f" : "t") + std::to_string(r.id);
+    return (r.type == VT::F64 ? "f" : r.type == VT::Str ? "s" : "t") + std::to_string(r.id);
 }
 
 std::string hex(std::uint64_t v) {
@@ -28,6 +28,7 @@ std::string dump(const Program& p) {
             switch (i.kind) {
                 case Kind::ConstI: o += "  " + reg(i.dst) + " = " + std::to_string(i.imm) + "\n"; break;
                 case Kind::ConstF: o += "  " + reg(i.dst) + " = " + hex(i.fimm) + "\n"; break;
+                case Kind::ConstS: o += "  " + reg(i.dst) + " = \"" + i.text + "\"\n"; break;
                 case Kind::Load: o += "  " + reg(i.dst) + " = ld " + var(i.var) + "\n"; break;
                 case Kind::Store: o += "  st " + var(i.var) + ", " + reg(i.a) + "\n"; break;
                 case Kind::Op:

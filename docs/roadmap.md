@@ -41,8 +41,9 @@ Stand: ✔ Quelltext-Linker (`src/link`), ✔ Plattform `m68k-test`, ✔ Konform
 Wurzel, Vergleiche, Konvertierungen, Rundungsfunktionen, Zufall), ✔ Zahlenausgabe `rt_fmt_flt`,
 ✔ LIR und Lowering, ✔ 68000-Backend für Zahlen, Kontrollfluss, Prozeduren und `PRINT`
 (`basicc --target m68k-test`); das Golden-Programm `numbers` läuft im Emulator.
-Weiter: Strings (Heap, Speicherbereinigung), Arrays, `VAR`, `DATA`, `ON ERROR`, `VAL`,
-`PRINT USING`, dann das Amiga-Ziel.
+✔ Strings (Heap mit Speicherbereinigung, D18); `control` läuft im Emulator.
+Weiter: Bit- und Ganzzahlfunktionen, `VAR`, Arrays, `DATA` und `VAL`, `ON ERROR`, `PRINT USING`,
+dann das Amiga-Ziel.
 
 - Quelltext-Linker (`src/link`) mit Map-Datei und Label-Prüfung.
 - LIR → 68000-Assembler, `runtime/m68k` (Integer, Strings, Ausgabe, Fließkomma-Kern), `platform/amiga`

@@ -25,7 +25,7 @@ public:
     link::Program run() {
         for (std::size_t v = 0; v < p_.hir->vars.size(); ++v) {
             const hir::Var& var = p_.hir->vars[v];
-            if (var.array || var.type == hir::Type::Str) continue;
+            if (var.array) continue;
             out_.bss += varLabel(static_cast<int>(v)) + ":\n        DS.L    2                       ; " + var.display() + "\n";
         }
         for (const lir::Function& f : p_.functions) function(f);
@@ -45,6 +45,12 @@ private:
 
     static std::string varLabel(int v) { return "v" + std::to_string(v); }
 
+    static std::string bytes(const std::string& t) {
+        std::string b;
+        for (std::size_t k = 0; k < t.size(); ++k) b += (k ? "," : "") + std::to_string(static_cast<unsigned char>(t[k]));
+        return b;
+    }
+
     std::string fname(int routine) const {
         if (routine < 0) return "main";
         std::string n = "u_";
@@ -58,11 +64,14 @@ private:
 
     hir::Type varType(int v) const { return p_.hir->vars[static_cast<std::size_t>(v)].type; }
 
-    // register arguments: an f64 takes a pair (D0:D1 or D2:D3), an integer the next register
+    // register arguments: an f64 takes a pair (D0:D1 or D2:D3), an integer the next data register,
+    // a string descriptor the next of A0, A1
     void loadArgs(const std::vector<Reg>& args) {
-        int next = 0;
+        int next = 0, nextA = 0;
         for (const Reg& a : args) {
-            if (a.type == VT::F64) {
+            if (a.type == VT::Str) {
+                line("MOVE.L  " + slot(a) + ",A" + std::to_string(nextA++));
+            } else if (a.type == VT::F64) {
                 if (next % 2 != 0) ++next;
                 line("MOVE.L  " + slot(a) + ",D" + std::to_string(next));
                 line("MOVE.L  " + slot(a, 4) + ",D" + std::to_string(next + 1));
@@ -76,6 +85,10 @@ private:
 
     void storeResult(const Reg& d) {
         if (d.id < 0) return;
+        if (d.type == VT::Str) {
+            line("MOVE.L  A0," + slot(d));
+            return;
+        }
         line("MOVE.L  D0," + slot(d));
         if (d.type == VT::F64) line("MOVE.L  D1," + slot(d, 4));
     }
@@ -100,9 +113,22 @@ private:
                 line("MOVE.L  #" + hex32(static_cast<std::uint32_t>(i.fimm >> 32)) + "," + slot(i.dst));
                 line("MOVE.L  #" + hex32(static_cast<std::uint32_t>(i.fimm)) + "," + slot(i.dst, 4));
                 return;
+            case Kind::ConstS: {
+                const std::string l = "c" + std::to_string(strings_++);
+                out_.data += l + ":\n        DC.L    " + (i.text.empty() ? std::string("0") : l + "t") + "\n        DC.W    " +
+                             std::to_string(i.text.size()) + ",0\n";
+                if (!i.text.empty()) out_.data += l + "t:\n        DC.B    " + bytes(i.text) + "\n        EVEN\n";
+                line("LEA     " + l + ",A0");
+                line("MOVE.L  A0," + slot(i.dst));
+                return;
+            }
             case Kind::Load: {
                 const std::string v = varLabel(i.var);
                 switch (varType(i.var)) {
+                    case hir::Type::Str:  // the descriptor of the variable
+                        line("LEA     " + v + ",A0");
+                        line("MOVE.L  A0," + slot(i.dst));
+                        return;
                     case hir::Type::Float:
                         line("MOVE.L  " + v + "," + slot(i.dst));
                         line("MOVE.L  " + v + "+4," + slot(i.dst, 4));
@@ -182,6 +208,10 @@ private:
                 }
                 line("JSR     " + fname(i.routine));
                 if (!i.args.empty()) line("LEA     " + std::to_string(8 * i.args.size()) + "(SP),SP");
+                if (i.dst.type == VT::Str && i.dst.id >= 0) {  // string result: a temporary of the caller
+                    uses_.insert("rt_str_take_ret");
+                    line("JSR     rt_str_take_ret");
+                }
                 storeResult(i.dst);
                 return;
             }
@@ -206,23 +236,33 @@ private:
             case Kind::Save:
                 line("MOVE.L  " + varLabel(i.var) + "+4,-(SP)");
                 line("MOVE.L  " + varLabel(i.var) + ",-(SP)");
+                if (varType(i.var) == hir::Type::Str) {  // the saved copy owns the block now
+                    uses_.insert("rt_str_relink");
+                    line("MOVE.L  SP,A0");
+                    line("JSR     rt_str_relink");
+                }
                 return;
             case Kind::Clear:
                 line("CLR.L   " + varLabel(i.var));
                 line("CLR.L   " + varLabel(i.var) + "+4");
                 return;
             case Kind::Restore:
+                if (varType(i.var) == hir::Type::Str) {  // free the current string, take back the saved one
+                    uses_.insert("rt_str_free");
+                    line("LEA     " + varLabel(i.var) + ",A0");
+                    line("JSR     rt_str_free");
+                }
                 line("MOVE.L  (SP)+," + varLabel(i.var));
                 line("MOVE.L  (SP)+," + varLabel(i.var) + "+4");
+                if (varType(i.var) == hir::Type::Str) {
+                    line("LEA     " + varLabel(i.var) + ",A0");
+                    line("JSR     rt_str_relink");
+                }
                 return;
             case Kind::PrintStr: {
                 if (i.text.empty()) return;
                 const std::string l = "s" + std::to_string(strings_++);
-                out_.data += l + ":\n";
-                std::string bytes;
-                for (std::size_t k = 0; k < i.text.size(); ++k)
-                    bytes += (k ? "," : "") + std::to_string(static_cast<unsigned char>(i.text[k]));
-                out_.data += "        DC.B    " + bytes + "\n";
+                out_.data += l + ":\n        DC.B    " + bytes(i.text) + "\n        EVEN\n";  // descriptors follow: even addresses
                 uses_.insert("rt_print_str");
                 line("LEA     " + l + ",A0");
                 line("MOVE.L  #" + std::to_string(i.text.size()) + ",D0");

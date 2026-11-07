@@ -26,6 +26,9 @@ Für die Grundoperationen genügt es, das **exakte** Ergebnis und ein korrektes 
 | `rt_rnd` | xorshift32: `rt_randomize`, `rt_rnd_next`, `rt_rnd`, `rt_rand` |
 | `ix_bn` | Big-Integer fester Länge (Langwörter, höchstwertiges zuerst): Multiplikation mit 16-Bit-Faktoren, Schieben, Vergleich, Subtraktion |
 | `rt_flt_dec`, `rt_fmt_flt` | Dezimalziffern des exakten Binärwerts; `PRINT`/`STR$`-Form mit `DEFNUM` |
+| `rt_str` | String-Heap nach D18: Deskriptoren, Blöcke mit Rückverweis, Zusammenschieben, Zwischenergebnisse, Zuweisung, Rückgabe von String-Funktionen |
+| `rt_strfn` | Verketten, Vergleich, `LEFT$`/`RIGHT$`/`MID$`, `INSTR`, `CHR$`, `ASC`, `LEN`, `SPACE$`, `STRING$`, `UPPER$`, `TRIM$`, `STR$`, `HEX$`/`BIN$`/`OCT$` |
+| `rt_print`, `rt_int`, `rt_for`, `rt_power`, `rt_end` | Ausgabe, Ganzzahlhilfen, `FOR`, Potenz, Programmende |
 
 Offen: `rt_fmt_flt` braucht im Mittel rund 35 000 Befehle je Zahl (Big-Integer-Division über 51
 Quotientenbits). Ein schneller Weg für gewöhnliche Werte kommt später; die Konformanztests sichern

@@ -17,6 +17,8 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
   (`basicc --target m68k-test`), Runtime-Module für `PRINT`, Ganzzahlhilfen, `FOR`, Potenz; die
   Module sind in `basicc` eingebettet. Das erste Golden-Programm (`numbers`) läuft übersetzt im
   Emulator mit derselben Ausgabe wie der Interpreter; `test_m68k_programs` vergleicht.
+- MC68000: Strings nach D18 (Deskriptoren, Rückverweise, Zusammenschieben, Zwischenergebnisse je
+  Anweisung) mit den wichtigsten String-Funktionen; `control` läuft im Emulator.
 - MC68000, erster Teil: Quelltext-Linker `src/link` (Modulköpfe, Hülle über `requires`,
   Label-Hygiene), Plattform `m68k-test`, Konformanz-Harness (Routinen direkt im Emulator gegen
   `runtime/ref`), Fließkomma-Kern in 68000-Assembler: Grundrechenarten, `fp_sqrt`, Vergleiche, `==`,
