@@ -74,8 +74,9 @@ den Werten des Originals.
 ✔ Requester und Menüs Stufe 1 (D26): Textdialoge im Interpreter und C++-Ziel.
 ✔ probe25: `RESERVE`/`FRE` (D27), `MKDIR`/`RMDIR`/`CHDIR`/`FILES`/`DIR`, `SOUND`, `POLYLINE`/`POLYFILL`
 am Original; Polygone in allen Ausführungen, `RESERVE`/`FRE`/`CLEAR`/`SOUND` auch auf dem 68000.
-Weiter: Verzeichnisbefehle auf dem 68000; Requester und Menüs auf den 68000-Zielen (Amiga:
-Intuition); Felder mit mehr als 3 Dimensionen auf dem 68000; `ABSOLUTE` mit dem vollen Speicherabbild nach D6; weitere Optimierungen (Variablen in Registern innerhalb von Schleifen ohne Aufrufe, Fließkomma inline).
+✔ Requester und Menüs auf dem 68000 (D26 Stufe 2a/2b): m68k-test über Ports, Amiga über Intuition
+(Menüauswahl mit der Maus noch ungeprüft).
+Weiter: Verzeichnisbefehle auf dem 68000; Felder mit mehr als 3 Dimensionen auf dem 68000; `ABSOLUTE` mit dem vollen Speicherabbild nach D6; weitere Optimierungen (Variablen in Registern innerhalb von Schleifen ohne Aufrufe, Fließkomma inline).
 
 - Quelltext-Linker (`src/link`) mit Map-Datei und Label-Prüfung.
 - LIR → 68000-Assembler, `runtime/m68k` (Integer, Strings, Ausgabe, Fließkomma-Kern), `platform/amiga`

@@ -465,7 +465,23 @@ mit derselben Ausgabe. `ON MENU` liefert die Nummer der Prozedur von `ON MENU GO
 ruft sie direkt auf (so sieht die Registeroptimierung den Aufruf); am Ende der Eingabe endet das
 Programm über `rt_end`.
 
-Stufe 2b: auf dem Amiga echte Requester und Intuition-Menüs in `platform/amiga/plat_gui.s`.
+Amiga (Stufe 2b): `platform/amiga/plat_gui.s` öffnet auf dem Screen des aktuellen Fensters eigene
+Fenster:
+
+- `ALERT`: Textzeilen zentriert, bis zu 3 Knöpfe (`AutoRequest` kann nur 2), Return wählt den
+  Vorgabeknopf; das Symbol wird noch nicht gezeigt.
+- `FILESELECT`/`FORM INPUT`: Titelzeile, String-Gadget mit dem Anfangstext (Cursor dahinter, höchstens
+  n Zeichen), Knöpfe OK und Cancel. `FILESELECT` zeigt noch kein Verzeichnis.
+- `MENU m$()`: eine Intuition-Menüleiste am aktuellen Fenster (Einträge mit Platz für das Häkchen);
+  `MENU x,y` setzt die Flags des MenuItem (16 ITEMENABLED, 64 HIGHCOMP, 256 CHECKED; die Werte 80
+  und 256 aus Programmen sind genau diese). `ON MENU` holt eine Nachricht (MENUPICK) oder wartet ein
+  Bild (`WaitTOF`). Am Programmende wird die Leiste entfernt (`plat_exit_gui`).
+
+Geprüft unter Kickstart 1.2 im FS-UAE, mit der Tastatur bedient: `ALERT` mit 3 Knöpfen und Return,
+`FILESELECT` und `FORM INPUT` mit Eingabe und Längengrenze geben die erwarteten Werte; Menüleiste
+anlegen, `MENU x,y`, `MENU x,s$`, `ON MENU` und `MENU KILL` laufen ohne Fehler. Die Auswahl im Menü
+mit der Maus konnte ich nicht automatisch bedienen (FS-UAE nimmt künstliche Mausereignisse nicht an);
+sie ist noch ungeprüft.
 
 <a id="d27"></a>
 ## D27 – `RESERVE` und `FRE` ohne Speicherbuchhaltung

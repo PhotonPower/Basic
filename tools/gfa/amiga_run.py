@@ -55,6 +55,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--timeout", type=float, default=300.0)
     p.add_argument("--quiet", type=float, default=6.0, help="seconds without change that count as finished")
     p.add_argument("--out-dir", type=Path, help="copy the results (<name>.txt) here")
+    p.add_argument("--after", action="append", default=[], metavar="STEP",
+                   help="key step after the start of each program (as in keys.json, e.g. wait:3 type:abc "
+                        "key:return), to answer requesters")
     args = p.parse_args(argv)
 
     names = [g.amiga_name(prog.name) for prog in args.programs]
@@ -74,7 +77,7 @@ def main(argv: list[str] | None = None) -> int:
     # typed ahead would go there instead of to the shell
     ok = True
     for name, res in zip(names, results):
-        steps = [f"type:dh0:{name} >dh0:{name}.txt", "key:return", "wait:0.5"]
+        steps = [f"type:dh0:{name} >dh0:{name}.txt", "key:return", "wait:0.5"] + args.after
         run = subprocess.run(["osascript", "-"], input=g.build_script(steps, args.amiga_layout, args.app, {}),
                              text=True, capture_output=True)
         if run.returncode != 0:

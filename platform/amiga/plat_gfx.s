@@ -1,5 +1,5 @@
 ;! module    plat_gfx
-;! provides  plat_gfx plat_gfx_point
+;! provides  plat_gfx plat_gfx_point plat_gfx_window
 ;! requires  plat_exit_gfx
 ;! group     graphics
 ;! clobbers  D0-D3/A0-A1
@@ -95,6 +95,23 @@ plat_gfx_point:
         MOVE.L  D5,D1
         JSR     plat_gfx__ReadPixel(A6)
 .out:   MOVEM.L (SP)+,D2-D7/A2-A6
+        RTS
+
+; -> D0 = the current window (screen 0 and window 0 are opened first; 0 if that failed), D1 = base of
+; intuition.library, D2 = base of graphics.library (for plat_gui)
+plat_gfx_window:
+        MOVEM.L D3-D7/A2-A6,-(SP)
+        BSR     plat_gfx__init
+        MOVEQ   #0,D0
+        TST.L   plat_gfx__gb
+        BEQ     .out
+        MOVE.L  plat_gfx__cur,D0
+        LSL.L   #2,D0
+        LEA     plat_gfx__win,A1
+        MOVE.L  0(A1,D0.L),D0
+        MOVE.L  plat_gfx__ib,D1
+        MOVE.L  plat_gfx__gb,D2
+.out:   MOVEM.L (SP)+,D3-D7/A2-A6
         RTS
 
 plat_gfx__table:

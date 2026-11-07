@@ -1,11 +1,16 @@
 ;! module    plat_exit
-;! provides  plat_exit plat_exit_hook plat_exit_gfx
+;! provides  plat_exit plat_exit_hook plat_exit_gfx plat_exit_gui
 ;! requires  plat_flush plat_free_all plat_dosbase plat_sp plat_rc
 ;! group     core
 ;! doc       amiga: ends the program from any depth: flush, free memory, close dos.library, return to DOS.
 
 plat_exit:
-        TST.L   plat_exit_gfx           ; windows and screens of plat_gfx
+        TST.L   plat_exit_gui           ; the menu strip of plat_gui (before its window closes)
+        BEQ     .nogui
+        MOVE.L  plat_exit_gui,A0
+        CLR.L   plat_exit_gui
+        JSR     (A0)
+.nogui: TST.L   plat_exit_gfx           ; windows and screens of plat_gfx
         BEQ     .nogfx
         MOVE.L  plat_exit_gfx,A0
         CLR.L   plat_exit_gfx
@@ -30,4 +35,6 @@ plat_exit:
 plat_exit_hook:
         DC.L    0
 plat_exit_gfx:
+        DC.L    0
+plat_exit_gui:
         DC.L    0

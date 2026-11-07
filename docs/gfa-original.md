@@ -81,6 +81,10 @@ Fenster und bekäme sonst die vorab getippten Befehle. Wer ein Bild prüfen will
 am Ende mit `PAUSE` warten (die Ausgabe erscheint erst am Programmende in der Datei) und macht das
 Bildschirmfoto in dieser Zeit.
 
+`amiga_run.py --after STEP` schickt nach dem Start jedes Programms Tastenschritte (wie `gfa_run.py`),
+um Requester zu beantworten. Künstliche Mausereignisse nimmt FS-UAE nicht an; Menüs lassen sich so
+nicht bedienen.
+
 ## Tokenisierte Programme in Listings umwandeln
 
 `tools/gfa/gfa2lst.py prog.gfa … --out-dir <verzeichnis>` lädt `.GFA`-Dateien (Kennung „GFA-AMIGAB“)
