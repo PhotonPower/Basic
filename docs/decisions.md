@@ -157,7 +157,16 @@ Das Original rechnet `+ - *` mit Ganzzahlen ohne 32-Bit-Überlauf (probe2 T1–T
 prüft den Bereich. Die HIR typisiert diese Operationen deshalb als Float. Das ist bitgenau: Summe und
 Differenz zweier 32-Bit-Zahlen sind in binary64 exakt, ein Produkt ist das korrekt gerundete exakte
 Produkt. `DIV`, `MOD`, `\` und die logischen Operatoren arbeiten auf 32-Bit-Ganzzahlen (Operanden
-werden abgeschnitten). Schnelle Ganzzahl-Befehle sind eine spätere Optimierung über Wertebereiche.
+werden abgeschnitten).
+
+Nachtrag (Optimierung der Assembler-Ziele, gleiche Ergebnisse): Geht `a+b`, `a-b` oder `a*b` zweier
+Ganzzahlen (oder ganzzahliger Konstanten) direkt in eine Ganzzahl (`%`, `&`, `|`, `TOINT`), rechnet
+das Lowering mit 32 Bit und Überlaufprüfung: Das exakte Ergebnis passt in 32 Bit oder die Umwandlung
+schlägt fehl, mit dem Fehler der Zielbreite (2, 4, 3). Vergleiche zweier Ganzzahlen sind `CMP`.
+`FOR` mit `%`-Variable, ganzzahligem Endwert und konstanter ganzzahliger Schrittweite zählt in 32 Bit;
+ein Überlauf heißt, dass der exakte Wert hinter dem Ende liegt (die Variable behält den umgebrochenen
+Wert). Ketten wie `a+b-c` bleiben beim Float-Weg, weil ein Zwischenergebnis überlaufen könnte.
+`tests/programs/intfast.lst` prüft die Grenzen gegen den Interpreter, der immer den Float-Weg geht.
 
 <a id="d15"></a>
 ## D15 – Dynamische Bindung: ein Speicherplatz je Variable

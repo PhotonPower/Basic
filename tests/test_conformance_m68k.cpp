@@ -681,6 +681,18 @@ void bitsTest(Runtime& rt, int cases) {
         check("CARD", rt.callI("rt_card", x), x & 0xFFFF, x, 0, 32);
         check("BYTE", rt.callI("rt_byte", x), x & 0xFF, x, 0, 32);
         check("MUL", rt.callI("rt_imul", x, n), x * n, x, n, 32);
+        // overflow-checked add/sub/mul (integer fast paths): result or error 2 (D0 = 0)
+        for (int op = 0; op < 3; ++op) {
+            const std::int64_t xa = static_cast<std::int32_t>(x), xb = static_cast<std::int32_t>(n);
+            const std::int64_t exact = op == 0 ? xa + xb : op == 1 ? xa - xb : xa * xb;
+            const bool fits = exact >= INT32_MIN && exact <= INT32_MAX;
+            rt.rt().write32(kErrorCell, 0xFFFFFFFF);
+            const char* name = op == 0 ? "rt_iadd_chk" : op == 1 ? "rt_isub_chk" : "rt_imul_chk";
+            const std::uint32_t got = rt.callI(name, x, n, 2);
+            const std::uint32_t err = rt.rt().read32(kErrorCell);
+            check(name, got, fits ? static_cast<std::uint32_t>(exact) : 0, x, n, 32);
+            check(name, err, fits ? 0xFFFFFFFFu : 2u, x, n, 32);
+        }
     };
     for (std::uint32_t x : {0u, 1u, 0x80u, 0x81u, 0x8000u, 0xFFFFu, 0x80000000u, 0xFFFFFFFFu, 0x12345678u})
         for (std::uint32_t n : {0u, 1u, 7u, 8u, 9u, 15u, 16u, 17u, 31u, 32u, 33u, 0xFFFFFFFFu, 0x80000000u}) one(x, n);

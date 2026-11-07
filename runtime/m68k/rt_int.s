@@ -1,5 +1,5 @@
 ;! module    rt_int
-;! provides  rt_idiv rt_imod rt_imul rt_conv_word rt_conv_byte rt_wrap_word rt_wrap_byte
+;! provides  rt_idiv rt_imod rt_imul rt_conv_word rt_conv_byte rt_wrap_word rt_wrap_byte rt_iadd_chk rt_isub_chk rt_imul_chk
 ;! requires  rt_error
 ;! group     core
 ;! clobbers  D0-D3/A0-A1
@@ -71,6 +71,71 @@ rt_imul:
         CLR.W   D0
         ADD.L   D2,D0
         RTS
+
+; D0 = a, D1 = b, D2 = error number -> D0 = a + b, a - b, a * b; outside 32 bits: the error. The
+; same as computing in float and converting (D16): the exact result fits 32 bits or not.
+rt_iadd_chk:
+        ADD.L   D1,D0
+        BVS     rt_int__ovf
+        RTS
+
+rt_isub_chk:
+        SUB.L   D1,D0
+        BVS     rt_int__ovf
+        RTS
+
+rt_int__ovf:
+        MOVE.L  D2,D0
+        JSR     rt_error
+        MOVEQ   #0,D0
+        RTS
+
+; signed 32 x 32 with overflow: |a| * |b| from 16-bit products, then the sign
+rt_imul_chk:
+        MOVEM.L D3-D5,-(SP)
+        MOVE.L  D0,D5
+        EOR.L   D1,D5                   ; D5 bit 31 = sign of the result
+        TST.L   D0
+        BPL     .a
+        NEG.L   D0
+.a:     TST.L   D1
+        BPL     .b
+        NEG.L   D1
+.b:     MOVE.L  D0,D3                   ; both high words set: too large
+        SWAP    D3
+        MOVE.L  D1,D4
+        SWAP    D4
+        TST.W   D3
+        BEQ     .one
+        TST.W   D4
+        BNE     .ovf
+        EXG     D0,D1                   ; make D0 the one with the high word set... (D1 = it now)
+        EXG     D3,D4
+.one:   MOVE.L  D0,D3                   ; D0 = x (high word 0), D1 = y: x*y = x*yl + (x*yh << 16)
+        MULU    D1,D3                   ; x * yl
+        MOVE.L  D1,D4
+        SWAP    D4
+        MULU    D0,D4                   ; x * yh
+        CMP.L   #$FFFF,D4
+        BHI     .ovf
+        SWAP    D4
+        CLR.W   D4
+        ADD.L   D4,D3
+        BCS     .ovf
+        TST.L   D5                      ; sign: positive results up to 2^31-1, negative down to -2^31
+        BMI     .neg
+        TST.L   D3
+        BMI     .ovf
+        MOVE.L  D3,D0
+        BRA     .out
+.neg:   CMP.L   #$80000000,D3
+        BHI     .ovf
+        NEG.L   D3
+        MOVE.L  D3,D0
+.out:   MOVEM.L (SP)+,D3-D5
+        RTS
+.ovf:   MOVEM.L (SP)+,D3-D5
+        BRA     rt_int__ovf
 
 rt_conv_word:
         CMP.L   #-32768,D0

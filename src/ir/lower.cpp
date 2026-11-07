@@ -1,5 +1,7 @@
 #include "lower.hpp"
 
+#include <cmath>
+#include <cstring>
 #include <functional>
 #include <map>
 #include <string>
@@ -623,6 +625,8 @@ private:
         if (s.target->op != Op::Load) unsupported("arrays");
         const int v = s.target->var;
         const Type ty = var(v).type;
+        if (ty == Type::Int && !onError_ && isIntLeaf(*s.end) && isIntLeaf(*s.step) && s.step->op != Op::Conv)
+            return intForLoop(s, v);
         // with ON ERROR: an error in the FOR line and RESUME NEXT run the body once, NEXT increases
         // the variable (by 1 if the step is unknown) and leaves the loop (D19, probe11 T4)
         Reg failed, step;
@@ -662,6 +666,32 @@ private:
         else store(v, rtcall(ty == Type::Word ? "rt_for_wrap_word" : ty == Type::Byte ? "rt_for_wrap_byte" : ty == Type::Bool ? "rt_for_wrap_bool" : "rt_for_wrap_int", {next}, VT::I32));
         if (onError_) branchNZ(failed, exit);
         branchNZ(cmp("ne", rtcall("fp_cmp", {next, end}, VT::I32), bad), top);
+        place(exit);
+    }
+
+    // FOR i% with an integer end and a constant integer step: the value plus the step exactly in 32
+    // bits; an overflow means the exact value lies beyond the end (the loop ends, the variable keeps
+    // the wrapped value, as rt_for_wrap_int). The same results as the float loop above.
+    void intForLoop(const hir::Stmt& s, int v) {
+        double d = 0;
+        if (s.step->op == Op::ConstFloat) std::memcpy(&d, &s.step->fval, sizeof d);
+        else d = s.step->ival;
+        const bool down = d < 0;
+        store(v, expr(*s.start));
+        Reg end = intLeaf(*s.end);
+        Reg step = intLeaf(*s.step);
+        const int top = label(), exit = label();
+        branchZ(cmp(down ? "ge" : "le", load(v), end), exit);
+        place(top);
+        exitLabels_.push_back(exit);
+        block(s.body);
+        exitLabels_.pop_back();
+        reenter();
+        Reg now = load(v);
+        Reg next = op("add", now, step);
+        store(v, next);
+        branchNZ(cmp(down ? "gt" : "lt", next, now), exit);  // overflow: beyond the end
+        branchNZ(cmp(down ? "ge" : "le", next, end), top);
         place(exit);
     }
 
@@ -926,7 +956,10 @@ private:
             case Op::Load: return load(e.var);
             case Op::LoadElem: return loadElem(e);
             case Op::Conv: return conv(e);
-            case Op::ToInt: return rtcall("fp_to_i32", {expr(*e.args[0])}, VT::I32);
+            case Op::ToInt:
+                if (intArith(*e.args[0])) return intArithCall(*e.args[0], 2);
+                if (isIntLeaf(*e.args[0])) return intLeaf(*e.args[0]);
+                return rtcall("fp_to_i32", {expr(*e.args[0])}, VT::I32);
             case Op::Neg: return rtcall("fp_neg", {expr(*e.args[0])}, VT::F64);
             case Op::Add: return fbin("fp_add", e);
             case Op::Sub: return fbin("fp_sub", e);
@@ -999,12 +1032,61 @@ private:
     }
 
     Reg fcmp(const char* cond, const hir::Expr& e) {
+        if (isIntLeaf(*e.args[0]) && isIntLeaf(*e.args[1])) {  // two integers: compare directly
+            Reg a = intLeaf(*e.args[0]);
+            return cmp(cond, a, intLeaf(*e.args[1]));
+        }
         Reg a = expr(*e.args[0]);
         Reg b = expr(*e.args[1]);
         return cmp(cond, rtcall(a.type == VT::Str ? "rt_str_cmp" : "fp_cmp", {a, b}, VT::I32), constI(0));
     }
 
-    Reg conv(const hir::Expr& e) { return convF(expr(*e.args[0]), e.type); }
+    // ---- integer fast paths (exact, D16) --------------------------------------------------------
+    // An operand that is an integer value: an integer expression converted to float, or an integral
+    // float constant in the 32-bit range.
+    static bool isIntLeaf(const hir::Expr& e) {
+        if (e.op == Op::Conv && e.type == Type::Float && hir::isInteger(e.args[0]->type)) return true;
+        if (e.op == Op::ConstInt) return true;
+        if (e.op == Op::ConstFloat) {
+            double d = 0;
+            std::memcpy(&d, &e.fval, sizeof d);
+            return d == std::floor(d) && d >= -2147483648.0 && d <= 2147483647.0;
+        }
+        return false;
+    }
+
+    Reg intLeaf(const hir::Expr& e) {
+        if (e.op == Op::Conv) return expr(*e.args[0]);
+        if (e.op == Op::ConstInt) return constI(e.ival);
+        double d = 0;
+        std::memcpy(&d, &e.fval, sizeof d);
+        return constI(static_cast<std::int32_t>(d));
+    }
+
+    // a+b, a-b, a*b of two integer operands whose result goes into an integer: in float the exact
+    // result fits 32 bits or the conversion fails; the same as a 32-bit operation with overflow
+    // check (error of the target width). Not for chains (an intermediate result could overflow).
+    bool intArith(const hir::Expr& x) const {
+        return (x.op == Op::Add || x.op == Op::Sub || x.op == Op::Mul) && isIntLeaf(*x.args[0]) && isIntLeaf(*x.args[1]);
+    }
+
+    Reg intArithCall(const hir::Expr& x, int error) {
+        Reg a = intLeaf(*x.args[0]);
+        Reg b = intLeaf(*x.args[1]);
+        const char* fn = x.op == Op::Add ? "rt_iadd_chk" : x.op == Op::Sub ? "rt_isub_chk" : "rt_imul_chk";
+        return rtcall(fn, {a, b, constI(error)}, VT::I32);
+    }
+
+    Reg conv(const hir::Expr& e) {
+        const hir::Expr& x = *e.args[0];
+        if ((e.type == Type::Int || e.type == Type::Word || e.type == Type::Byte) && intArith(x)) {
+            Reg r = intArithCall(x, e.type == Type::Int ? 2 : e.type == Type::Word ? 4 : 3);
+            if (e.type == Type::Word) return rtcall("rt_conv_word", {r}, VT::I32);
+            if (e.type == Type::Byte) return rtcall("rt_conv_byte", {r}, VT::I32);
+            return r;
+        }
+        return convF(expr(x), e.type);
+    }
 
     // conversion with the semantics of an assignment (truncation, range errors 2/3/4)
     Reg convF(Reg v, Type to) {

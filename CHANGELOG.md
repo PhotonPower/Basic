@@ -40,6 +40,10 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 - `RESUME` setzt `ERR` auf 0 (probe12 T1); damit ist `errors2` am Original gleich.
 - `gfa_run.py`: Startmenü der Diskette nach einem Kaltstart (`boot` in `keys.json`), längere
   Wartezeiten für den Merge-Dialog und das Einlesen.
+- MC68000: Ganzzahl-Abkürzungen (D16, Nachtrag): `a%+b%`, `-`, `*` mit Überlaufprüfung statt über
+  Float, Vergleiche zweier Ganzzahlen als `CMP`, `FOR` mit `%`-Variable in 32 Bit. Eine einfache
+  Zählschleife braucht 23-mal weniger Befehle, die Testprogramme bis zu 3-mal weniger. Testprogramm
+  `intfast` prüft die Überlaufgrenzen gegen den Interpreter.
 - Wahlfreie Dateien nach dem Original (probe16): `OPEN "R"`/`"U"`, `FIELD … AS`, `GET #`, `PUT #`,
   `RECORD`, `SEEK`, `RELSEEK`, `LOC`, `INP(#n)`, `OUT #n`, `NAME … AS`; Interpreter, C++-Ziel und
   68000 (Kanäle lesen und schreiben, Plattform: Positionieren, Umbenennen); unter Kickstart 1.2 im

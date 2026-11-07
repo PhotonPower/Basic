@@ -1,0 +1,81 @@
+' test: groups core print
+' Ganzzahl-Abkuerzungen der Assembler-Ziele (D16): a%+b%, a%-b%, a%*b% in Ganzzahlen, Vergleiche,
+' FOR mit %-Variable. Die Ergebnisse und Fehler muessen dieselben sein wie mit Float gerechnet.
+ON ERROR GOSUB fehler
+a%=2147483647
+b%=1
+m%=-2147483648
+c%=a%+b%
+PRINT "1 ";c%
+c%=a%-(-1)
+PRINT "2 ";c%
+c%=m%-1
+PRINT "3 ";c%
+c%=a%+m%
+PRINT "4 ";c%
+x=a%+b%
+PRINT "5 ";x;" ";a%*2;" ";m%-1
+w&=32767
+w&=w&+1
+PRINT "6 ";w&
+w&=a%+a%
+PRINT "7 ";w&
+w&=-32768
+w&=w&-1
+PRINT "8 ";w&;" ";
+w&=-32767
+w&=w&-1
+PRINT w&
+y|=255
+y|=y|+1
+PRINT "9 ";y|
+y|=a%*a%
+PRINT "10 ";y|
+y|=15*17
+PRINT "11 ";y|
+c%=46341*46341
+PRINT "12 ";c%
+c%=46340*46340
+PRINT "13 ";c%
+c%=-65536*32768
+PRINT "14 ";c%
+c%=65536*32768
+PRINT "15 ";c%
+c%=m%*(-1)
+PRINT "16 ";c%
+c%=m%*1
+PRINT "17 ";c%;" ";m%*0;" ";-7*6
+n%=0
+FOR i%=2147483640 TO 2147483647 STEP 3
+  INC n%
+NEXT i%
+PRINT "18 ";n%;" ";i%
+n%=0
+FOR i%=-2147483643 TO -2147483648 STEP -2
+  INC n%
+NEXT i%
+PRINT "19 ";n%;" ";i%
+n%=0
+FOR i%=5 TO 1
+  INC n%
+NEXT i%
+PRINT "20 ";n%;" ";i%
+n%=0
+FOR i%=10 DOWNTO 1
+  n%=n%+i%
+NEXT i%
+PRINT "21 ";n%;" ";i%
+e%=7
+n%=0
+FOR i%=1 TO e% STEP 2
+  INC n%
+  e%=100
+NEXT i%
+PRINT "22 ";n%;" ";i%
+PRINT "23 ";a%<m%;" ";m%<a%;" ";a%=a%;" ";-1<=0;" ";b%>=2;" ";b%<>1
+END
+PROCEDURE fehler
+  PRINT "Fehler ";ERR
+  ON ERROR GOSUB fehler
+  RESUME NEXT
+RETURN

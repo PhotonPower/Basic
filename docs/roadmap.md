@@ -56,7 +56,8 @@ laufen in der OS-Emulation (`test_m68k_programs`) und unter Kickstart 1.2 im FS-
 ✔ Sequentielle Dateien (probe14) in allen Ausführungen; auf dem Amiga im FS-UAE geprüft.
 ✔ Tastatureingabe (D20); offen am Original: Verhalten bei ungültiger Zahl und Folgezeilen.
 ✔ Wahlfreie Dateien (probe16) in allen Ausführungen; auf dem Amiga im FS-UAE geprüft.
-Weiter: Registerzuteilung im Backend; Gruppen `memory` (`PEEK`/`POKE`, `VARPTR`), `matrix`.
+✔ Ganzzahl-Abkürzungen im Lowering (D16, Nachtrag).
+Weiter: Werte in Prozessorregistern; Gruppen `memory` (`PEEK`/`POKE`, `VARPTR`), `matrix`.
 
 - Quelltext-Linker (`src/link`) mit Map-Datei und Label-Prüfung.
 - LIR → 68000-Assembler, `runtime/m68k` (Integer, Strings, Ausgabe, Fließkomma-Kern), `platform/amiga`
