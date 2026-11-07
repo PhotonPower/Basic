@@ -41,6 +41,12 @@ public:
         if (uses_.count("rt_data_str") + uses_.count("rt_data_num") + uses_.count("rt_data_restore") + uses_.count("rt_mat_read") != 0)
             dataTable();
         if (p_.onError) errorTables();
+        // the labels of RESUME label; RESUME may stand in a program without ON ERROR (an error routine
+        // whose ON ERROR GOSUB is commented out): rt_resume needs the table anyway
+        if (uses_.count("rt_resume") != 0) {
+            out_.bss += "prg_rlab:\n        DS.L    " + std::to_string(2 * std::max<std::size_t>(1, p_.hir->labels.size())) + "\n";
+            out_.provides.push_back("prg_rlab");
+        }
         if (uses_.count("rt_type") + uses_.count("rt_swapptr") != 0) typeTable();
         out_.uses.assign(uses_.begin(), uses_.end());
         return out_;
@@ -148,10 +154,6 @@ private:
                 uses_.insert("rt_str_free");
                 uses_.insert("rt_str_relink");
             }
-        }
-        if (uses_.count("rt_resume") != 0) {
-            out_.bss += "prg_rlab:\n        DS.L    " + std::to_string(2 * std::max<std::size_t>(1, p_.hir->labels.size())) + "\n";
-            out_.provides.push_back("prg_rlab");
         }
     }
 

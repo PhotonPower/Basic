@@ -1,0 +1,10 @@
+' test: groups core print
+' RESUME in einer Prozedur ohne ON ERROR im Programm (wie in echten Listings mit auskommentiertem
+' ON ERROR GOSUB): muss sich uebersetzen und linken lassen.
+PRINT "start"
+PRINT "ende"
+PROCEDURE fehler
+  IF ERR=0
+    RESUME NEXT
+  ENDIF
+RETURN

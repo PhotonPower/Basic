@@ -40,6 +40,8 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 - `RESUME` setzt `ERR` auf 0 (probe12 T1); damit ist `errors2` am Original gleich.
 - `gfa_run.py`: Startmenü der Diskette nach einem Kaltstart (`boot` in `keys.json`), längere
   Wartezeiten für den Merge-Dialog und das Einlesen.
+- Fehler behoben: `RESUME` in einem Programm ohne `ON ERROR` (auskommentiertes `ON ERROR GOSUB`)
+  ließ sich auf dem 68000 nicht linken (`prg_rlab` fehlte). Testprogramm `resumenoerr`.
 - Requester und Menüs auf dem Amiga (D26 Stufe 2b): `plat_gui` mit Intuition-Fenstern für `ALERT`
   (bis 3 Knöpfe), `FILESELECT`, `FORM INPUT` und einer Menüleiste für `MENU`/`ON MENU`; unter
   Kickstart 1.2 mit der Tastatur geprüft. `amiga_run.py --after` für Tastenschritte.
