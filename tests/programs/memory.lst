@@ -1,5 +1,5 @@
 ' test: groups core print memory
-' Gruppe memory, Stufe 1 (D21): PEEK/POKE auf Variablen, Strings, Arrays und MALLOC-Bloecke, BMOVE.
+' Gruppe memory (D21): PEEK/POKE, BYTE{} ... CHAR{} auf Variablen, Strings, Arrays und MALLOC-Bloecke, BMOVE.
 ' Die Adressen selbst sind nicht festgelegt, nur die Bytes (Amiga-Layout, hoechstwertiges Byte zuerst).
 a%=258
 w&=-2
@@ -31,6 +31,26 @@ h&(1)=-3
 PRINT DPEEK(V:h&(1));" ";V:h&(2)-V:h&(1)
 @lokal
 PRINT MALLOC(0);" ";MFREE(12345678,4)
+n%=MALLOC(32)
+BYTE{n%}=300
+PRINT BYTE{n%};" ";PEEK(n%)
+INT{n%}=-2
+PRINT INT{n%};" ";CARD{n%};" ";WORD{n%}
+LONG{n%+4}=-123456
+PRINT {n%+4};" ";LONG{n%+4};" ";HEX$(CARD{n%+4})
+FLOAT{n%}=0.1
+PRINT FLOAT{n%};" ";HEX$(LONG{n%});" ";HEX$(LONG{n%+4})
+DOUBLE{n%+8}=1.5
+PRINT DOUBLE{n%+8};" ";HEX$(LONG{n%+8})
+SINGLE{n%+16}=-0.1
+PRINT SINGLE{n%+16};" ";HEX$(LONG{n%+16})
+CHAR{n%+20}="Amiga"
+PRINT CHAR{n%+20};" ";PEEK(n%+25);" ";LEN(CHAR{n%+22})
+x=2.5
+PRINT DOUBLE{V:x};" ";FLOAT{V:x}
+a$="GFA"
+PRINT CHAR{V:a$}
+~MFREE(n%,32)
 END
 PROCEDURE lokal
   LOCAL l%,z

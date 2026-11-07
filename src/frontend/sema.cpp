@@ -746,6 +746,10 @@ private:
         } else if (n == "POKE" || n == "DPOKE" || n == "LPOKE" || n == "BMOVE") {  // address, value / from, to, count
             argc(n == "BMOVE" ? 3 : 2, n == "BMOVE" ? 3 : 2);
             for (const auto& x : s.args) h->args.push_back(convertTo(expr(*x), Type::Float, x->pos));
+        } else if (n.size() > 2 && n.substr(n.size() - 2) == "{}") {  // BYTE{a}=v: address, value
+            argc(2, 2);
+            h->args.push_back(convertTo(expr(*s.args[0]), Type::Float, s.args[0]->pos));
+            h->args.push_back(convertTo(expr(*s.args[1]), n == "CHAR{}" ? Type::Str : Type::Float, s.args[1]->pos));
         } else if (n == "NAME" || n == "RENAME") {  // NAME old$ AS new$
             argc(2, 2);
             h->name = "NAME";

@@ -204,6 +204,13 @@ public:
     std::int32_t malloc(f64 size, f64 flags);       // MALLOC: cleared bytes, 0 if size <= 0
     std::int32_t mfree(f64 address, f64 size);     // 0, or -1 if it is no MALLOC block
     void bmove(f64 from, f64 to, f64 count);        // overlapping allowed
+    // BYTE{} CARD{} INT{} LONG{} (kind B C I L), FLOAT{} SINGLE{} DOUBLE{} (F S D), CHAR{}
+    std::int32_t get(f64 address, char kind);
+    void set(f64 address, char kind, f64 value);
+    f64 getf(f64 address, char kind);
+    void setf(f64 address, char kind, f64 value);
+    std::string getChars(f64 address);              // up to the zero byte
+    void setChars(f64 address, const std::string& s);  // with a zero byte at the end
 
 private:
     struct Window {

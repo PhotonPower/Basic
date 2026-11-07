@@ -41,7 +41,8 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 - `gfa_run.py`: Startmenü der Diskette nach einem Kaltstart (`boot` in `keys.json`), längere
   Wartezeiten für den Merge-Dialog und das Einlesen.
 - Gruppe `memory`, Stufe 1 (D21): `VARPTR`/`V:`, `PEEK`/`DPEEK`/`LPEEK`, `POKE`/`DPOKE`/`LPOKE`,
-  `MALLOC`/`MFREE`, `BMOVE` in allen Ausführungen; Interpreter und C++-Ziel mit Fenstern in einem
+  `MALLOC`/`MFREE`, `BMOVE`, `BYTE{}` `CARD{}` `INT{}`/`WORD{}` `LONG{}`/`{}` `FLOAT{}` `SINGLE{}`
+  `DOUBLE{}` `CHAR{}` (lesen und schreiben) in allen Ausführungen; Interpreter und C++-Ziel mit Fenstern in einem
   nachgebildeten Adressraum (Amiga-Layout), 68000 auf echtem Speicher. Testprogramm `memory`.
 - `MKI$`, `MKL$`, `MKS$`, `MKD$`, `CVI`, `CVL`, `CVS`, `CVD` (`runtime/ref/rt_mk.c`, GFA-8-Byte-Format
   mit den Bytes des Originals, IEEE single nach D11) in allen Ausführungen; 68000 im Konformanztest

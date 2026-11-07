@@ -262,5 +262,12 @@ kein `MALLOC`-Block ist, -1. Auf den 68000-Zielen ist es echter Speicher (Amiga:
   Amiga wäre es ein Absturz oder liest Fremdes); `DPEEK`/`LPEEK` auf ungeraden Adressen ist auf dem
   68000 ein Adressfehler und bleibt unbestimmt.
 
-Offen für die nächste Stufe: `BYTE{}`/`WORD{}`/`LONG{}`/`FLOAT{}`, `*x`, `ABSOLUTE`, `VARPTR` auf
-den Descriptor statt die Zeichen, Adressen, die über Bereiche hinweg gelten.
+Typisierter Zugriff (Stufe 2): `BYTE{a}` 1 Byte (0..255), `CARD{a}` 2 Byte ohne, `INT{a}`/`WORD{a}`
+2 Byte mit Vorzeichen, `LONG{a}`/`{a}` 4 Byte, `FLOAT{a}` 8 Byte im GFA-Format (wie `MKD$`/`CVD`),
+`SINGLE{a}` 4 Byte IEEE (wie `MKS$`/`CVS`), `DOUBLE{a}` 8 Byte IEEE (die Bytes einer `#`-Variablen),
+`CHAR{a}` bis zum Nullbyte (höchstens 32767 Zeichen); als Befehl schreiben sie, `CHAR{a}=s$` mit
+abschließendem Nullbyte. `V:a$` gilt nur bis zur nächsten String-Zuweisung (die Speicherbereinigung
+verschiebt Strings), auch als Quelle von `CHAR{}`.
+
+Offen: `*x`/`ARRPTR`, `ABSOLUTE`, `VARPTR` auf den Descriptor statt die Zeichen, Adressen, die über
+Bereiche hinweg gelten.

@@ -203,7 +203,7 @@ private:
         if (e.op == Op::CallFunc) return true;
         if (e.op == Op::Builtin && (e.sval == "RND" || e.sval == "RANDOM" || e.sval == "RAND" || e.sval == "INPUT$" || e.sval == "INKEY$" ||
                                     e.sval == "EOF" || e.sval == "LOF" || e.sval == "LOC" || e.sval == "INP" ||
-                                    e.sval == "PEEK" || e.sval == "DPEEK" || e.sval == "LPEEK" || e.sval == "MALLOC" || e.sval == "MFREE"))
+                                    (e.sval.size() > 2 && e.sval.substr(e.sval.size() - 2) == "{}") || e.sval == "PEEK" || e.sval == "DPEEK" || e.sval == "LPEEK" || e.sval == "MALLOC" || e.sval == "MFREE"))
             return true;  // order matters: random numbers, reading files
         for (const auto& a : e.args)
             if (impure(*a)) return true;
@@ -353,6 +353,12 @@ private:
             const std::string data = vars_[static_cast<std::size_t>(t.var)] + "().data";
             if (ty == Type::Float) return "static_cast<std::int32_t>(brt::rt.mem.of(" + data + ", " + lv + "))";
             return "static_cast<std::int32_t>(brt::rt.mem.of(" + data + ", " + lv + ", " + w + "))";
+        }
+        if (n.size() > 2 && n.substr(n.size() - 2) == "{}") {
+            const std::string k = std::string("'") + n[0] + "'";
+            if (n == "CHAR{}") return "brt::rt.mem.getChars(" + a(0) + ")";
+            if (n[0] == 'F' || n[0] == 'S' || n[0] == 'D') return "brt::rt.mem.getf(" + a(0) + ", " + k + ")";
+            return "brt::rt.mem.get(" + a(0) + ", " + k + ")";
         }
         if (n == "PEEK" || n == "DPEEK" || n == "LPEEK")
             return "brt::rt.mem.peek(" + a(0) + ", " + (n == "PEEK" ? "1" : n == "DPEEK" ? "2" : "4") + ")";
@@ -851,6 +857,16 @@ private:
             line(in, "{");
             line(in + 1, "const f64 a_ = " + arg(0) + ";");
             line(in + 1, "brt::rt.mem.poke(a_, " + std::string(n == "POKE" ? "1" : n == "DPOKE" ? "2" : "4") + ", " + arg(1) + ");");
+            line(in, "}");
+            return;
+        }
+        if (n.size() > 2 && n.substr(n.size() - 2) == "{}") {
+            const std::string k = std::string("'") + n[0] + "'";
+            line(in, "{");
+            line(in + 1, "const f64 a_ = " + arg(0) + ";");
+            if (n == "CHAR{}") line(in + 1, "brt::rt.mem.setChars(a_, " + arg(1) + ");");
+            else if (n[0] == 'F' || n[0] == 'S' || n[0] == 'D') line(in + 1, "brt::rt.mem.setf(a_, " + k + ", " + arg(1) + ");");
+            else line(in + 1, "brt::rt.mem.set(a_, " + k + ", " + arg(1) + ");");
             line(in, "}");
             return;
         }

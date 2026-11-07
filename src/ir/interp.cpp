@@ -466,6 +466,12 @@ private:
         if (n == "LOF") return I(files_.lof(f(0)));
         if (n == "EXIST") return I(brt::Files::exist(s(0)));
         if (n == "LOC") return I(files_.loc(f(0)));
+        if (n.size() > 2 && n.substr(n.size() - 2) == "{}") {
+            const char k = n[0] == 'D' ? 'D' : n[0];
+            if (n == "CHAR{}") return S(mem_.getChars(f(0)));
+            if (k == 'F' || k == 'S' || k == 'D') return F(mem_.getf(f(0), k));
+            return I(mem_.get(f(0), k));
+        }
         if (n == "PEEK") return I(mem_.peek(f(0), 1));
         if (n == "DPEEK") return I(mem_.peek(f(0), 2));
         if (n == "LPEEK") return I(mem_.peek(f(0), 4));
@@ -996,6 +1002,14 @@ private:
         if (n == "POKE" || n == "DPOKE" || n == "LPOKE") {
             const f64 a = eval(*s.args[0]).f;
             mem_.poke(a, n == "POKE" ? 1 : n == "DPOKE" ? 2 : 4, eval(*s.args[1]).f);
+            return;
+        }
+        if (n.size() > 2 && n.substr(n.size() - 2) == "{}") {
+            const f64 a = eval(*s.args[0]).f;
+            const char k = n[0];
+            if (n == "CHAR{}") mem_.setChars(a, eval(*s.args[1]).s);
+            else if (k == 'F' || k == 'S' || k == 'D') mem_.setf(a, k, eval(*s.args[1]).f);
+            else mem_.set(a, k, eval(*s.args[1]).f);
             return;
         }
         if (n == "BMOVE") {

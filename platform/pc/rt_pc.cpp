@@ -649,6 +649,64 @@ void Memory::bmove(f64 from, f64 to, f64 countf) {
     for (std::int32_t k = 0; k < n; ++k) set(t + static_cast<std::uint32_t>(k), tmp[static_cast<std::size_t>(k)]);
 }
 
+std::int32_t Memory::get(f64 a, char kind) {
+    switch (kind) {
+        case 'B': return peek(a, 1);
+        case 'C': return peek(a, 2);
+        case 'I': return static_cast<std::int16_t>(static_cast<std::uint16_t>(peek(a, 2)));
+        default: return peek(a, 4);
+    }
+}
+
+void Memory::set(f64 a, char kind, f64 value) { poke(a, kind == 'B' ? 1 : (kind == 'C' || kind == 'I') ? 2 : 4, value); }
+
+f64 Memory::getf(f64 af, char kind) {
+    const auto a = static_cast<std::uint32_t>(toInt(af));
+    const std::uint32_t n = kind == 'S' ? 4 : 8;
+    unsigned char b[8];
+    for (std::uint32_t k = 0; k < n; ++k) b[k] = get(a + k);
+    f64 r = 0;
+    if (kind == 'S') r = rt_cvs(b);
+    else if (kind == 'F') r = rt_cvd(b);
+    else
+        for (std::uint32_t k = 0; k < 8; ++k) r = (r << 8) | b[k];
+    check();
+    return r;
+}
+
+void Memory::setf(f64 af, char kind, f64 value) {
+    const auto a = static_cast<std::uint32_t>(toInt(af));
+    unsigned char b[8];
+    std::uint32_t n = 8;
+    if (kind == 'S') {
+        rt_mks(value, b);
+        check();
+        n = 4;
+    } else if (kind == 'F') {
+        rt_mkd(value, b);
+    } else {
+        for (std::uint32_t k = 0; k < 8; ++k) b[k] = static_cast<unsigned char>(value >> (56 - 8 * k));
+    }
+    for (std::uint32_t k = 0; k < n; ++k) set(a + k, b[k]);
+}
+
+std::string Memory::getChars(f64 af) {
+    const auto a = static_cast<std::uint32_t>(toInt(af));
+    std::string s;
+    for (std::uint32_t k = 0; k < 32767; ++k) {
+        const std::uint8_t c = get(a + k);
+        if (c == 0) break;
+        s += static_cast<char>(c);
+    }
+    return s;
+}
+
+void Memory::setChars(f64 af, const std::string& s) {
+    const auto a = static_cast<std::uint32_t>(toInt(af));
+    for (std::size_t k = 0; k < s.size(); ++k) set(a + static_cast<std::uint32_t>(k), static_cast<std::uint8_t>(s[k]));
+    set(a + static_cast<std::uint32_t>(s.size()), 0);
+}
+
 // ---- binary strings ------------------------------------------------------------------------------
 namespace {
 

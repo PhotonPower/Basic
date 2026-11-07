@@ -164,7 +164,7 @@ std::vector<Token> lexLine(std::string_view s, int lineNumber, Diagnostics& diag
                 continue;
             }
         }
-        static const std::string_view singles = "+-*/^\\=<>(),;':@#~.";
+        static const std::string_view singles = "+-*/^\\=<>(),;':@#~.{}";
         if (singles.find(c) != std::string_view::npos) {
             ++i;
             add(Tok::Punct, std::string(1, c), start);

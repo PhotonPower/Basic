@@ -880,6 +880,17 @@ private:
             rtcallVoid(n == "POKE" ? "rt_poke" : n == "DPOKE" ? "rt_dpoke" : "rt_lpoke", {a, toI(expr(*s.args[1]))});
             return;
         }
+        if (n.size() > 2 && n.substr(n.size() - 2) == "{}") {
+            static const std::map<std::string, const char*, std::less<>> set = {
+                {"BYTE{}", "rt_poke"},        {"CARD{}", "rt_dpoke"},         {"INT{}", "rt_dpoke"},
+                {"LONG{}", "rt_lpoke"},       {"FLOAT{}", "rt_float_set"},    {"SINGLE{}", "rt_single_set"},
+                {"DOUBLE{}", "rt_double_set"}, {"CHAR{}", "rt_char_set"}};
+            Reg a = toI(expr(*s.args[0]));
+            Reg v = expr(*s.args[1]);
+            if (n != "CHAR{}" && n != "FLOAT{}" && n != "SINGLE{}" && n != "DOUBLE{}") v = toI(v);
+            rtcallVoid(set.at(n), {a, v});
+            return;
+        }
         if (n == "BMOVE") {
             Reg from = toI(expr(*s.args[0]));
             Reg to = toI(expr(*s.args[1]));
@@ -1233,6 +1244,15 @@ private:
             Reg r = reg(VT::I32);
             copyTo(r, a);
             return r;
+        }
+        if (n.size() > 2 && n.substr(n.size() - 2) == "{}") {  // BYTE{a} ... CHAR{a}
+            static const std::map<std::string, std::pair<const char*, VT>, std::less<>> get = {
+                {"BYTE{}", {"rt_peek", VT::I32}},         {"CARD{}", {"rt_dpeek", VT::I32}},
+                {"INT{}", {"rt_wpeek", VT::I32}},         {"LONG{}", {"rt_lpeek", VT::I32}},
+                {"FLOAT{}", {"rt_float_get", VT::F64}},   {"SINGLE{}", {"rt_single_get", VT::F64}},
+                {"DOUBLE{}", {"rt_double_get", VT::F64}}, {"CHAR{}", {"rt_char_get", VT::Str}}};
+            const auto& g = get.at(n);
+            return rtcall(g.first, {toI(arg(e, 0))}, g.second);
         }
         if (n == "PEEK" || n == "DPEEK" || n == "LPEEK")
             return rtcall(n == "PEEK" ? "rt_peek" : n == "DPEEK" ? "rt_dpeek" : "rt_lpeek", {toI(arg(e, 0))}, VT::I32);

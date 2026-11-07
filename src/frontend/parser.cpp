@@ -229,6 +229,7 @@ private:
             e->args.push_back(expr());
             return e;
         }
+        if (atMemAccess()) return memAccess();
         if (atWord("V") && atPunct(":", 1)) {  // V:x = VARPTR(x)
             take();
             take();
@@ -357,8 +358,37 @@ private:
         return false;
     }
 
+    // BYTE{x} CARD{x} INT{x} WORD{x} LONG{x} {x} FLOAT{x} SINGLE{x} DOUBLE{x} CHAR{x}
+    bool atMemAccess() const {
+        if (atPunct("{")) return true;
+        static const std::set<std::string_view> names = {"BYTE", "CARD", "INT", "WORD", "LONG", "FLOAT", "SINGLE", "DOUBLE", "CHAR"};
+        return peek().kind == Tok::Ident && names.count(peek().text) != 0 && atPunct("{", 1);
+    }
+
+    // -> call "BYTE{}" (WORD -> INT, {} -> LONG) with the address
+    ExprPtr memAccess() {
+        const ast::Pos p = pos();
+        std::string n = atPunct("{") ? "LONG" : take().text;
+        if (n == "WORD") n = "INT";
+        expectPunct("{");
+        auto e = make(ExprKind::Call, p, n + "{}");
+        e->parens = true;
+        e->args.push_back(expr());
+        expectPunct("}");
+        return e;
+    }
+
     Stmt statement() {
         const ast::Pos p = pos();
+        if (atMemAccess()) {  // BYTE{x}=y: command "BYTE{}" address, value
+            ExprPtr target = memAccess();
+            Stmt s = stmt(StmtKind::Command, p);
+            s.name = target->text;
+            s.args.push_back(std::move(target->args[0]));
+            expectPunct("=");
+            s.args.push_back(expr());
+            return s;
+        }
         // label: "name:" alone on the line (names may start with a digit)
         if ((at(Tok::Ident) || at(Tok::Number)) && atPunct(":", 1) && peek(2).kind == Tok::End) {
             Stmt s = stmt(StmtKind::Label, p);
