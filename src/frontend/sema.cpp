@@ -682,8 +682,11 @@ private:
             if (s.channel) h.channel = convertTo(expr(*s.channel), Type::Float, s.pos);
             h.targets.push_back(matArray(*a[0], false));
             for (std::size_t k = 1; k < a.size(); ++k) num(k, Type::Float);
-        } else if (w == "INPUT") {
-            fail(s.pos, "MAT INPUT is not supported yet");
+        } else if (w == "INPUT") {  // MAT INPUT #c,a(): numbers like INPUT #, row by row (probe18)
+            if (!s.channel) fail(s.pos, "MAT INPUT needs a channel: MAT INPUT #c,a()");
+            if (a.size() != 1) bad();
+            h.channel = convertTo(expr(*s.channel), Type::Float, s.pos);
+            h.targets.push_back(matArray(*a[0], false));
         } else if (w == "CPY" || w == "XCPY") {
             if (rhs != 1 || (extra != 0 && extra != 2)) bad();
             h.targets.push_back(matArray(*a[0], true));

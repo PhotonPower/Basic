@@ -1,0 +1,23 @@
+probe18
+> MAT INPUT #2,b()
+T1 b: 1 2.5 -3 4 0.3333333333333 1.0E+20 EOF -1
+> INPUT #2,x,y,z
+T2 1 2.5 -3
+> INPUT #2,s$
+T2 s$ len 1 letztes 52
+> MAT INPUT #2,b() mehrzeilig
+T3 b: 1 2 3 4 5 6 EOF 0
+> MAT INPUT #2,b() zu wenige
+   -> ERR 26 end of file
+T4 b: 9 8 7 0 0 0
+> MAT INPUT #2,b() mit abc
+   -> ERR 35 data not numeric
+T5 b: 1 8 7
+> MAT INPUT #2,v()
+T6 v: 0 10 20 30 EOF 0
+T6 BASE 0 v: 10 20 30 40
+> INPUT #2,p
+T7 p=5
+> INPUT #2,q
+T7 q=6
+ende

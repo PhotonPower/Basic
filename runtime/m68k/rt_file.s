@@ -449,6 +449,8 @@ rt_file__item0:
         BMI     .end
         CMP.B   #',',D0
         BEQ     .end
+        CMP.B   #13,D0
+        BEQ     .cr
         CMP.B   #10,D0
         BNE     .skip
         BRA     .end
@@ -463,11 +465,17 @@ rt_file__item0:
         BMI     .end
         CMP.B   #',',D0
         BEQ     .end
+        CMP.B   #13,D0
+        BEQ     .cr
         CMP.B   #10,D0
         BEQ     .end
         BSR     rt_file__keep
         BSR     rt_file__getb
         BRA     .pl
+.cr:    BSR     rt_file__peek           ; CR ends the item; a LF right after it belongs to it (probe18)
+        CMP.L   #10,D0
+        BNE     .end
+        BSR     rt_file__getb
 .end:   MOVE.L  (SP)+,D4
         ANDI    #$FE,CCR
         RTS

@@ -62,7 +62,8 @@ laufen in der OS-Emulation (`test_m68k_programs`) und unter Kickstart 1.2 im FS-
 `BYTE{}` … `CHAR{}`.
 ✔ Ganzzahl-Ketten in 32 Bit (D16, Nachtrag), Zwischenwerte in D4–D7 (D22).
 ✔ Gruppe `matrix` in allen Ausführungen (probe17, D23), 68000 im Konformanztest bitgleich.
-Weiter: `MAT INPUT #`; `memory` Rest (`*x`/`ARRPTR`, `ABSOLUTE`, voller Umbau nach D6); weitere
+✔ `MAT INPUT #` (probe18).
+Weiter: `memory` Rest (`*x`/`ARRPTR`, `ABSOLUTE`, voller Umbau nach D6); weitere
 Optimierungen (Variablen in Registern innerhalb von Schleifen ohne Aufrufe, Fließkomma inline).
 
 - Quelltext-Linker (`src/link`) mit Map-Datei und Label-Prüfung.

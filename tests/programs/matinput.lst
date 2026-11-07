@@ -1,0 +1,101 @@
+' test: groups core print file-seq matrix
+' MAT INPUT # und das CR vor dem Zeilenende bei INPUT # (aus probe18; Ausgabe wie am Original,
+' ohne die Spurzeilen). Die Dateien liegen im aktuellen Verzeichnis.
+'
+ON ERROR GOSUB fehler
+PRINT "probe18"
+'
+' T1 MAT PRINT # schreiben, mit MAT INPUT # zuruecklesen
+DIM a(2,3),b(2,3)
+a(1,1)=1
+a(1,2)=2.5
+a(1,3)=-3
+a(2,1)=4
+a(2,2)=1/3
+a(2,3)=1E20
+OPEN "O",#2,"p18a.dat"
+MAT PRINT #2,a()
+CLOSE #2
+OPEN "I",#2,"p18a.dat"
+MAT INPUT #2,b()
+PRINT "T1 b: ";b(1,1);" ";b(1,2);" ";b(1,3);" ";b(2,1);" ";b(2,2);" ";b(2,3);" EOF ";EOF(#2)
+CLOSE #2
+'
+' T2 INPUT # einzelner Werte aus derselben Datei (CR vor LF)
+OPEN "I",#2,"p18a.dat"
+INPUT #2,x,y,z
+PRINT "T2 ";x;" ";y;" ";z
+INPUT #2,s$
+PRINT "T2 s$ len ";LEN(s$);" letztes ";ASC(RIGHT$(s$,1))
+CLOSE #2
+'
+' T3 Werte ueber mehrere Zeilen, nur LF, Leerzeichen
+OPEN "O",#2,"p18b.dat"
+PRINT #2,"1,2"
+PRINT #2,"3"
+PRINT #2," 4 , 5,6"
+PRINT #2,"7"
+CLOSE #2
+OPEN "I",#2,"p18b.dat"
+MAT INPUT #2,b()
+PRINT "T3 b: ";b(1,1);" ";b(1,2);" ";b(1,3);" ";b(2,1);" ";b(2,2);" ";b(2,3);" EOF ";EOF(#2)
+CLOSE #2
+'
+' T4 zu wenige Werte
+MAT CLR b()
+OPEN "O",#2,"p18c.dat"
+PRINT #2,"9,8,7"
+CLOSE #2
+OPEN "I",#2,"p18c.dat"
+MAT INPUT #2,b()
+PRINT "T4 b: ";b(1,1);" ";b(1,2);" ";b(1,3);" ";b(2,1);" ";b(2,2);" ";b(2,3)
+CLOSE #2
+'
+' T5 kein Zahlwert
+OPEN "O",#2,"p18c.dat"
+PRINT #2,"1,abc,3"
+CLOSE #2
+OPEN "I",#2,"p18c.dat"
+MAT INPUT #2,b()
+PRINT "T5 b: ";b(1,1);" ";b(1,2);" ";b(1,3)
+CLOSE #2
+'
+' T6 Vektor und MAT BASE 0
+DIM v(3)
+OPEN "O",#2,"p18c.dat"
+PRINT #2,"10,20,30,40"
+CLOSE #2
+OPEN "I",#2,"p18c.dat"
+MAT INPUT #2,v()
+PRINT "T6 v: ";v(0);" ";v(1);" ";v(2);" ";v(3);" EOF ";EOF(#2)
+CLOSE #2
+MAT BASE 0
+OPEN "I",#2,"p18c.dat"
+MAT INPUT #2,v()
+PRINT "T6 BASE 0 v: ";v(0);" ";v(1);" ";v(2);" ";v(3)
+CLOSE #2
+MAT BASE 1
+'
+' T7 Zeichen 13 in einer Datei, die INPUT # liest (ohne MAT)
+OPEN "O",#2,"p18c.dat"
+PRINT #2,"5";CHR$(13)
+PRINT #2,"6 ";CHR$(13);"7"
+CLOSE #2
+OPEN "I",#2,"p18c.dat"
+INPUT #2,p
+PRINT "T7 p=";p
+INPUT #2,q
+PRINT "T7 q=";q
+CLOSE #2
+KILL "p18a.dat"
+KILL "p18b.dat"
+KILL "p18c.dat"
+PRINT "ende"
+END
+'
+PROCEDURE fehler
+  e%=ERR
+  PRINT "   -> ERR ";e%;" ";ERR$(e%)
+  ON ERROR GOSUB fehler
+  RESUME NEXT
+RETURN

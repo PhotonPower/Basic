@@ -248,6 +248,11 @@ inline void matRead(Array<f64>& a) {
             dataNext();
         }
 }
+inline void matInput(f64 channel, Array<f64>& a) {
+    const rt_mat m = matV(a);
+    for (std::int32_t i = 0; i < m.rows; ++i)
+        for (std::int32_t j = 0; j < m.cols; ++j) matAt(m, i, j) = rt.files.inputNumber(channel);
+}
 inline void matPrint(Output& o, Array<f64>& a) { matPrint(o, matV(a), false, 0, 0); }
 inline void matPrint(Output& o, Array<f64>& a, f64 g, f64 n) { matPrint(o, matV(a), true, g, n); }
 inline void matCpy(Array<f64>& d, const std::vector<std::int32_t>& da, Array<f64>& s, const std::vector<std::int32_t>& sa,

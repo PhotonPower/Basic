@@ -332,4 +332,10 @@ C++-Ziel Byte für Byte die des Originals. Die Rechenregeln stehen in `runtime/r
   `rt_mat.c`, auch an Nullmatrizen, gleich großen Pivots und fast singulären Matrizen. Ein Überlauf
   mitten in einer Operation bricht auf dem 68000 sofort ab (mit `ON ERROR`); Interpreter und C++-Ziel
   rechnen die Operation zu Ende und melden den Fehler danach.
-- `MAT INPUT #` folgt.
+- **`MAT INPUT #c,a()`** (probe18) liest Zahlen wie `INPUT #`, Zeile für Zeile, auch über mehrere
+  Dateizeilen; was vor einem Fehler gelesen wurde, bleibt (zu wenige Werte: 26, keine Zahl: 35).
+  Ein CR beendet einen Wert wie das Zeilenende, ein LF direkt danach gehört dazu; so liest
+  `MAT INPUT #` die Ausgabe von `MAT PRINT #` zurück. Die Regel gilt für jedes `INPUT #`.
+- Auf dem 68000 liegen `MAT READ`, `MAT INPUT #` und `MAT PRINT` in eigenen Modulen (`rt_matread`,
+  `rt_matinput`, `rt_matprint`), damit ein Programm nur die Teile von `rt_data`, `rt_file` und der
+  Ausgabe bindet, die es benutzt.

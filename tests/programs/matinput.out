@@ -1,0 +1,14 @@
+probe18
+T1 b: 1 2.5 -3 4 0.3333333333333 1.0E+20 EOF -1
+T2 1 2.5 -3
+T2 s$ len 1 letztes 52
+T3 b: 1 2 3 4 5 6 EOF 0
+   -> ERR 26 end of file
+T4 b: 9 8 7 0 0 0
+   -> ERR 35 data not numeric
+T5 b: 1 8 7
+T6 v: 0 10 20 30 EOF 0
+T6 BASE 0 v: 10 20 30 40
+T7 p=5
+T7 q=6
+ende

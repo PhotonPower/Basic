@@ -857,6 +857,11 @@ private:
                 brt::matPrint(out, m, false, 0, 0);
             }
             if (s.channel) files_.flush(ch);
+        } else if (w == "INPUT") {  // values read before an error stay (probe18 T4, T5)
+            const f64 ch = eval(*s.channel).f;
+            const rt_mat m = view(*T[0]);
+            for (std::int32_t i = 0; i < m.rows; ++i)
+                for (std::int32_t j = 0; j < m.cols; ++j) brt::matAt(m, i, j) = files_.inputNumber(ch);
         } else if (w == "CPY" || w == "XCPY") {
             const std::vector<std::int32_t> da = matAt(*T[0]), sa = matAt(*T[1]);
             std::int32_t h = -1, wd = -1;

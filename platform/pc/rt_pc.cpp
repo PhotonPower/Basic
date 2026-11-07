@@ -1098,15 +1098,21 @@ std::string Files::item(Channel& c) {
         lead += ' ';
         b = std::fgetc(c.f);
     }
+    // CR ends an item too; a LF right after it belongs to it (probe18 T2, T7)
+    auto crlf = [&](int x) {
+        if (x == '\r' && peekByte(c) == '\n') std::fgetc(c.f);
+    };
     if (b == '"') {
         while ((b = std::fgetc(c.f)) != EOF && b != '"' && b != '\n') s += static_cast<char>(b);
         if (b == '"')
-            while ((b = std::fgetc(c.f)) != EOF && b != ',' && b != '\n') {
+            while ((b = std::fgetc(c.f)) != EOF && b != ',' && b != '\n' && b != '\r') {
             }
+        crlf(b);
         return s;
     }
     s = lead;
-    for (; b != EOF && b != ',' && b != '\n'; b = std::fgetc(c.f)) s += static_cast<char>(b);
+    for (; b != EOF && b != ',' && b != '\n' && b != '\r'; b = std::fgetc(c.f)) s += static_cast<char>(b);
+    crlf(b);
     return s;
 }
 

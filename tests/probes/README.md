@@ -15,6 +15,7 @@ Ausführen mit `tools/gfa/gfa_run.py`, Einrichtung und Regeln in [docs/gfa-origi
 | `probe8.lst` | `PRINT USING`: Lage des Exponenten bei 0 bis 4 Stellen vor dem Punkt, Vorzeichen im Exponentformat – ausgewertet (2026-11-07) |
 | `probe9.lst` | Fehlernummern (`READ`, `DIM`, Index), `ERR$`-Texte 7–35, Bit- und Zahlfunktionen – ausgewertet (2026-11-07) |
 | `probe17.lst` | Matrixbefehle: `MAT PRINT`-Format, `MAT BASE`, Fehlernummern, `DET`/`QDET`/`RANG`/`INV`/`NORM` an Grenzfällen; Spurzeilen vor jedem Befehl, weil `MAT ONE` das Original abstürzen lässt – ausgewertet (2026-11-07) |
+| `probe18.lst` | `MAT INPUT #`: Zurücklesen von `MAT PRINT #`, CR vor dem Zeilenende bei `INPUT #`, zu wenige Werte, keine Zahl, `MAT BASE 0` – ausgewertet (2026-11-07) |
 | `probe10.lst` | `VAR`-Parameter: Geltung für folgende Parameter, Referenz oder Kopie, unzulässige Argumente – ausgewertet (2026-11-07) |
 
 Ergebnisse: `results/<name>.txt` (erzeugt am Original).

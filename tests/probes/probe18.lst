@@ -1,0 +1,136 @@
+' probe18 - MAT INPUT # und das CR vor dem Zeilenende bei INPUT # (GFA-BASIC 3.5, Amiga).
+' Ergebnisdatei: DH0:probe18.txt. Nach jedem Abschnitt wird sie geschlossen (@flush), Spurzeilen
+' "> ..." vor riskanten Befehlen, damit bei einem Absturz das Bisherige bleibt.
+'
+datei$="DH0:probe18.txt"
+OPEN "O",#1,datei$
+ON ERROR GOSUB fehler
+PRINT #1,"probe18"
+@flush
+'
+' T1 MAT PRINT # schreiben, mit MAT INPUT # zuruecklesen
+DIM a(2,3),b(2,3)
+a(1,1)=1
+a(1,2)=2.5
+a(1,3)=-3
+a(2,1)=4
+a(2,2)=1/3
+a(2,3)=1E20
+OPEN "O",#2,"DH0:p18a.dat"
+MAT PRINT #2,a()
+CLOSE #2
+OPEN "I",#2,"DH0:p18a.dat"
+PRINT #1,"> MAT INPUT #2,b()"
+@flush
+MAT INPUT #2,b()
+PRINT #1,"T1 b: ";b(1,1);" ";b(1,2);" ";b(1,3);" ";b(2,1);" ";b(2,2);" ";b(2,3);" EOF ";EOF(#2)
+CLOSE #2
+@flush
+'
+' T2 INPUT # einzelner Werte aus derselben Datei (CR vor LF)
+OPEN "I",#2,"DH0:p18a.dat"
+PRINT #1,"> INPUT #2,x,y,z"
+@flush
+INPUT #2,x,y,z
+PRINT #1,"T2 ";x;" ";y;" ";z
+PRINT #1,"> INPUT #2,s$"
+@flush
+INPUT #2,s$
+PRINT #1,"T2 s$ len ";LEN(s$);" letztes ";ASC(RIGHT$(s$,1))
+CLOSE #2
+@flush
+'
+' T3 Werte ueber mehrere Zeilen, nur LF, Leerzeichen
+OPEN "O",#2,"DH0:p18b.dat"
+PRINT #2,"1,2"
+PRINT #2,"3"
+PRINT #2," 4 , 5,6"
+PRINT #2,"7"
+CLOSE #2
+OPEN "I",#2,"DH0:p18b.dat"
+PRINT #1,"> MAT INPUT #2,b() mehrzeilig"
+@flush
+MAT INPUT #2,b()
+PRINT #1,"T3 b: ";b(1,1);" ";b(1,2);" ";b(1,3);" ";b(2,1);" ";b(2,2);" ";b(2,3);" EOF ";EOF(#2)
+CLOSE #2
+@flush
+'
+' T4 zu wenige Werte
+MAT CLR b()
+OPEN "O",#2,"DH0:p18c.dat"
+PRINT #2,"9,8,7"
+CLOSE #2
+OPEN "I",#2,"DH0:p18c.dat"
+PRINT #1,"> MAT INPUT #2,b() zu wenige"
+@flush
+MAT INPUT #2,b()
+PRINT #1,"T4 b: ";b(1,1);" ";b(1,2);" ";b(1,3);" ";b(2,1);" ";b(2,2);" ";b(2,3)
+CLOSE #2
+@flush
+'
+' T5 kein Zahlwert
+OPEN "O",#2,"DH0:p18c.dat"
+PRINT #2,"1,abc,3"
+CLOSE #2
+OPEN "I",#2,"DH0:p18c.dat"
+PRINT #1,"> MAT INPUT #2,b() mit abc"
+@flush
+MAT INPUT #2,b()
+PRINT #1,"T5 b: ";b(1,1);" ";b(1,2);" ";b(1,3)
+CLOSE #2
+@flush
+'
+' T6 Vektor und MAT BASE 0
+DIM v(3)
+OPEN "O",#2,"DH0:p18c.dat"
+PRINT #2,"10,20,30,40"
+CLOSE #2
+OPEN "I",#2,"DH0:p18c.dat"
+PRINT #1,"> MAT INPUT #2,v()"
+@flush
+MAT INPUT #2,v()
+PRINT #1,"T6 v: ";v(0);" ";v(1);" ";v(2);" ";v(3);" EOF ";EOF(#2)
+CLOSE #2
+MAT BASE 0
+OPEN "I",#2,"DH0:p18c.dat"
+MAT INPUT #2,v()
+PRINT #1,"T6 BASE 0 v: ";v(0);" ";v(1);" ";v(2);" ";v(3)
+CLOSE #2
+MAT BASE 1
+@flush
+'
+' T7 Zeichen 13 in einer Datei, die INPUT # liest (ohne MAT)
+OPEN "O",#2,"DH0:p18c.dat"
+PRINT #2,"5";CHR$(13)
+PRINT #2,"6 ";CHR$(13);"7"
+CLOSE #2
+OPEN "I",#2,"DH0:p18c.dat"
+PRINT #1,"> INPUT #2,p"
+@flush
+INPUT #2,p
+PRINT #1,"T7 p=";p
+PRINT #1,"> INPUT #2,q"
+@flush
+INPUT #2,q
+PRINT #1,"T7 q=";q
+CLOSE #2
+@flush
+KILL "DH0:p18a.dat"
+KILL "DH0:p18b.dat"
+KILL "DH0:p18c.dat"
+PRINT #1,"ende"
+CLOSE #1
+END
+'
+PROCEDURE flush
+  CLOSE #1
+  OPEN "A",#1,datei$
+RETURN
+PROCEDURE fehler
+  e%=ERR
+  CLOSE #1
+  OPEN "A",#1,datei$
+  PRINT #1,"   -> ERR ";e%;" ";ERR$(e%)
+  ON ERROR GOSUB fehler
+  RESUME NEXT
+RETURN

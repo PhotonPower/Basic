@@ -731,6 +731,7 @@ private:
         else if (w == "SET") line(in, "brt::matFill(" + arr(0) + ", " + arg(0) + ");");
         else if (w == "ONE") line(in, "brt::matOne(" + arr(0) + ");");
         else if (w == "READ") line(in, "brt::matRead(" + arr(0) + ");");
+        else if (w == "INPUT") line(in, "brt::matInput(" + expr(*s.channel) + ", " + arr(0) + ");");
         else if (w == "PRINT") {
             line(in, "{");
             if (s.channel) {

@@ -40,6 +40,10 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 - `RESUME` setzt `ERR` auf 0 (probe12 T1); damit ist `errors2` am Original gleich.
 - `gfa_run.py`: Startmenü der Diskette nach einem Kaltstart (`boot` in `keys.json`), längere
   Wartezeiten für den Merge-Dialog und das Einlesen.
+- `MAT INPUT #` in allen Ausführungen (probe18 am Original); auf dem 68000 eigene Module für
+  `MAT READ`/`INPUT`/`PRINT`. Behoben: `INPUT #` meldete bei einem CR vor dem Zeilenende Fehler 35;
+  ein CR beendet jetzt einen Wert, ein LF direkt danach gehört dazu (wie am Original). Testprogramm
+  `matinput` mit der Ausgabe des Originals.
 - Gruppe `matrix` auf dem 68000 (`runtime/m68k/rt_mat.s`), im Konformanztest bitgleich zu
   `rt_mat.c`; Testprogramm `matfile` (`MAT PRINT #`). Behoben: Ein Programm mit `MAT READ`, aber ohne
   `READ`/`RESTORE`, bekam keine `DATA`-Tabelle.

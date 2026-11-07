@@ -1,9 +1,8 @@
 ;! module    rt_mat
-;! provides  rt_mat_v rt_mat_set_base rt_mat_view rt_mat_at rt_mat_limit rt_mat_fill rt_mat_one rt_mat_read rt_mat_print
+;! provides  rt_mat_v rt_mat_set_base rt_mat_view rt_mat_at rt_mat_limit rt_mat_fill rt_mat_one rt_mat_el rt_mat_get
 ;! provides  rt_mat_addsub rt_mat_scalar rt_mat_mul rt_mat_dot rt_mat_triple rt_mat_norm rt_mat_det rt_mat_rank rt_mat_inv
 ;! provides  rt_mat_trans rt_mat_cpy
-;! requires  rt_error rt_imul rt_arr_base fp_add fp_sub fp_mul fp_div fp_sqrt fp_from_i32 rt_data_num rt_print_flt
-;! requires  rt_print_str rt_print_nl rt_print_sdesc rt_str_fmt rt_str_mark rt_str_release plat_alloc
+;! requires  rt_error rt_imul rt_arr_base fp_add fp_sub fp_mul fp_div fp_sqrt fp_from_i32 plat_alloc
 ;! group     matrix
 ;! clobbers  D0-D3/A0-A1
 ;! doc       MAT commands (D23): the operations of runtime/ref/rt_mat.c in the same order, on views.
@@ -207,7 +206,7 @@ rt_mat_limit:
 .out:   RTS
 
 ; A0 = view, D0 = i, D1 = j -> A1 = address of the element (A0 kept)
-rt_mat__el:
+rt_mat_el:
         MOVE.L  D1,-(SP)
         MOVE.L  rt_mat__RS(A0),D1
         JSR     rt_imul
@@ -220,12 +219,12 @@ rt_mat__el:
         RTS
 
 ; D0 = view number, D1 = i, D2 = j -> D0:D1 = element
-rt_mat__get:
+rt_mat_get:
         MOVE.L  D2,-(SP)
         BSR     rt_mat__vp
         MOVE.L  D1,D0
         MOVE.L  (SP)+,D1
-        BSR     rt_mat__el
+        BSR     rt_mat_el
         MOVE.L  (A1),D0
         MOVE.L  4(A1),D1
         RTS
@@ -294,7 +293,7 @@ rt_mat_one:
 .j:     LEA     rt_mat_v,A0
         MOVE.L  D6,D0
         MOVE.L  D7,D1
-        BSR     rt_mat__el
+        BSR     rt_mat_el
         CLR.L   (A1)
         CLR.L   4(A1)
         CMP.L   D6,D7
@@ -307,76 +306,6 @@ rt_mat_one:
 .in:    CMP.L   rt_mat_v+rt_mat__R,D6
         BLT     .i
         MOVEM.L (SP)+,D6-D7
-        RTS
-
-; MAT READ: view 0 row by row from DATA
-rt_mat_read:
-        MOVEM.L D6-D7/A2,-(SP)
-        MOVEQ   #0,D6
-        BRA     .in
-.i:     MOVEQ   #0,D7
-        BRA     .jn
-.j:     JSR     rt_data_num
-        MOVEM.L D0-D1,-(SP)
-        LEA     rt_mat_v,A0
-        MOVE.L  D6,D0
-        MOVE.L  D7,D1
-        BSR     rt_mat__el
-        MOVE.L  (SP)+,(A1)
-        MOVE.L  (SP)+,4(A1)
-        ADDQ.L  #1,D7
-.jn:    CMP.L   rt_mat_v+rt_mat__C,D7
-        BLT     .j
-        ADDQ.L  #1,D6
-.in:    CMP.L   rt_mat_v+rt_mat__R,D6
-        BLT     .i
-        MOVEM.L (SP)+,D6-D7/A2
-        RTS
-
-; MAT PRINT view 0: D0 = 1 with format (D1 = g, D2 = n: STR$(x,g,n)), elements with ',', lines CR LF
-rt_mat_print:
-        MOVEM.L D4-D7,-(SP)
-        MOVE.L  D0,D4
-        MOVE.L  D1,rt_mat__g
-        MOVE.L  D2,rt_mat__n
-        MOVEQ   #0,D6
-        BRA     .in
-.i:     MOVEQ   #0,D7
-        BRA     .jn
-.j:     TST.L   D7
-        BEQ     .x
-        LEA     rt_mat__comma,A0
-        MOVEQ   #1,D0
-        JSR     rt_print_str
-.x:     MOVEQ   #0,D0
-        MOVE.L  D6,D1
-        MOVE.L  D7,D2
-        BSR     rt_mat__get
-        TST.L   D4
-        BNE     .fmt
-        JSR     rt_print_flt
-        BRA     .nx
-.fmt:   MOVEM.L D0-D1,-(SP)
-        JSR     rt_str_mark
-        MOVE.L  D0,D5
-        MOVEM.L (SP)+,D0-D1
-        MOVE.L  rt_mat__g,D2
-        MOVE.L  rt_mat__n,D3
-        JSR     rt_str_fmt
-        JSR     rt_print_sdesc
-        MOVE.L  D5,D0
-        JSR     rt_str_release
-.nx:    ADDQ.L  #1,D7
-.jn:    CMP.L   rt_mat_v+rt_mat__C,D7
-        BLT     .j
-        LEA     rt_mat__cr,A0
-        MOVEQ   #1,D0
-        JSR     rt_print_str
-        JSR     rt_print_nl
-        ADDQ.L  #1,D6
-.in:    CMP.L   rt_mat_v+rt_mat__R,D6
-        BLT     .i
-        MOVEM.L (SP)+,D4-D7
         RTS
 
 ; D0 = 1: subtract. view 0 = view 1 +/- view 2 (same order, else 77)
@@ -406,13 +335,13 @@ rt_mat_addsub:
 .j:     MOVEQ   #1,D0
         MOVE.L  D6,D1
         MOVE.L  D7,D2
-        BSR     rt_mat__get
+        BSR     rt_mat_get
         MOVE.L  D0,D4
         MOVE.L  D1,D5
         MOVEQ   #2,D0
         MOVE.L  D6,D1
         MOVE.L  D7,D2
-        BSR     rt_mat__get
+        BSR     rt_mat_get
         MOVE.L  D0,D2
         MOVE.L  D1,D3
         MOVE.L  D4,D0
@@ -423,7 +352,7 @@ rt_mat_addsub:
         LEA     rt_mat_v,A0
         MOVE.L  D6,D0
         MOVE.L  D7,D1
-        BSR     rt_mat__el
+        BSR     rt_mat_el
         MOVE.L  D4,(A1)
         MOVE.L  D5,4(A1)
         ADDQ.L  #1,D7
@@ -456,7 +385,7 @@ rt_mat_scalar:
 .j:     LEA     rt_mat_v,A0
         MOVE.L  D6,D0
         MOVE.L  D7,D1
-        BSR     rt_mat__el
+        BSR     rt_mat_el
         MOVE.L  A1,A2
         MOVE.L  (A2),D0
         MOVE.L  4(A2),D1
@@ -516,12 +445,12 @@ rt_mat_mul:
 .k:     MOVEQ   #1,D0                   ; b(i,k)
         MOVE.L  D6,D1
         MOVE.L  A4,D2
-        BSR     rt_mat__get
+        BSR     rt_mat_get
         MOVEM.L D0-D1,-(SP)
         MOVEQ   #2,D0                   ; c(k,j)
         MOVE.L  A4,D1
         MOVE.L  D7,D2
-        BSR     rt_mat__get
+        BSR     rt_mat_get
         MOVE.L  D0,D2
         MOVE.L  D1,D3
         MOVEM.L (SP)+,D0-D1
@@ -552,7 +481,7 @@ rt_mat_mul:
 .cj:    LEA     rt_mat_v,A0
         MOVE.L  D6,D0
         MOVE.L  D7,D1
-        BSR     rt_mat__el
+        BSR     rt_mat_el
         MOVE.L  (A3)+,(A1)
         MOVE.L  (A3)+,4(A1)
         ADDQ.L  #1,D7
@@ -576,7 +505,7 @@ rt_mat__vec:
         CMP.L   #1,rt_mat__R(A0)
         BNE     .col
         EXG     D1,D2
-.col:   BRA     rt_mat__get
+.col:   BRA     rt_mat_get
 
 ; D0 = view number -> D0 = number of elements if the view is a vector, else -1
 rt_mat__veclen:
@@ -666,12 +595,12 @@ rt_mat_triple:
 .j:     MOVEQ   #1,D0                   ; b(i,j)
         MOVE.L  D6,D1
         MOVE.L  D7,D2
-        BSR     rt_mat__get
+        BSR     rt_mat_get
         MOVEM.L D0-D1,-(SP)
         MOVEQ   #2,D0                   ; c(0,j)
         MOVEQ   #0,D1
         MOVE.L  D7,D2
-        BSR     rt_mat__get
+        BSR     rt_mat_get
         MOVE.L  D0,D2
         MOVE.L  D1,D3
         MOVEM.L (SP)+,D0-D1
@@ -689,7 +618,7 @@ rt_mat_triple:
         MOVEQ   #0,D0                   ; x += a(0,i) * t
         MOVEQ   #0,D1
         MOVE.L  D6,D2
-        BSR     rt_mat__get
+        BSR     rt_mat_get
         MOVE.L  D4,D2
         MOVE.L  D5,D3
         JSR     fp_mul
@@ -720,7 +649,7 @@ rt_mat__line:
         BEQ     .r
         EXG     D0,D1
 .r:     LEA     rt_mat_v,A0
-        BRA     rt_mat__el
+        BRA     rt_mat_el
 
 ; D0 = 0: every row, 1: every column of view 0 divided by the root of its sum of squares; a zero
 ; line: error 0 (the lines before it stay normed)
@@ -821,7 +750,7 @@ rt_mat__copy:
 .j:     MOVEQ   #0,D0
         MOVE.L  D6,D1
         MOVE.L  D7,D2
-        BSR     rt_mat__get
+        BSR     rt_mat_get
         MOVE.L  D0,(A3)+
         MOVE.L  D1,(A3)+
         AND.L   #$7FFFFFFF,D0           ; |v| > max: unsigned 64-bit comparison
@@ -1296,7 +1225,7 @@ rt_mat_inv:
         LEA     rt_mat_v+rt_mat__VS,A0
         MOVE.L  D6,D0
         MOVE.L  D7,D1
-        BSR     rt_mat__el
+        BSR     rt_mat_el
         MOVE.L  (SP)+,A0
         MOVE.L  (A0)+,(A1)+
         MOVE.L  (A0),(A1)
@@ -1375,7 +1304,7 @@ rt_mat_trans:
 .j:     MOVEQ   #1,D0
         MOVE.L  D6,D1
         MOVE.L  D7,D2
-        BSR     rt_mat__get
+        BSR     rt_mat_get
         MOVE.L  D0,(A3)+
         MOVE.L  D1,(A3)+
         ADDQ.L  #1,D7
@@ -1392,7 +1321,7 @@ rt_mat_trans:
 .tj:    LEA     rt_mat_v,A0
         MOVE.L  D7,D0
         MOVE.L  D6,D1
-        BSR     rt_mat__el
+        BSR     rt_mat_el
         MOVE.L  (A3)+,(A1)
         MOVE.L  (A3)+,4(A1)
         ADDQ.L  #1,D7
@@ -1454,7 +1383,7 @@ rt_mat_cpy:
 .c:     MOVEQ   #1,D0
         MOVE.L  D6,D1
         MOVE.L  D7,D2
-        BSR     rt_mat__get
+        BSR     rt_mat_get
         MOVE.L  D0,(A3)+
         MOVE.L  D1,(A3)+
         ADDQ.L  #1,D7
@@ -1474,7 +1403,7 @@ rt_mat_cpy:
         TST.L   rt_mat__f
         BEQ     .dn
         EXG     D0,D1
-.dn:    BSR     rt_mat__el
+.dn:    BSR     rt_mat_el
         MOVE.L  (A3)+,(A1)
         MOVE.L  (A3)+,4(A1)
         ADDQ.L  #1,D7
@@ -1485,12 +1414,6 @@ rt_mat_cpy:
         BLT     .dr
 .out:   MOVEM.L (SP)+,D4-D7/A2-A3
         RTS
-
-rt_mat__comma:
-        DC.B    ','
-rt_mat__cr:
-        DC.B    13
-        EVEN
 
 ;! section bss
 rt_mat_v:
@@ -1504,10 +1427,6 @@ rt_mat__y:
 rt_mat__tol:
         DS.L    2
 rt_mat__f:
-        DS.L    1
-rt_mat__g:
-        DS.L    1
-rt_mat__n:
         DS.L    1
 rt_mat__n2:
         DS.L    1

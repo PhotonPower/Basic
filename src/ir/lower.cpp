@@ -754,6 +754,10 @@ private:
         } else if (w == "ONE" || w == "READ") {
             matView(*T[0], 0);
             rtcallVoid(w == "ONE" ? "rt_mat_one" : "rt_mat_read", {});
+        } else if (w == "INPUT") {
+            Reg ch = toI(expr(*s.channel));
+            matView(*T[0], 0);
+            rtcallVoid("rt_mat_input", {ch});
         } else if (w == "PRINT") {
             if (s.channel) rtcallVoid("rt_file_select", {toI(expr(*s.channel))});
             matView(*T[0], 0);
