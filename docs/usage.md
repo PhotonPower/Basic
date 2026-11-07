@@ -1,7 +1,8 @@
 # Bedienung
 
 > Stand: Umgesetzt sind `--version`, `--help`, `--targets`, `--emit-ast <programm.lst>` und
-> `--emit-hir <programm.lst>` sowie `--run <programm.lst> [--seed <n>]` (Referenz-Interpreter)
+> `--emit-hir <programm.lst>`, `--run <programm.lst> [--seed <n>]` (Referenz-Interpreter) und
+> `--target pc <programm.lst> [-o <datei.cpp>]` (C++-Quelltext, siehe `platform/pc/README.md`)
 > (Syntaxbaum, eine Zeile je Anweisung; Syntaxfehler als `datei:zeile:spalte: meldung` auf stderr,
 > Rückgabewert 1). Der Rest beschreibt die geplante Kommandozeile.
 

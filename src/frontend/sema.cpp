@@ -377,6 +377,8 @@ private:
             case StmtKind::OnError: {
                 auto h = make(SKind::OnError, s);
                 h->proc = s.name.empty() ? -1 : procedureId(s.name, s.pos);
+                if (h->proc >= 0 && !p_.routines[static_cast<std::size_t>(h->proc)].params.empty())
+                    fail(s.pos, "ON ERROR GOSUB needs a procedure without parameters");
                 out.push_back(std::move(h));
                 return;
             }

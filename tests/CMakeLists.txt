@@ -14,6 +14,29 @@ target_link_libraries(test_runtime_ref PRIVATE basic_rt_ref)
 basic_set_warnings(test_runtime_ref)
 add_test(NAME runtime_ref COMMAND test_runtime_ref)
 
+# Differential test of the pc target: every tests/programs/<name>.lst is compiled to C++ with
+# basicc, built, run, and its output compared with <name>.out (made on the original GFA-BASIC).
+file(GLOB BASIC_TEST_PROGRAMS CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/programs/*.lst)
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/pc)
+foreach(program ${BASIC_TEST_PROGRAMS})
+  get_filename_component(name ${program} NAME_WE)
+  set(generated ${CMAKE_CURRENT_BINARY_DIR}/pc/${name}.cpp)
+  add_custom_command(OUTPUT ${generated}
+                     COMMAND basicc --target pc ${program} -o ${generated}
+                     DEPENDS basicc ${program}
+                     COMMENT "basicc --target pc ${name}.lst")
+  add_executable(pc_${name} ${generated})
+  target_link_libraries(pc_${name} PRIVATE basic_rt_pc)
+  if(BASIC_SANITIZE AND NOT MSVC)
+    target_compile_options(pc_${name} PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
+    target_link_options(pc_${name} PRIVATE -fsanitize=address,undefined)
+  endif()
+  add_test(NAME pc_${name}
+           COMMAND ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:pc_${name}>
+                   -DEXPECTED=${CMAKE_CURRENT_SOURCE_DIR}/programs/${name}.out
+                   -P ${CMAKE_CURRENT_SOURCE_DIR}/compare_output.cmake)
+endforeach()
+
 # Emulator harness: runs generated code in the emulators of the sister projects (docs/testing.md).
 if(BASIC_WITH_EMULATORS)
   add_library(basic_harness STATIC

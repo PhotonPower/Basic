@@ -13,6 +13,7 @@
 #include "basic/version.hpp"
 #include "frontend/parser.hpp"
 #include "frontend/sema.hpp"
+#include "backend/cpp/cpp_backend.hpp"
 #include "ir/interp.hpp"
 
 namespace {
@@ -20,7 +21,7 @@ namespace {
 void usage(std::ostream& out) {
     out << "basicc " << basic::kVersion << " - GFA-BASIC 3.5 compiler\n\n"
         << "usage:\n"
-        << "  basicc --target <name> <program.lst> [-o <output>]   compile (not implemented yet)\n"
+        << "  basicc --target <name> <program.lst> [-o <output>]   compile (so far: target pc -> C++ source)\n"
         << "  basicc --targets                                      list targets and their command groups\n"
         << "  basicc --emit-ast <program.lst>                       print the syntax tree\n"
         << "  basicc --emit-hir <program.lst>                       print the typed intermediate code\n"
@@ -62,6 +63,40 @@ int run(const std::string& path, std::uint32_t seed) {
         std::cerr << ": " << r.message << "\n";
         return 1;
     }
+    return 0;
+}
+
+// Front end of all compile modes: parse and analyse, print diagnostics.
+bool frontEnd(const std::string& path, basic::hir::Program& out) {
+    std::string source;
+    if (!readFile(path, source)) {
+        std::cerr << "basicc: cannot read '" << path << "'\n";
+        return false;
+    }
+    basic::Diagnostics diags;
+    const basic::ast::Program program = basic::parseProgram(source, diags);
+    if (diags.empty()) out = basic::analyze(program, diags);
+    for (const basic::Diagnostic& d : diags) std::cerr << basic::formatDiagnostic(path, d) << "\n";
+    return diags.empty();
+}
+
+int compilePc(const std::string& path, std::string output) {
+    basic::hir::Program h;
+    if (!frontEnd(path, h)) return 1;
+    if (output.empty()) {
+        output = path;
+        const auto dot = output.rfind('.');
+        if (dot != std::string::npos && output.find('/', dot) == std::string::npos) output.resize(dot);
+        output += ".cpp";
+    }
+    std::string name = path;
+    if (const auto slash = name.rfind('/'); slash != std::string::npos) name = name.substr(slash + 1);
+    std::ofstream out(output, std::ios::binary);
+    if (!out) {
+        std::cerr << "basicc: cannot write '" << output << "'\n";
+        return 2;
+    }
+    out << basic::generateCpp(h, name);
     return 0;
 }
 
@@ -115,13 +150,27 @@ int main(int argc, char** argv) {
         }
         return run(args[1], args.size() == 4 ? static_cast<std::uint32_t>(std::stoul(args[3])) : 1u);
     }
-    std::string target;
-    for (std::size_t i = 0; i < args.size(); ++i)
-        if (args[i] == "--target" && i + 1 < args.size()) target = args[i + 1];
-    if (!target.empty() && !basic::findTarget(target)) {
+    std::string target, input, output;
+    for (std::size_t i = 0; i < args.size(); ++i) {
+        if (args[i] == "--target" && i + 1 < args.size()) target = args[++i];
+        else if (args[i] == "-o" && i + 1 < args.size()) output = args[++i];
+        else if (input.empty() && args[i].rfind("-", 0) != 0) input = args[i];
+        else {
+            usage(std::cerr);
+            return 2;
+        }
+    }
+    if (target.empty() || input.empty()) {
+        usage(std::cerr);
+        return 2;
+    }
+    if (!basic::findTarget(target)) {
         std::cerr << "basicc: unknown target '" << target << "' (see basicc --targets)\n";
         return 2;
     }
-    std::cerr << "basicc: compiling is not implemented yet (see docs/roadmap.md)\n";
-    return 2;
+    if (target != "pc") {
+        std::cerr << "basicc: target '" << target << "' is not implemented yet (see docs/roadmap.md)\n";
+        return 2;
+    }
+    return compilePc(input, output);
 }

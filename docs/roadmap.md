@@ -29,8 +29,10 @@ Dokumentation von Architektur, Zwischencode, Runtime, Numerik, Zielsystemen und 
 
 ## 0.3 – C++-Ziel
 
-- C++-Backend aus der HIR, `platform/pc`, emulierter Speicher.
-- Differenztest IR-Interpreter ↔ pc.
+- ✔ C++-Backend aus der HIR (`basicc --target pc`), `platform/pc` (gemeinsame Laufzeitschicht mit dem
+  Interpreter).
+- ✔ Differenztest: alle Golden-Tests übersetzt, gebaut und mit den Ausgaben des Originals verglichen.
+- Emulierter Speicher (`PEEK`/`POKE`, `VARPTR`, D6) folgt mit der Gruppe `memory`.
 
 ## 0.4 – MC68000 / Amiga
 

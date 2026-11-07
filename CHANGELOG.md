@@ -13,6 +13,9 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
   abgefangenen Fehler im Original unbrauchbar ist.
 
 ### Hinzugefügt
+- C++-Ziel `pc` (`basicc --target pc`): lesbarer C++17-Code aus der HIR; gemeinsame
+  Laufzeitschicht `platform/pc` für Interpreter und erzeugte Programme; Differenztests `pc_<name>`
+  übersetzen alle Golden-Tests und vergleichen mit den Ausgaben des Originals.
 - Frontend, erster Teil: Lexer und Parser für den Sprachkern (Ausdrücke mit der am Original
   ermittelten Rangfolge, Zuweisung, `PRINT`, alle Schleifen, `IF`/`SELECT`, Prozeduren und
   Funktionen, `DATA`/`READ`, Labels, Fehlerbehandlung, allgemeine Befehle), `basicc --emit-ast`;
