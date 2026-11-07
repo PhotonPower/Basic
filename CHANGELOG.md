@@ -29,6 +29,12 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 - probe3 am Original ausgewertet (`tests/probes/results/probe3.txt`): Regel von `==` bestätigt
   (28 Bit, Hälfte aufwärts statt gerade Rundung), Fehler 1 „overflow“, Unterlauf zu 0,
   `VAL` außerhalb des Bereichs ergibt 0.
+- probe4 am Original ausgewertet (`tests/probes/results/probe4.txt`): `SELECT` packt Strings
+  Big-Endian, `CONT`, `PRINT USING` (Rundung über die Dezimaldarstellung), `MODE` vertauscht `.`/`,`
+  auch im Format, `STR$(x,y,z)`, Operator-Rangfolge, String-Funktionen, Fehler 10.
+- probe5 am Original ausgewertet (`tests/probes/results/probe5.txt`): vollständige Rangfolge der
+  Operatoren (`AND`/`OR`/`XOR` gleichrangig, `NOT` am schwächsten), `STR$(x,n)` behält die linken
+  Zeichen, Eigenheiten von `INSTR` und `PRINT USING`.
 - Entscheidung D11: IEEE binary64 bleibt, Eigenheiten des Originals (`PI`, `MKS$`, ungenaue
   Funktionen) werden nicht nachgebildet.
 - `CLAUDE.md` mit Hinweisen für Agenten; `docs/gfa-original.md`.

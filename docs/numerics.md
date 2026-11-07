@@ -156,6 +156,36 @@ Differenztests Ausgaben vergleichen.
     `0.0001235`; `STR$` ebenso (probe2 T33);
   - Komma in `PRINT` springt auf die nächste Spalte, die ein Vielfaches von 16 ist (probe1 T39).
 - Werden die Formatregeln bestätigt, kommen sie als Golden-Tests nach `tests/programs`.
+
+### `PRINT USING`, `STR$(x,y[,z])` und `MODE` (am Original, probe4)
+
+- **Rundung über die Dezimaldarstellung:** Gerundet wird die auf 13 Stellen gerundete Dezimalzahl,
+  bei genau ,5 von 0 weg: `USING "#"` ergibt für 0,5/1,5/2,5 `1`/`2`/`3`, `"#.#"` für 0,25 `0.3` und
+  für 0,35 `0.4`, obwohl 0,35 binär knapp darunter liegt (T14–T18). `STR$(x,y,z)` rundet ebenso
+  (`STR$(-1.5,4,0)` = `"  -2"`, T34). Das setzen wir auf binary64 genauso um.
+- Beispiele aus dem Handbuch bestätigt: `"#.####"`,PI → `3.1416`; `"###.##^^^^"` → ` 16.00E+00`,
+  `  4.10E+03`; `"PI_._._. #.###"` → `PI... 3.142`; `&`, `!`, `\  \` (T10–T12, T30).
+- Vorzeichen: `"-##.#"`, −1,25 → `- 1.3` (Minus auf fester Stelle); positiv → Leerzeichen;
+  `"+##"`, 5 → `+ 5`; `"##.#-"`, −3 → ` 3.0-`; ohne eigene Stelle steht das Minus direkt vor der
+  Zahl, wenn Platz ist (`"###.##"`, −0,5 → ` -0.50`). `*` füllt (`**12`), `$` steht direkt vor der
+  ersten Ziffer (` $3.50`), `,` trennt Tausender (`1,234.50`) (T21–T28).
+- Zu wenig Stellen: Die führenden Ziffern **fallen weg** (`"##"`, 1234 → `34`), ein Minus ohne Platz
+  ebenso (`"#"`, −2,5 → `3`) (T19, T20).
+- **`MODE` 2 und 3** vertauschen auch die Bedeutung von `.` und `,` **im Formatstring**: Dort muss es
+  `"#.###,##"` heißen; `"#,###.##"` wird zu `4,500.##`. `STR$(1234.5,8,2)` ergibt ` 1234,50`. `PRINT`
+  ist von `MODE` nicht betroffen. `MODE` 0 und 1 unterscheiden sich nur im Datum (T32).
+- `STR$(x,n)`: links mit Leerzeichen auf n aufgefüllt; ist `STR$(x)` länger, bleiben die **linken**
+  n Zeichen (`STR$(123456,3)` = `"123"`, `STR$(-12,2)` = `"-1"`, `STR$(1.5,2)` = `"1."`). Das
+  Handbuch (`RIGHT$(…)`) irrt hier (probe4 T33, probe5 T19).
+- `STR$(x,y,z)` formatiert wie `PRINT USING` mit y Stellen, davon z Nachkommastellen; zu lange
+  Ergebnisse verlieren also die **führenden** Ziffern und das Minus (`STR$(12345.6,4,1)` = `"45.6"`,
+  `STR$(12345.6,3,0)` = `"346"`, `STR$(-1.25,3,1)` = `"1.3"`, `STR$(1,0)` = `""`). Ebenso
+  `USING "##"`: −5 → `-5`, −15 → `15`; `"#.#"`, 99,96 → `0.0` (probe5 T20, T25–T27).
+- **Eigenheiten, offen** (Festlegung nach [D11](decisions.md#d11) noch zu treffen):
+  - Formate ohne Stelle vor dem Punkt sind fehlerhaft: `".##"`, 0,25 → `. 0`, 0,5 → `. 1`; `".#"`,
+    0,25 → `.0` (probe4 T29, probe5 T21–T24).
+  - Mehrere Werte mit einem Format: Nur der erste wird formatiert, der zweite erscheint als `?2.75`
+    (probe4 T31, probe5 T30, T31).
 - `VAL` liest Dezimal, `&H`/`$`, `&X`/`%`, `&O` (✔ `VAL("1.5E3")` = 1500, `VAL("&HFF")` = 255,
   `VAL("%101")` = 5, `VAL(".5x")` = 0,5 – Lesen endet am ersten ungültigen Zeichen, probe1 T54) und ist korrekt gerundet (Text → nächstgelegene
   darstellbare Zahl), damit `VAL(STR$(x))` stabil ist.

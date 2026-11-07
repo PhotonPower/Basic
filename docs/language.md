@@ -103,6 +103,7 @@ Diese Punkte sind aus dem Handbuch nicht sicher zu entnehmen und werden am Origi
   | 4 | no word\|-32768 .. 32767 | Überlauf bei Zuweisung an `&` (probe1 T4) |
   | 5 | no negative squareroot | `SQR(-1)` (probe1 T51) |
   | 6 | logarithm only for\|numbers greater zero | `LOG(0)` (probe1 T52) |
+  | 10 | string too long\|max. 32767 chars | `LEFT$("abc",-1)` (probe4 T45) |
   | 16 | array index out of range | `f%(10)` bei `DIM f%(5)` (probe1 T53) |
   | 24 | file not open | `PRINT #1` nach einem abgefangenen Fehler, siehe unten |
 
@@ -113,7 +114,46 @@ Diese Punkte sind aus dem Handbuch nicht sicher zu entnehmen und werden am Origi
   geschrieben wurde, bleibt erhalten (Versuche beim Lauf von probe1, siehe
   [gfa-original.md](gfa-original.md#regeln-für-prüfprogramme)). Ob das auch ohne `ON ERROR` oder nur
   für bestimmte Fehler gilt, ist offen.
-- **`SELECT` mit Mehrzeichen-Strings:** Packung der Zeichen (Anhang C, Punkt 8).
+- ~~**`SELECT` mit Mehrzeichen-Strings**~~ (Anhang C, Punkt 8), am Original (probe4 T1–T9):
+  - Die Zeichen werden **Big-Endian** gepackt: `CASE "ab"` = 97·256 + 98 = 24930, `CASE "abcd"` =
+    1633837924. Die Formel im Handbuch (ASCII1 + 255 · ASCII2) ist falsch, auch die
+    Little-Endian-Deutung in der Referenz.
+  - `CONT` läuft nur in den **nächsten** Block weiter (`CASE 2 … CONT` führt Block 2 und 3 aus, nicht
+    4).
+  - `CASE TO 3`, `CASE 5 TO 8,20`, `CASE 9 TO`, `CASE "a" TO "z"` funktionieren wie beschrieben.
+  - `SELECT 2.7` trifft `CASE 2`: Der Wert wird zur Ganzzahl abgeschnitten.
+- ~~**Operatoren**~~ (probe4 T35–T40, probe5 T1–T14). Rangfolge am Original, von stark nach schwach;
+  innerhalb einer Stufe wird von links nach rechts ausgewertet:
+
+  | Stufe | Operatoren | Beleg |
+  |---|---|---|
+  | 1 | `^` (linksassoziativ) | `2^3^2` = 64 |
+  | 2 | Vorzeichen `-` | `-2^2` = −4 |
+  | 3 | `*` `/` | `7 MOD 3*2` = 1, `8/2 MOD 3` = 1 |
+  | 4 | `MOD` `DIV` `\` | `7 MOD 3+1` = 2, `9 DIV 4 MOD 2` = 0 |
+  | 5 | `+` `-` | |
+  | 6 | Vergleiche `=` `<>` `<` `>` `<=` `>=` `==` | `1+1=2` = −1, `7 MOD 3=1` = −1 |
+  | 7 | `AND` `OR` `XOR` `IMP` `EQV` (**gleichrangig**) | `1 OR 2 AND 0` = 0, `0 AND 0 XOR 1` = 1 |
+  | 8 | `NOT` (gilt für den ganzen Rest des Ausdrucks) | `NOT 0+1` = −2, `NOT 1 AND 1` = −2 |
+
+  Dass `AND` nicht stärker bindet als `OR` und `NOT` am schwächsten, weicht von den meisten BASICs
+  ab. Die Stufe von `IMP`/`EQV` ist aus Analogie angenommen, nicht geprüft.
+  - Wahr ist −1. Logische Operatoren arbeiten bitweise auf 32 Bit, Floats werden vorher Richtung 0
+    abgeschnitten (`NOT 1` = −2, `3.7 AND 6` = 2, `-1.5 OR 0` = −1). `IMP` und `EQV` bitweise
+    (`6 IMP 3` = −5, `6 EQV 3` = −6).
+- **Strings** (probe4 T41–T50):
+  - Vergleiche nach ASCII (`"a"<"B"` falsch), ein Präfix ist kleiner (`"ab"<"abc"`).
+  - `MID$("abc",5)` = `""`, `MID$("abc",0,2)` = `"ab"` (0 zählt wie 1), `LEFT$` mit zu großer Länge
+    liefert den ganzen String. `LEFT$("abc",-1)` meldet Fehler 10.
+  - Der Befehl `MID$` arbeitet wie im Handbuch (`Testwert`), `MID$(b$,2)="XYZ"` mit `b$="abc"` ergibt
+    `aXY`.
+  - `VAL?`: 4 für `"3.00 DM"`, 0 für `"x"`, 3 für `" 12"` (führende Leerzeichen zählen mit), 2 für
+    `"1E"`; `VAL("1E")` = 1.
+  - `STRING$(3,"ab")` = `ababab`, `ASC("")` = 0, `CHR$(0)` ist ein normales Zeichen.
+  - `INSTR`: `INSTR("","")` = 1, `INSTR("abc","")` = 0, `INSTR("abcabc","c",4)` =
+    `INSTR(4,"abcabc","c")` = 6. Startposition 0 zählt wie 1, eine negative meldet Fehler 10.
+  - Eigenheit: Mit leerem Suchstring liefert `INSTR("abc","",n)` für n = 1…5 die Werte 0, 1, 2, 4, 0
+    (probe5 T15); `INSTR("","",n)` ist 1.
 - **Ausgabe auf dem Amiga:** Ein GFA-Programm gibt in ein Fenster aus (öffnet es bei Bedarf). Für
   den ersten Stand schreibt das kompilierte Programm auf `Output()` der Shell; Fensterausgabe folgt mit
   der Gruppe `gui`.
