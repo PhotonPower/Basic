@@ -12,19 +12,19 @@
   ],
   "run": [
     "key:return",
-    "wait:1",
+    "wait:0.5",
     "key:return",
-    "wait:1",
+    "wait:0.5",
     "key:shift+f4",
-    "wait:1",
+    "wait:0.7",
     "key:return",
-    "wait:1",
+    "wait:0.7",
     "key:f2",
-    "wait:2",
+    "wait:1.5",
     "key:delete*40",
     "type:{file}",
     "key:return",
-    "wait:6",
+    "wait:4",
     "key:shift+f10"
   ]
 }

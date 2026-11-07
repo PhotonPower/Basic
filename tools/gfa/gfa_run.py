@@ -112,17 +112,29 @@ def parse_step(step: str, layout: str) -> list[str]:
         mod_map = {"shift": "shift down", "ctrl": "control down", "alt": "option down", "cmd": "command down"}
         using = ", ".join(mod_map[m] for m in mods)
         suffix = f" using {{{using}}}" if using else ""
-        press = [f'tell application "System Events" to key code {NAMED_KEYS[name]}{suffix}', "delay 0.15"]
-        return press * int(count or 1)
+        n = int(count or 1)
+        press = [CHECK_FOCUS, f'tell application "System Events" to key code {NAMED_KEYS[name]}{suffix}',
+                 "delay 0.04" if n > 1 else "delay 0.15"]
+        return press * n
     if kind == "type":
         lines = []
         for code, shift in key_events(arg, layout):
             suffix = " using {shift down}" if shift else ""
+            lines.append(CHECK_FOCUS)
             lines.append(f'tell application "System Events" to key code {code}{suffix}')
-            lines.append("delay 0.08")
+            lines.append("delay 0.06")
         return lines
     raise ValueError(f"unknown step {step!r}")
 
+
+# Every key press is preceded by this check: if the user has switched to another window, the run
+# stops instead of typing into that window.
+CHECK_FOCUS = "my ensureFocus()"
+FOCUS_HANDLER = """\
+on ensureFocus()
+  tell application "System Events" to set frontApp to name of first application process whose frontmost is true
+  if not (frontApp contains "uae" or frontApp contains "UAE") then error "focus lost" number 501
+end ensureFocus"""
 
 FOCUS_WAIT = """\
 repeat 40 times
@@ -132,12 +144,12 @@ repeat 40 times
   if frontApp contains "uae" or frontApp contains "UAE" then exit repeat
 end repeat
 if not (frontApp contains "uae" or frontApp contains "UAE") then error "FS-UAE does not get the focus"
-delay 2"""
+delay 0.5"""
 
 
 def build_script(steps: list[str], layout: str, app: str, variables: dict[str, str]) -> str:
     # Activate FS-UAE and wait until it really is frontmost; otherwise the keys go elsewhere.
-    lines = [FOCUS_WAIT.replace("{app}", app)]
+    lines = [FOCUS_HANDLER, FOCUS_WAIT.replace("{app}", app)]
     for step in steps:
         for name, value in variables.items():
             step = step.replace("{" + name + "}", value)
@@ -281,6 +293,10 @@ def main(argv: list[str] | None = None) -> int:
         time.sleep(args.boot_wait)
 
     run = subprocess.run(["osascript", "-"], input=script, text=True, capture_output=True)
+    if run.returncode != 0 and "focus lost" in run.stderr:
+        print("gfa_run: FS-UAE lost the focus (another window was activated); no further keys were "
+              "sent. Run again without switching windows.", file=sys.stderr)
+        return 3
     if run.returncode != 0:
         print("gfa_run: osascript failed (Accessibility permission?):\n" + run.stderr, file=sys.stderr)
         return 2

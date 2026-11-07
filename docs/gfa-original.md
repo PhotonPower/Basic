@@ -45,11 +45,15 @@ gfa_run.py probe1.lst
   └─ Ergebnis ausgeben (--out kopiert es zusätzlich); bei Zeitüberschreitung Bildschirmfoto probe1.png
 ```
 
+**Während eines Laufs (rund 15 Sekunden je Programm) kein anderes Fenster aktivieren.** Das Skript
+holt FS-UAE nach vorn und prüft vor jedem einzelnen Tastendruck, ob es noch vorn ist; sonst bricht
+es mit Rückgabewert 3 ab, statt in ein anderes Fenster zu tippen. Danach den Lauf wiederholen.
+
 Das FS-UAE-Menü (F12) darf nicht offen sein, sonst gehen die Tastendrücke dorthin; Escape schließt
 es.
 
 Rückgabewert: `0` Ergebnis vollständig, `1` Zeitüberschreitung (Bildschirmfoto ansehen), `2`
-Einrichtungsfehler.
+Einrichtungsfehler, `3` FS-UAE hat während der Tastenfolge den Fokus verloren.
 
 ## Regeln für Prüfprogramme
 

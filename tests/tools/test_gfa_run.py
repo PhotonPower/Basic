@@ -39,7 +39,17 @@ class KeyEvents(unittest.TestCase):
 class Steps(unittest.TestCase):
     def test_named_key_with_modifier(self):
         lines = gfa_run.parse_step("key:shift+f10", "de")
-        self.assertIn("key code 109 using {shift down}", lines[0])
+        self.assertIn("key code 109 using {shift down}", lines[1])
+
+    def test_every_key_checks_the_focus(self):
+        # no key may go to another window when the user switches away during a run
+        script = gfa_run.build_script(["key:return", "type:ab", "key:delete*3", "wait:1"], "us", "FS-UAE", {})
+        lines = script.splitlines()
+        keys = [i for i, l in enumerate(lines) if "key code" in l]
+        self.assertEqual(len(keys), 6)
+        for i in keys:
+            self.assertEqual(lines[i - 1], "my ensureFocus()")
+        self.assertIn("on ensureFocus()", script)
 
     def test_key_repeat(self):
         lines = gfa_run.parse_step("key:delete*3", "us")
@@ -66,7 +76,7 @@ class Steps(unittest.TestCase):
     def test_keys_json_builds(self):
         keys = json.loads((ROOT / "tools" / "gfa" / "keys.json").read_text())
         script = gfa_run.build_script(keys["run"], "de", "FS-UAE", {"file": "dh0:probe1.lst"})
-        self.assertTrue(script.startswith("repeat"))
+        self.assertTrue(script.startswith("on ensureFocus()"))
         self.assertIn('tell application "FS-UAE" to activate', script)
         self.assertNotIn("{file}", script)
 

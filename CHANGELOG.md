@@ -27,7 +27,9 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
   Original (probe9). Golden-Tests `tests/programs` (7 Programme, Ausgaben noch nicht am Original
   abgeglichen).
 - `gfa_run.py`: Programme ohne `datei$`-Zeile werden umgeschrieben (`PRINT` in eine Datei, Kanal in
-  Fehlerroutinen neu öffnen); wartet, bis FS-UAE den Fokus hat; erstes Return doppelt.
+  Fehlerroutinen neu öffnen); wartet, bis FS-UAE den Fokus hat; erstes Return doppelt; prüft vor
+  jedem Tastendruck, ob FS-UAE noch vorn ist, und bricht sonst ab (Rückgabewert 3), statt in ein
+  anderes Fenster zu tippen; kürzere Pausen.
 - Numerische Referenz `runtime/ref` (C99, nur Ganzzahlarithmetik): binary64-Grundoperationen
   korrekt gerundet, `==`, Umwandlungen und Rundungsfunktionen, `ROUND`, Zahl → Text mit 13 Stellen und
   `DEFNUM`, `VAL`/`VAL?` korrekt gerundet, Zufallsgenerator; Tests gegen die IEEE-Arithmetik des
