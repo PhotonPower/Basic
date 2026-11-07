@@ -759,6 +759,21 @@ private:
             argc(2, 2);
             h->targets.push_back(numericTarget(*s.args[0]));
             h->args.push_back(convertTo(expr(*s.args[1]), Type::Float, s.args[1]->pos));
+        } else if (n == "SWAP" && s.args.size() == 2 &&
+                   (s.args[0]->kind == ExprKind::Call && s.args[0]->text == "ARRPTR" && !s.args[0]->args[0]->wholeArray) !=
+                       (s.args[1]->kind == ExprKind::Call && s.args[1]->text == "ARRPTR" && !s.args[1]->args[0]->wholeArray)) {
+            // SWAP *p,a() (or a(),*p): exchange a() with the array whose descriptor p points to (probe19 T4)
+            const bool first = s.args[0]->kind == ExprKind::Call;
+            const ast::Expr& ptr = *s.args[first ? 0 : 1]->args[0];
+            const ast::Expr& arr = *s.args[first ? 1 : 0];
+            if (arr.kind != ExprKind::Var || !arr.wholeArray) fail(arr.pos, "SWAP *p needs an array a() as the other argument");
+            h->mode = 1;
+            h->args.push_back(convertTo(expr(ptr), Type::Float, ptr.pos));
+            auto v = makeExpr(Op::Load, typeOf(arr.text));
+            v->var = varId(arr.text, true);
+            h->targets.push_back(std::move(v));
+        } else if (n == "ABSOLUTE") {
+            fail(s.pos, "ABSOLUTE is not supported yet (needs the memory image of D6)");
         } else if (n == "SWAP") {
             argc(2, 2);
             for (const auto& a : s.args) {
@@ -1088,6 +1103,17 @@ private:
                 auto v = makeExpr(Op::Load, typeOf(a.text));
                 v->var = varId(a.text, true);
                 c->args.push_back(std::move(v));
+                continue;
+            }
+            if (kind == 'r') {  // ARRPTR, *x: a variable or a whole array (its descriptor)
+                if (a.kind != ExprKind::Var) fail(a.pos, e.text + " expects a variable or an array a()");
+                if (a.wholeArray) {
+                    auto v = makeExpr(Op::Load, typeOf(a.text));
+                    v->var = varId(a.text, true);
+                    c->args.push_back(std::move(v));
+                } else {
+                    c->args.push_back(lvalue(a));
+                }
                 continue;
             }
             if (kind == 'v') {  // a variable or an array element (VARPTR, V:)

@@ -178,6 +178,8 @@ Diese Punkte sind aus dem Handbuch nicht sicher zu entnehmen und werden am Origi
   `OUT #n,b,...` lesen/schreiben Bytes. `NAME a$ AS b$` auf ein vorhandenes Ziel: −53 „object
   already exists“ (203). `ERR$(50)` ist im Original verstümmelt („file isn4fields greater than
   record“); wir liefern „fields greater than record“.
+- **Zeiger und Deskriptoren** (`ARRPTR`, `*x`, `SWAP *p,a()`, `TYPE`): am Original (probe19), siehe
+  [D21](decisions.md#d21). `MALLOC` hat immer zwei Argumente. `ABSOLUTE` ist noch nicht umgesetzt.
 - **Matrixbefehle** (`MAT …`, Kapitel 13): am Original (probe17) und nach [D23](decisions.md#d23).
   Fehlernummern 77, 79, 82, 83; `MAT PRINT` mit „,“ und CR LF; `MAT SET`/`CLR` auf das ganze Feld;
   `MAT ONE` stürzt im Original ab; `MAT INPUT #` liest Zahlen wie `INPUT #` (probe18). In allen

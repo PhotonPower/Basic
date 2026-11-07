@@ -365,24 +365,56 @@ private:
     // bytes of a value of this type in memory (VARPTR): %, & , |/! and float
     static int widthOf(Type t) { return t == Type::Word ? 2 : (t == Type::Byte || t == Type::Bool) ? 1 : 4; }
 
+    // TYPE numbers (probe19 T5): # 0, $ 1, % 2, ! 3, & 8, | 9; arrays # 4, $ 5, % 6, ! 7, & 12, | 13
+    static int typeCode(Type t, bool array) {
+        switch (t) {
+            case Type::Float: return array ? 4 : 0;
+            case Type::Str: return array ? 5 : 1;
+            case Type::Bool: return array ? 7 : 3;
+            case Type::Word: return array ? 12 : 8;
+            case Type::Byte: return array ? 13 : 9;
+            default: return array ? 6 : 2;
+        }
+    }
+
     std::int32_t varptr(const hir::Expr& t) {
         const Type ty = var(t.var).type;
         if (t.op == Op::Load) {
             Slot& sl = slot(t.var);
             if (ty == Type::Str) return static_cast<std::int32_t>(mem_.of(sl.s));
-            if (ty == Type::Float) return static_cast<std::int32_t>(mem_.of(sl.f));
-            return static_cast<std::int32_t>(mem_.of(sl.i, widthOf(ty)));
+            if (ty == Type::Float) return static_cast<std::int32_t>(mem_.of(sl.f, typeCode(ty, false)));
+            return static_cast<std::int32_t>(mem_.of(sl.i, widthOf(ty), typeCode(ty, false)));
         }
         const std::size_t ix = elemIndex(t);
         Array& a = array(t.var);
         if (ty == Type::Str) return static_cast<std::int32_t>(mem_.of(a.strs[ix]));
-        if (ty == Type::Float) return static_cast<std::int32_t>(mem_.of(a.floats, a.floats[ix]));
-        return static_cast<std::int32_t>(mem_.of(a.ints, a.ints[ix], widthOf(ty)));
+        if (ty == Type::Float) return static_cast<std::int32_t>(mem_.of(a.floats, a.upper, base_, a.floats[ix]));
+        return static_cast<std::int32_t>(mem_.of(a.ints, a.upper, base_, a.ints[ix], widthOf(ty)));
+    }
+
+    // ARRPTR(x), *x: numbers as VARPTR; a string or an array: its descriptor (probe19 T1-T3)
+    std::int32_t arrptr(const hir::Expr& t) {
+        const Type ty = var(t.var).type;
+        if (!(t.op == Op::Load && var(t.var).array)) {
+            if (ty == Type::Str && t.op == Op::Load) return static_cast<std::int32_t>(mem_.descriptor(slot(t.var).s));
+            return varptr(t);
+        }
+        Slot* sl = &slot(t.var);
+        auto block = [this, sl, ty]() -> std::uint32_t {
+            if (!sl->arr || !sl->arr->dimmed || ty == Type::Str) return 0;  // string arrays: no block bytes
+            Array& a = *sl->arr;
+            const std::uint32_t first = ty == Type::Float ? mem_.of(a.floats, a.upper, base_, a.floats[0])
+                                                          : mem_.of(a.ints, a.upper, base_, a.ints[0], widthOf(ty));
+            return first - static_cast<std::uint32_t>(4 * a.upper.size());
+        };
+        auto dims = [sl]() { return sl->arr && sl->arr->dimmed ? static_cast<int>(sl->arr->upper.size()) : 0; };
+        return static_cast<std::int32_t>(mem_.descriptor(sl, typeCode(ty, true), block, dims));
     }
 
     Value builtin(const hir::Expr& e) {
         const std::string& n = e.sval;
         if (n == "VARPTR") return Value::ofInt(varptr(*e.args[0]));
+        if (n == "ARRPTR") return Value::ofInt(arrptr(*e.args[0]));
         if (n == "DIM?") {
             const Array& arr = array(e.args[0]->var, false);
             if (!arr.dimmed) return Value::ofInt(0);
@@ -474,6 +506,7 @@ private:
             return I(mem_.get(f(0), k));
         }
         if (n == "PEEK") return I(mem_.peek(f(0), 1));
+        if (n == "TYPE") return I(mem_.typeAt(f(0)));
         if (n == "DPEEK") return I(mem_.peek(f(0), 2));
         if (n == "LPEEK") return I(mem_.peek(f(0), 4));
         if (n == "MALLOC") return I(mem_.malloc(f(0), argc > 1 ? f(1) : 0));
@@ -1009,6 +1042,15 @@ private:
                 const std::int64_t r = n == "ADD" ? a + b : n == "SUB" ? a - b : n == "MUL" ? a * b : a / b;
                 storeTarget(t, wrapTo(ty, r));
             }
+            return;
+        }
+        if (n == "SWAP" && s.mode == 1) {  // SWAP *p,a(): the array p points to (probe19 T4)
+            const f64 p = eval(*s.args[0]).f;
+            const hir::Expr& a = *s.targets[0];
+            int code = -1;
+            const void* key = mem_.keyAt(p, code);
+            if (key == nullptr || code != typeCode(var(a.var).type, true)) throw RuntimeError{68};  // var-type mismatch (ours)
+            std::swap(static_cast<Slot*>(const_cast<void*>(key))->arr, slot(a.var).arr);
             return;
         }
         if (n == "SWAP") {

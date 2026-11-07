@@ -40,6 +40,10 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 - `RESUME` setzt `ERR` auf 0 (probe12 T1); damit ist `errors2` am Original gleich.
 - `gfa_run.py`: Startmenü der Diskette nach einem Kaltstart (`boot` in `keys.json`), längere
   Wartezeiten für den Merge-Dialog und das Einlesen.
+- `ARRPTR`/`*x`, `SWAP *p,a()`, `TYPE(p)` in allen Ausführungen (probe19 am Original). Die Felder des
+  68000 haben jetzt die Speicherform des Originals (Deskriptor: Blockadresse und Dimensionen; im
+  Block die Ausdehnungen vor den Elementen); Interpreter und C++-Ziel bilden dieselben Bytes nach.
+  `MALLOC` verlangt zwei Argumente wie das Original. Testprogramm `ptr` mit der Ausgabe des Originals.
 - `MAT INPUT #` in allen Ausführungen (probe18 am Original); auf dem 68000 eigene Module für
   `MAT READ`/`INPUT`/`PRINT`. Behoben: `INPUT #` meldete bei einem CR vor dem Zeilenende Fehler 35;
   ein CR beendet jetzt einen Wert, ein LF direkt danach gehört dazu (wie am Original). Testprogramm

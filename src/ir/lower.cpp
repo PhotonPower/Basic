@@ -880,6 +880,15 @@ private:
             rtcallVoid("rt_arr_set_base", {toI(expr(*s.args[0]))});
             return;
         }
+        if (n == "SWAP" && s.mode == 1) {  // SWAP *p,a(): check the type of what p points to, exchange the slots
+            const hir::Expr& t = *s.targets[0];
+            static const std::map<Type, int> codes = {{Type::Float, 4}, {Type::Str, 5}, {Type::Int, 6},
+                                                       {Type::Bool, 7}, {Type::Word, 12}, {Type::Byte, 13}};
+            Reg p = toI(expr(*s.args[0]));
+            Reg slotAddr = addrOf(t.var);
+            rtcallVoid("rt_swapptr", {p, constI(codes.at(var(t.var).type)), slotAddr});
+            return;
+        }
         if (n == "SWAP") {
             const hir::Expr& a = *s.targets[0];
             const hir::Expr& b = *s.targets[1];
@@ -1396,6 +1405,14 @@ private:
         if (n == "LOF") return rtcall("rt_file_lof", {toI(arg(e, 0))}, VT::I32);
         if (n == "EXIST") return rtcall("rt_file_exist", {arg(e, 0)}, VT::I32);
         if (n == "LOC") return rtcall("rt_file_loc", {toI(arg(e, 0))}, VT::I32);
+        if (n == "ARRPTR") {  // numbers as VARPTR; strings and arrays: the descriptor (the slot itself)
+            const hir::Expr& t = *e.args[0];
+            Reg a = t.op == Op::Load ? addrOf(t.var) : elemAddr(t);
+            Reg r = reg(VT::I32);
+            copyTo(r, a);
+            return r;
+        }
+        if (n == "TYPE") return rtcall("rt_type", {toI(arg(e, 0))}, VT::I32);
         if (n == "VARPTR") {  // the address of the storage; strings: of their characters
             const hir::Expr& t = *e.args[0];
             Reg a = t.op == Op::Load ? addrOf(t.var) : elemAddr(t);

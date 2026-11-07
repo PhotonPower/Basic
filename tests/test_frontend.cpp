@@ -194,6 +194,8 @@ void testSema() {
     CHECK_EQ(hir("x=TIMER"), std::string("error 1: TIMER is not supported yet\n"));
     CHECK_EQ(hir("x=LEFT$(1)"), std::string("error 1: LEFT$ expects a string here\n"));
     CHECK_EQ(hir("SELECT 1\nCASE \"abcde\"\nENDSELECT"), std::string("error 2: CASE strings have at most 4 characters\n"));
+    // MALLOC always has two arguments (probe19: MALLOC(16) is error 15 at the original)
+    CHECK_EQ(hir("m%=MALLOC(16)").rfind("error 1: ", 0), std::size_t{0});
 }
 
 void testProbes() {

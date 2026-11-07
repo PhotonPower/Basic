@@ -1,0 +1,104 @@
+' probe19 - ARRPTR/*, Deskriptoren, SWAP *p,a(), TYPE(*x), ABSOLUTE (GFA-BASIC 3.5, Amiga).
+' Ergebnisdatei: DH0:probe19.txt. Nach jedem Abschnitt wird sie geschlossen (@flush), Spurzeilen
+' "> ..." vor riskanten Befehlen, damit bei einem Absturz das Bisherige bleibt.
+'
+datei$="DH0:probe19.txt"
+OPEN "O",#1,datei$
+ON ERROR GOSUB fehler
+PRINT #1,"probe19"
+@flush
+'
+' T1 Skalare: ARRPTR = VARPTR?
+x%=5
+y=1.5
+b|=7
+PRINT #1,"T1 % ";ARRPTR(x%)-VARPTR(x%);" # ";*y-V:y;" | ";ARRPTR(b|)-V:b|
+@flush
+'
+' T2 String-Deskriptor: Adresse, Laenge
+s$="Hallo"
+d%=ARRPTR(s$)
+PRINT #1,"T2 LPEEK(d)-V:s$=";LPEEK(d%)-V:s$;" DPEEK(d+4)=";DPEEK(d%+4);" d-V:s$=";d%-V:s$
+s$="abcdefgh"
+PRINT #1,"T2 nach Zuweisung: gleicher Deskriptor ";d%=ARRPTR(s$);" LPEEK(d)-V:s$=";LPEEK(d%)-V:s$;" Laenge ";DPEEK(d%+4)
+e$=""
+PRINT #1,"T2 leer: LPEEK=";LPEEK(ARRPTR(e$));" DPEEK=";DPEEK(ARRPTR(e$)+4)
+@flush
+'
+' T3 Feld-Deskriptor: Bytes um *a%()
+DIM a%(3,4),f(2)
+a%(0,0)=11
+a%(1,0)=12
+a%(0,1)=13
+p%=*a%()
+PRINT #1,"T3 LPEEK(p)-V:a%(0,0)=";LPEEK(p%)-V:a%(0,0);" DPEEK(p+4)=";DPEEK(p%+4)
+q%=LPEEK(p%)
+PRINT #1,"T3 Bytes vor den Elementen:";
+FOR i%=-16 TO -2 STEP 2
+  PRINT #1," ";DPEEK(V:a%(0,0)+i%);
+NEXT i%
+PRINT #1
+PRINT #1,"T3 V:a%(1,0)-V:a%(0,0)=";V:a%(1,0)-V:a%(0,0);" V:a%(0,1)-V:a%(0,0)=";V:a%(0,1)-V:a%(0,0)
+PRINT #1,"T3 f: LPEEK(*f())-V:f(0)=";LPEEK(*f())-V:f(0);" DPEEK(*f()+4)=";DPEEK(*f()+4)
+@flush
+'
+' T4 SWAP *p,a(): Feld per Zeiger an eine Prozedur
+DIM z%(2)
+z%(1)=100
+PRINT #1,"> @feld(*z%())"
+@flush
+@feld(*z%())
+PRINT #1,"T4 nach @feld: z%(1)=";z%(1);" z%(2)=";z%(2);" DIM?(w%())=";DIM?(w%())
+@flush
+'
+' T5 TYPE(*x)
+DIM t$(1),tb!(1),tw&(1),ty|(1)
+w&=1
+PRINT #1,"> T5 Zeile 1"
+@flush
+PRINT #1,"T5 # ";TYPE(*y);" $ ";TYPE(*s$);" % ";TYPE(*x%);" ! ";TYPE(*t!);" #() ";TYPE(*f());" $() ";TYPE(*t$());" %() ";TYPE(*a%())
+PRINT #1,"> T5 Zeile 2"
+@flush
+PRINT #1,"T5 !() ";TYPE(*tb!());" & ";TYPE(*w&);" | ";TYPE(*b|);" &() ";TYPE(*tw&());" |() ";TYPE(*ty|());" 0 ";TYPE(0)
+@flush
+'
+' T6 ABSOLUTE
+PRINT #1,"> MALLOC"
+@flush
+m%=MALLOC(16,&H10001)
+LPOKE m%,1234
+PRINT #1,"> ABSOLUTE g%,m%"
+@flush
+ABSOLUTE g%,m%
+PRINT #1,"T6 g%=";g%;" V:g%-m%=";V:g%-m%
+g%=99
+PRINT #1,"T6 nach g%=99: LPEEK(m%)=";LPEEK(m%)
+' ABSOLUTE h%,V:k% (auf eine andere Variable) stuerzt am Original ab (Software error), daher weggelassen
+~MFREE(m%,16)
+@flush
+'
+' T7 *x in Ausdruecken und als Parameter
+PRINT #1,"T7 *x%=V:x% ";*x%=V:x%;" ARRPTR(z%())=*z%() ";ARRPTR(z%())=*z%()
+@flush
+PRINT #1,"ende"
+CLOSE #1
+END
+'
+PROCEDURE feld(ptr%)
+  SWAP *ptr%,w%()
+  PRINT #1,"T4 in @feld: w%(1)=";w%(1);" DIM?(w%())=";DIM?(w%())
+  w%(2)=200
+  SWAP *ptr%,w%()
+RETURN
+PROCEDURE flush
+  CLOSE #1
+  OPEN "A",#1,datei$
+RETURN
+PROCEDURE fehler
+  e%=ERR
+  CLOSE #1
+  OPEN "A",#1,datei$
+  PRINT #1,"   -> ERR ";e%;" ";ERR$(e%)
+  ON ERROR GOSUB fehler
+  RESUME NEXT
+RETURN

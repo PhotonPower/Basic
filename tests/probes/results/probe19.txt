@@ -1,0 +1,22 @@
+probe19
+T1 % 0 # 0 | 0
+T2 LPEEK(d)-V:s$=0 DPEEK(d+4)=5 d-V:s$=-62190
+T2 nach Zuweisung: gleicher Deskriptor -1 LPEEK(d)-V:s$=0 Laenge 8
+T2 leer: LPEEK=0 DPEEK=0
+T3 LPEEK(p)-V:a%(0,0)=-8 DPEEK(p+4)=2
+T3 Bytes vor den Elementen: 195 3144 0 96 0 5 0 4
+T3 V:a%(1,0)-V:a%(0,0)=4 V:a%(0,1)-V:a%(0,0)=16
+T3 f: LPEEK(*f())-V:f(0)=-4 DPEEK(*f()+4)=1
+> @feld(*z%())
+T4 in @feld: w%(1)=100 DIM?(w%())=3
+T4 nach @feld: z%(1)=100 z%(2)=200 DIM?(w%())=0
+> T5 Zeile 1
+T5 # 0 $ 1 % 2 ! 3 #() 4 $() 5 %() 6
+> T5 Zeile 2
+T5 !() 7 & 8 | 9 &() 12 |() 13 0 -1
+> MALLOC
+> ABSOLUTE g%,m%
+T6 g%=1234 V:g%-m%=0
+T6 nach g%=99: LPEEK(m%)=99
+T7 *x%=V:x% -1 ARRPTR(z%())=*z%() -1
+ende

@@ -23,7 +23,7 @@ struct SyntaxError {
 
 // Commands with the generic syntax "NAME [expr {, expr}]" (reference chapters 2, 4, 5, 7).
 const std::set<std::string, std::less<>> kCommands = {
-    "INC",    "DEC",       "ADD",    "SUB",    "MUL",    "DIV",    "SWAP",   "CLR",     "ERASE",
+    "INC",    "DEC",       "ADD",    "SUB",    "MUL",    "DIV",    "SWAP",   "CLR",     "ERASE",    "ABSOLUTE",
     "DEFNUM", "MODE",      "RANDOMIZE", "ERROR", "QUIT", "SYSTEM", "STOP",   "END",     "EDIT",
     "CLEAR",  "LSET",      "RSET",   "DEFINT", "DEFFLT", "DEFSTR", "DEFBIT", "DEFBYT",  "DEFWRD",
     "DEFSNG", "DEFDBL",    "PAUSE",  "DELAY",  "CLS",    "NEW",    "ARRAYFILL", "INSERT", "DELETE",
@@ -230,6 +230,12 @@ private:
             return e;
         }
         if (atMemAccess()) return memAccess();
+        if (acceptPunct("*")) {  // *x = ARRPTR(x); in SWAP *p,a() the array p points to (sema)
+            auto e = make(ExprKind::Call, p, "ARRPTR");
+            e->parens = true;
+            e->args.push_back(lvalue());
+            return e;
+        }
         if (atWord("V") && atPunct(":", 1)) {  // V:x = VARPTR(x)
             take();
             take();

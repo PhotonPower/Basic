@@ -62,13 +62,14 @@ constexpr std::array kBuiltins = {
     Builtin{"EOF", 'i', 1, 1, "c"},       Builtin{"LOF", 'i', 1, 1, "c"},
     Builtin{"EXIST", 'i', 1, 1, "s"},     Builtin{"INPUT$", 's', 1, 2, "nc"},
     Builtin{"LOC", 'i', 1, 1, "c"},       Builtin{"INP", 'i', 1, 1, "c"},
-    Builtin{"VARPTR", 'i', 1, 1, "v"},    Builtin{"PEEK", 'i', 1, 1, "n"},
+    Builtin{"VARPTR", 'i', 1, 1, "v"},    Builtin{"ARRPTR", 'i', 1, 1, "r"},
+    Builtin{"TYPE", 'i', 1, 1, "n"},    Builtin{"PEEK", 'i', 1, 1, "n"},
     Builtin{"DPEEK", 'i', 1, 1, "n"},     Builtin{"LPEEK", 'i', 1, 1, "n"},
     Builtin{"BYTE{}", 'i', 1, 1, "n"},    Builtin{"CARD{}", 'i', 1, 1, "n"},
     Builtin{"INT{}", 'i', 1, 1, "n"},     Builtin{"LONG{}", 'i', 1, 1, "n"},
     Builtin{"FLOAT{}", 'f', 1, 1, "n"},   Builtin{"SINGLE{}", 'f', 1, 1, "n"},
     Builtin{"DOUBLE{}", 'f', 1, 1, "n"},  Builtin{"CHAR{}", 's', 1, 1, "n"},
-    Builtin{"MALLOC", 'i', 1, 2, "nn"},   Builtin{"MFREE", 'i', 2, 2, "nn"},
+    Builtin{"MALLOC", 'i', 2, 2, "nn"},   Builtin{"MFREE", 'i', 2, 2, "nn"},
 };
 
 }  // namespace

@@ -40,6 +40,7 @@ public:
         if (uses_.count("rt_data_str") + uses_.count("rt_data_num") + uses_.count("rt_data_restore") + uses_.count("rt_mat_read") != 0)
             dataTable();
         if (p_.onError) errorTables();
+        if (uses_.count("rt_type") + uses_.count("rt_swapptr") != 0) typeTable();
         out_.uses.assign(uses_.begin(), uses_.end());
         return out_;
     }
@@ -151,6 +152,27 @@ private:
             out_.bss += "prg_rlab:\n        DS.L    " + std::to_string(2 * std::max<std::size_t>(1, p_.hir->labels.size())) + "\n";
             out_.provides.push_back("prg_rlab");
         }
+    }
+
+    // TYPE(p), SWAP *p (rt_type): every variable with its TYPE number (probe19 T5)
+    void typeTable() {
+        out_.data += "prg_vtypes_count:\n        DC.L    " + std::to_string(p_.hir->vars.size()) + "\nprg_vtypes:\n";
+        for (std::size_t v = 0; v < p_.hir->vars.size(); ++v) {
+            const hir::Var& var = p_.hir->vars[v];
+            int code = 2;
+            switch (var.type) {
+                case hir::Type::Float: code = 0; break;
+                case hir::Type::Str: code = 1; break;
+                case hir::Type::Bool: code = 3; break;
+                case hir::Type::Word: code = 8; break;
+                case hir::Type::Byte: code = 9; break;
+                default: code = 2; break;
+            }
+            if (var.array) code += 4;  // arrays: 4 5 6 7 12 13
+            out_.data += "        DC.L    " + varLabel(static_cast<int>(v)) + "\n        DC.W    " + std::to_string(code) + "\n";
+        }
+        out_.provides.push_back("prg_vtypes");
+        out_.provides.push_back("prg_vtypes_count");
     }
 
     // DATA items for rt_data: descriptors (address, length, quoted) and their characters

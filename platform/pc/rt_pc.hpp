@@ -217,11 +217,22 @@ public:
     using Read = std::function<std::uint8_t(std::uint32_t)>;
     using Write = std::function<void(std::uint32_t, std::uint8_t)>;
 
-    std::uint32_t of(std::int32_t& v, int width);   // %: 4, &: 2, | and !: 1 bytes
-    std::uint32_t of(f64& v);
+    // code: the TYPE number of the variable (probe19 T5: # 0, % 2, ! 3, & 8, | 9), -1 none
+    std::uint32_t of(std::int32_t& v, int width, int code = -1);  // %: 4, &: 2, | and !: 1 bytes
+    std::uint32_t of(f64& v, int code = -1);
     std::uint32_t of(std::string& s);               // the characters (up to 32767)
-    std::uint32_t of(std::vector<std::int32_t>& data, const std::int32_t& element, int width);  // array element
-    std::uint32_t of(std::vector<f64>& data, const f64& element);
+    // An element of a numeric array. The window is the array block as on the original (probe19 T3):
+    // the extents (upper - base + 1, long each, the last dimension first), then the elements.
+    std::uint32_t of(std::vector<std::int32_t>& data, const std::vector<std::int32_t>& upper, int base,
+                     const std::int32_t& element, int width);
+    std::uint32_t of(std::vector<f64>& data, const std::vector<std::int32_t>& upper, int base, const f64& element);
+    // Descriptors (ARRPTR, *x): a string: +0 address of the characters (0 if empty), +4 length (word);
+    // an array: +0 address of its block (0 if not dimensioned), +4 dimensions (word). `key` identifies
+    // the variable for SWAP *p (keyAt), code is its TYPE number.
+    std::uint32_t descriptor(std::string& s);
+    std::uint32_t descriptor(const void* key, int code, std::function<std::uint32_t()> block, std::function<int()> dims);
+    std::int32_t typeAt(f64 address);                    // TYPE(p): the TYPE number, -1 if p is no variable
+    const void* keyAt(f64 address, int& code);           // the variable of a descriptor (nullptr: none)
 
     std::int32_t peek(f64 address, int width);      // PEEK 0..255, DPEEK 0..65535, LPEEK signed
     void poke(f64 address, int width, f64 value);   // the lower 8/16/32 bits
@@ -241,12 +252,14 @@ private:
         std::uint32_t size;
         Read read;
         Write write;
+        int code = -1;
+        const void* key = nullptr;
     };
     std::map<std::uint32_t, Window> windows_;       // by base address
     std::map<const void*, std::uint32_t> keys_;
     std::map<std::uint32_t, std::unique_ptr<std::vector<std::uint8_t>>> blocks_;
     std::uint32_t next_ = 0x00400000;
-    std::uint32_t window(const void* key, std::uint32_t size, Read read, Write write);
+    std::uint32_t window(const void* key, std::uint32_t size, Read read, Write write, int code = -1);
     Window& at(std::uint32_t address, std::uint32_t& offset);
     std::uint8_t get(std::uint32_t address);
     void set(std::uint32_t address, std::uint8_t b);

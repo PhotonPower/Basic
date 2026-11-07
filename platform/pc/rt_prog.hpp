@@ -11,6 +11,7 @@
 #include <iostream>
 #include <initializer_list>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -229,6 +230,32 @@ inline f64 dataNumber() {
 }
 inline std::string dataString() { return dataItem().first; }
 inline void dataNext() { ++rt.dataPos; }
+
+// ---- ARRPTR, SWAP *p,a() (probe19): array descriptors in the emulated memory ---------------------
+template <class T>
+std::uint32_t arrDesc(Array<T>& a, int code, int width) {
+    auto block = [&a, width]() -> std::uint32_t {
+        if constexpr (std::is_same_v<T, std::string>) {
+            return 0;  // string arrays: no block bytes
+        } else {
+            if (!a.dimmed) return 0;
+            std::uint32_t first = 0;
+            if constexpr (std::is_same_v<T, f64>) first = rt.mem.of(a.data, a.upper, rt.base, a.data[0]);
+            else first = rt.mem.of(a.data, a.upper, rt.base, a.data[0], width);
+            return first - static_cast<std::uint32_t>(4 * a.upper.size());
+        }
+    };
+    auto dims = [&a]() { return a.dimmed ? static_cast<int>(a.upper.size()) : 0; };
+    return rt.mem.descriptor(&a, code, block, dims);
+}
+
+template <class T>
+void swapPtr(f64 p, Array<T>& a, int code) {
+    int c = -1;
+    const void* key = rt.mem.keyAt(p, c);
+    if (key == nullptr || c != code) throw Error{68};  // var-type mismatch (ours)
+    std::swap(*static_cast<Array<T>*>(const_cast<void*>(key)), a);
+}
 
 // ---- MAT (D23): the same steps as the interpreter ------------------------------------------------
 inline MatArray mat(Array<f64>& a) { return MatArray{a.data.data(), &a.upper, a.dimmed}; }

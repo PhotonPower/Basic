@@ -17,6 +17,18 @@ using hir::Op;
 using hir::SKind;
 using hir::Type;
 
+// TYPE numbers (probe19 T5)
+int typeCode(Type t, bool array) {
+    switch (t) {
+        case Type::Float: return array ? 4 : 0;
+        case Type::Str: return array ? 5 : 1;
+        case Type::Bool: return array ? 7 : 3;
+        case Type::Word: return array ? 12 : 8;
+        case Type::Byte: return array ? 13 : 9;
+        default: return array ? 6 : 2;
+    }
+}
+
 std::string cppType(Type t) {
     switch (t) {
         case Type::Float: return "f64";
@@ -203,7 +215,7 @@ private:
         if (e.op == Op::CallFunc) return true;
         if (e.op == Op::Builtin && (e.sval == "RND" || e.sval == "RANDOM" || e.sval == "RAND" || e.sval == "INPUT$" || e.sval == "INKEY$" ||
                                     e.sval == "EOF" || e.sval == "LOF" || e.sval == "LOC" || e.sval == "INP" ||
-                                    (e.sval.size() > 2 && e.sval.substr(e.sval.size() - 2) == "{}") || e.sval == "PEEK" || e.sval == "DPEEK" || e.sval == "LPEEK" || e.sval == "MALLOC" || e.sval == "MFREE"))
+                                    (e.sval.size() > 2 && e.sval.substr(e.sval.size() - 2) == "{}") || e.sval == "TYPE" || e.sval == "PEEK" || e.sval == "DPEEK" || e.sval == "LPEEK" || e.sval == "MALLOC" || e.sval == "MFREE"))
             return true;  // order matters: random numbers, reading files
         for (const auto& a : e.args)
             if (impure(*a)) return true;
@@ -341,19 +353,26 @@ private:
             {"CVS", "brt::cvs"},       {"CVD", "brt::cvd"},
         };
         if (const auto it = simple.find(n); it != simple.end()) return call(it->second, e);
-        if (n == "VARPTR") {  // a window of the emulated memory onto the variable (stage 1 of D6)
+        if (n == "VARPTR" || n == "ARRPTR") {  // a window of the emulated memory onto the variable (D21)
             const hir::Expr& t = *e.args[0];
-            const Type ty = p_.vars[static_cast<std::size_t>(t.var)].type;
+            const hir::Var& v = p_.vars[static_cast<std::size_t>(t.var)];
+            const Type ty = v.type;
             const std::string w = std::to_string(ty == Type::Word ? 2 : (ty == Type::Byte || ty == Type::Bool) ? 1 : 4);
+            const std::string code = std::to_string(typeCode(ty, v.array && t.op == Op::Load));
+            if (n == "ARRPTR" && v.array && t.op == Op::Load)  // the descriptor of the array
+                return "static_cast<std::int32_t>(brt::arrDesc(" + var(t.var) + "(), " + code + ", " + w + "))";
             const std::string lv = lvalue(t);
+            if (n == "ARRPTR" && ty == Type::Str && t.op == Op::Load) return "static_cast<std::int32_t>(brt::rt.mem.descriptor(" + lv + "))";
             if (t.op == Op::Load || ty == Type::Str) {
-                if (ty == Type::Str || ty == Type::Float) return "static_cast<std::int32_t>(brt::rt.mem.of(" + lv + "))";
-                return "static_cast<std::int32_t>(brt::rt.mem.of(" + lv + ", " + w + "))";
+                if (ty == Type::Str) return "static_cast<std::int32_t>(brt::rt.mem.of(" + lv + "))";
+                if (ty == Type::Float) return "static_cast<std::int32_t>(brt::rt.mem.of(" + lv + ", " + code + "))";
+                return "static_cast<std::int32_t>(brt::rt.mem.of(" + lv + ", " + w + ", " + code + "))";
             }
-            const std::string data = vars_[static_cast<std::size_t>(t.var)] + "().data";
-            if (ty == Type::Float) return "static_cast<std::int32_t>(brt::rt.mem.of(" + data + ", " + lv + "))";
-            return "static_cast<std::int32_t>(brt::rt.mem.of(" + data + ", " + lv + ", " + w + "))";
+            const std::string arr = var(t.var) + "()";
+            if (ty == Type::Float) return "static_cast<std::int32_t>(brt::rt.mem.of(" + arr + ".data, " + arr + ".upper, brt::rt.base, " + lv + "))";
+            return "static_cast<std::int32_t>(brt::rt.mem.of(" + arr + ".data, " + arr + ".upper, brt::rt.base, " + lv + ", " + w + "))";
         }
+        if (n == "TYPE") return "brt::rt.mem.typeAt(" + a(0) + ")";
         if (n.size() > 2 && n.substr(n.size() - 2) == "{}") {
             const std::string k = std::string("'") + n[0] + "'";
             if (n == "CHAR{}") return "brt::rt.mem.getChars(" + a(0) + ")";
@@ -810,6 +829,11 @@ private:
                 line(in + 1, "r_ = " + wrapFn(t.type) + "(static_cast<std::int64_t>(r_)" + op + "brt::toInt(y_));");
             }
             line(in, "}");
+            return;
+        }
+        if (n == "SWAP" && s.mode == 1) {  // SWAP *p,a()
+            const hir::Expr& a = *s.targets[0];
+            line(in, "brt::swapPtr(" + arg(0) + ", " + var(a.var) + "(), " + std::to_string(typeCode(a.type, true)) + ");");
             return;
         }
         if (n == "SWAP") {

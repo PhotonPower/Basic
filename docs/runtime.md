@@ -134,9 +134,12 @@ in D3, den `Seek` auf dem Amiga überschrieb).
 Speicherform der erzeugten Programme auf dem 68000: Jede Variable hat einen 8-Byte-Platz. Variablen,
 die irgendwo `VAR`-Parameter sind, werden über einen Zeiger angesprochen (wie `brt::Var`); `LOCAL`
 und Parameter sichern Wert, Zeiger und ein Merkzeichen, das die Bindung an die eigene Variable
-(`@p(x)` mit `PROCEDURE p(VAR x)`) kennzeichnet. Ein Array-Platz hält die Adresse seines Blocks im
-Array-Bereich: Anzahl der Dimensionen, Elementgröße (Float und String 8, Int 4, Word 2, Byte und
-Bool 1), Obergrenzen, Elemente. String-Elemente sind Deskriptoren nach D18.
+(`@p(x)` mit `PROCEDURE p(VAR x)`) kennzeichnet. Ein Array-Platz ist der Deskriptor wie im Original
+(probe19 T3): +0 Adresse des Blocks im Array-Bereich (0: nicht dimensioniert), +4 Anzahl der
+Dimensionen (Wort), +6 Elementgröße (Wort; Float und String 8, Int 4, Word 2, Byte und Bool 1). Der
+Block enthält die Ausdehnungen (Obergrenze − `OPTION BASE` + 1, je ein Langwort, die letzte
+Dimension zuerst), dann die Elemente (erster Index am schnellsten). `LPEEK(*a())` zeigt so
+4 · Dimensionen Bytes vor das erste Element. String-Elemente sind Deskriptoren nach D18.
 
 Fehlerbehandlung (nur in Programmen mit `ON ERROR`): Jede Routine außer `DEFFN` hat im Rahmen einen
 Satz „laufende Anweisung“ (24 Bytes: Satz des Aufrufers, Adresse der Anweisung, Adresse danach, SP,

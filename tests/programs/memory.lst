@@ -30,8 +30,8 @@ DIM h&(2)
 h&(1)=-3
 PRINT DPEEK(V:h&(1));" ";V:h&(2)-V:h&(1)
 @lokal
-PRINT MALLOC(0);" ";MFREE(12345678,4)
-n%=MALLOC(32)
+PRINT MALLOC(0,0);" ";MFREE(12345678,4)
+n%=MALLOC(32,0)
 BYTE{n%}=300
 PRINT BYTE{n%};" ";PEEK(n%)
 INT{n%}=-2

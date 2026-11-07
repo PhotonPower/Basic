@@ -1,0 +1,51 @@
+' test: groups core print memory
+' ARRPTR/*x, Deskriptoren von Strings und Feldern, SWAP *p,a(), TYPE(*x) (aus probe19; die Ausgabe
+' ist die des Originals ohne die adressabhaengigen Teile und ohne ABSOLUTE).
+ON ERROR GOSUB fehler
+PRINT "probe19"
+x%=5
+y=1.5
+b|=7
+PRINT "T1 % ";ARRPTR(x%)-VARPTR(x%);" # ";*y-V:y;" | ";ARRPTR(b|)-V:b|
+s$="Hallo"
+d%=ARRPTR(s$)
+PRINT "T2 LPEEK(d)-V:s$=";LPEEK(d%)-V:s$;" DPEEK(d+4)=";DPEEK(d%+4)
+s$="abcdefgh"
+PRINT "T2 nach Zuweisung: gleicher Deskriptor ";d%=ARRPTR(s$);" LPEEK(d)-V:s$=";LPEEK(d%)-V:s$;" Laenge ";DPEEK(d%+4)
+e$=""
+PRINT "T2 leer: LPEEK=";LPEEK(ARRPTR(e$));" DPEEK=";DPEEK(ARRPTR(e$)+4)
+DIM a%(3,4),f(2)
+a%(0,0)=11
+a%(1,0)=12
+a%(0,1)=13
+p%=*a%()
+PRINT "T3 LPEEK(p)-V:a%(0,0)=";LPEEK(p%)-V:a%(0,0);" DPEEK(p+4)=";DPEEK(p%+4)
+PRINT "T3 Bytes vor den Elementen:";
+FOR i%=-8 TO -2 STEP 2
+  PRINT " ";DPEEK(V:a%(0,0)+i%);
+NEXT i%
+PRINT
+PRINT "T3 V:a%(1,0)-V:a%(0,0)=";V:a%(1,0)-V:a%(0,0);" V:a%(0,1)-V:a%(0,0)=";V:a%(0,1)-V:a%(0,0)
+PRINT "T3 f: LPEEK(*f())-V:f(0)=";LPEEK(*f())-V:f(0);" DPEEK(*f()+4)=";DPEEK(*f()+4)
+DIM z%(2)
+z%(1)=100
+@feld(*z%())
+PRINT "T4 nach @feld: z%(1)=";z%(1);" z%(2)=";z%(2);" DIM?(w%())=";DIM?(w%())
+DIM t$(1),tb!(1),tw&(1),ty|(1)
+w&=1
+PRINT "T5 # ";TYPE(*y);" $ ";TYPE(*s$);" % ";TYPE(*x%);" ! ";TYPE(*t!);" #() ";TYPE(*f());" $() ";TYPE(*t$());" %() ";TYPE(*a%())
+PRINT "T5 !() ";TYPE(*tb!());" & ";TYPE(*w&);" | ";TYPE(*b|);" &() ";TYPE(*tw&());" |() ";TYPE(*ty|());" 0 ";TYPE(0)
+PRINT "T7 *x%=V:x% ";*x%=V:x%;" ARRPTR(z%())=*z%() ";ARRPTR(z%())=*z%()
+PRINT "ende"
+END
+PROCEDURE feld(ptr%)
+  SWAP *ptr%,w%()
+  PRINT "T4 in @feld: w%(1)=";w%(1);" DIM?(w%())=";DIM?(w%())
+  w%(2)=200
+  SWAP *ptr%,w%()
+RETURN
+PROCEDURE fehler
+  PRINT "   -> ERR ";ERR;" ";ERR$(ERR)
+  ON ERROR GOSUB fehler
+  RESUME NEXT
+RETURN

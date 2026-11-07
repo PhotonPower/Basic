@@ -597,12 +597,19 @@ void matPrint(Output& out, const rt_mat& m, bool format, f64 g, f64 n) {
 }
 
 // ---- memory --------------------------------------------------------------------------------------
-std::uint32_t Memory::window(const void* key, std::uint32_t size, Read read, Write write) {
+std::uint32_t Memory::window(const void* key, std::uint32_t size, Read read, Write write, int code) {
     const auto it = keys_.find(key);
-    if (it != keys_.end() && windows_.at(it->second).size >= size) return it->second;
+    if (it != keys_.end() && windows_.at(it->second).size >= size) {
+        Window& w = windows_.at(it->second);
+        w.read = std::move(read);  // the same storage, possibly a new shape (an array after DIM)
+        w.write = std::move(write);
+        w.size = size;
+        return it->second;
+    }
+    if (it != keys_.end()) windows_.erase(it->second);  // grown: a new place, the old one is gone
     const std::uint32_t base = next_;
     next_ += ((std::max<std::uint32_t>(size, 1) + 15) & ~15u) + 16;  // a gap between windows
-    windows_[base] = Window{size, std::move(read), std::move(write)};
+    windows_[base] = Window{size, std::move(read), std::move(write), code, key};
     keys_[key] = base;
     return base;
 }
@@ -625,17 +632,20 @@ std::int32_t withByte(std::int32_t v, int width, std::uint32_t k, std::uint8_t b
 
 }  // namespace
 
-std::uint32_t Memory::of(std::int32_t& v, int width) {
-    return window(&v, static_cast<std::uint32_t>(width), [&v, width](std::uint32_t k) { return byteOfValue(v, width, k); },
-                  [&v, width](std::uint32_t k, std::uint8_t b) { v = withByte(v, width, k, b); });
+std::uint32_t Memory::of(std::int32_t& v, int width, int code) {
+    return window(
+        &v, static_cast<std::uint32_t>(width), [&v, width](std::uint32_t k) { return byteOfValue(v, width, k); },
+        [&v, width](std::uint32_t k, std::uint8_t b) { v = withByte(v, width, k, b); }, code);
 }
 
-std::uint32_t Memory::of(f64& v) {
-    return window(&v, 8, [&v](std::uint32_t k) { return static_cast<std::uint8_t>(v >> (56 - 8 * k)); },
-                  [&v](std::uint32_t k, std::uint8_t b) {
-                      const unsigned shift = 56 - 8 * k;
-                      v = (v & ~(f64{0xFF} << shift)) | (f64{b} << shift);
-                  });
+std::uint32_t Memory::of(f64& v, int code) {
+    return window(
+        &v, 8, [&v](std::uint32_t k) { return static_cast<std::uint8_t>(v >> (56 - 8 * k)); },
+        [&v](std::uint32_t k, std::uint8_t b) {
+            const unsigned shift = 56 - 8 * k;
+            v = (v & ~(f64{0xFF} << shift)) | (f64{b} << shift);
+        },
+        code);
 }
 
 std::uint32_t Memory::of(std::string& s) {
@@ -645,22 +655,87 @@ std::uint32_t Memory::of(std::string& s) {
                   });
 }
 
-std::uint32_t Memory::of(std::vector<std::int32_t>& data, const std::int32_t& element, int width) {
-    const auto w = static_cast<std::uint32_t>(width);
-    const std::uint32_t base = window(&data, static_cast<std::uint32_t>(data.size()) * w,
-                                      [&data, width, w](std::uint32_t k) { return byteOfValue(data[k / w], width, k % w); },
-                                      [&data, width, w](std::uint32_t k, std::uint8_t b) { data[k / w] = withByte(data[k / w], width, k % w, b); });
-    return base + static_cast<std::uint32_t>(&element - data.data()) * w;
+namespace {
+
+// byte k of the extents of an array block: long i is the extent of dimension dims - 1 - i
+std::uint8_t extentByte(const std::vector<std::int32_t>& upper, int base, std::uint32_t k) {
+    const std::size_t dims = upper.size();
+    const std::size_t i = k / 4;
+    const std::uint32_t e = static_cast<std::uint32_t>(upper[dims - 1 - i] - base + 1);
+    return static_cast<std::uint8_t>(e >> (24 - 8 * (k % 4)));
 }
 
-std::uint32_t Memory::of(std::vector<f64>& data, const f64& element) {
-    const std::uint32_t base = window(&data, static_cast<std::uint32_t>(data.size()) * 8,
-                                      [&data](std::uint32_t k) { return static_cast<std::uint8_t>(data[k / 8] >> (56 - 8 * (k % 8))); },
-                                      [&data](std::uint32_t k, std::uint8_t b) {
-                                          const unsigned shift = 56 - 8 * (k % 8);
-                                          data[k / 8] = (data[k / 8] & ~(f64{0xFF} << shift)) | (f64{b} << shift);
-                                      });
-    return base + static_cast<std::uint32_t>(&element - data.data()) * 8;
+}  // namespace
+
+std::uint32_t Memory::of(std::vector<std::int32_t>& data, const std::vector<std::int32_t>& upper, int base,
+                         const std::int32_t& element, int width) {
+    const auto w = static_cast<std::uint32_t>(width);
+    const auto head = static_cast<std::uint32_t>(4 * upper.size());
+    const std::uint32_t start = window(
+        &data, head + static_cast<std::uint32_t>(data.size()) * w,
+        [&data, &upper, base, width, w, head](std::uint32_t k) {
+            if (k < head) return extentByte(upper, base, k);
+            k -= head;
+            return byteOfValue(data[k / w], width, k % w);
+        },
+        [&data, width, w, head](std::uint32_t k, std::uint8_t b) {
+            if (k < head) return;  // the extents stay
+            k -= head;
+            data[k / w] = withByte(data[k / w], width, k % w, b);
+        });
+    return start + head + static_cast<std::uint32_t>(&element - data.data()) * w;
+}
+
+std::uint32_t Memory::of(std::vector<f64>& data, const std::vector<std::int32_t>& upper, int base, const f64& element) {
+    const auto head = static_cast<std::uint32_t>(4 * upper.size());
+    const std::uint32_t start = window(
+        &data, head + static_cast<std::uint32_t>(data.size()) * 8,
+        [&data, &upper, base, head](std::uint32_t k) {
+            if (k < head) return extentByte(upper, base, k);
+            k -= head;
+            return static_cast<std::uint8_t>(data[k / 8] >> (56 - 8 * (k % 8)));
+        },
+        [&data, head](std::uint32_t k, std::uint8_t b) {
+            if (k < head) return;
+            k -= head;
+            const unsigned shift = 56 - 8 * (k % 8);
+            data[k / 8] = (data[k / 8] & ~(f64{0xFF} << shift)) | (f64{b} << shift);
+        });
+    return start + head + static_cast<std::uint32_t>(&element - data.data()) * 8;
+}
+
+std::uint32_t Memory::descriptor(std::string& s) {
+    const void* key = reinterpret_cast<const char*>(&s) + 1;  // not the key of the characters
+    return window(
+        key, 6,
+        [this, &s](std::uint32_t k) -> std::uint8_t {
+            if (k >= 4) return static_cast<std::uint8_t>(s.size() >> (8 * (5 - k)));
+            const std::uint32_t a = s.empty() ? 0 : of(s);
+            return static_cast<std::uint8_t>(a >> (24 - 8 * k));
+        },
+        [](std::uint32_t, std::uint8_t) {}, 1);
+}
+
+std::uint32_t Memory::descriptor(const void* key, int code, std::function<std::uint32_t()> block, std::function<int()> dims) {
+    return window(
+        key, 6,
+        [block, dims](std::uint32_t k) -> std::uint8_t {
+            if (k >= 4) return static_cast<std::uint8_t>(static_cast<std::uint32_t>(dims()) >> (8 * (5 - k)));
+            return static_cast<std::uint8_t>(block() >> (24 - 8 * k));
+        },
+        [](std::uint32_t, std::uint8_t) {}, code);
+}
+
+std::int32_t Memory::typeAt(f64 af) {
+    const auto it = windows_.find(static_cast<std::uint32_t>(toInt(af)));
+    return it == windows_.end() ? -1 : it->second.code;
+}
+
+const void* Memory::keyAt(f64 af, int& code) {
+    const auto it = windows_.find(static_cast<std::uint32_t>(toInt(af)));
+    if (it == windows_.end() || it->second.code < 0) return nullptr;
+    code = it->second.code;
+    return it->second.key;
 }
 
 Memory::Window& Memory::at(std::uint32_t address, std::uint32_t& offset) {

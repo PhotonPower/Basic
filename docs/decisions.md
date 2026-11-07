@@ -273,8 +273,22 @@ Typisierter Zugriff (Stufe 2): `BYTE{a}` 1 Byte (0..255), `CARD{a}` 2 Byte ohne,
 abschließendem Nullbyte. `V:a$` gilt nur bis zur nächsten String-Zuweisung (die Speicherbereinigung
 verschiebt Strings), auch als Quelle von `CHAR{}`.
 
-Offen: `*x`/`ARRPTR`, `ABSOLUTE`, `VARPTR` auf den Descriptor statt die Zeichen, Adressen, die über
-Bereiche hinweg gelten.
+Deskriptoren (Stufe 3, probe19): `ARRPTR(x)`/`*x` ist bei Zahlen `VARPTR(x)`, bei Strings und Feldern
+die Adresse des Deskriptors. String: +0 Adresse der Zeichen (0 wenn leer), +4 Länge (Wort); er
+bleibt bei Zuweisungen derselbe. Feld: +0 Adresse des Blocks, +4 Anzahl der Dimensionen; im Block
+stehen die Ausdehnungen (die letzte Dimension zuerst), dann die Elemente. Auf dem 68000 ist das die
+echte Speicherform (`docs/runtime.md`), im Interpreter und C++-Ziel bilden Fenster dieselben Bytes
+nach (für String-Felder ohne Blockbytes). Davor liegt beim Original noch der Kopf seiner
+Speicherverwaltung, den wir nicht nachbilden. `SWAP *p,a()` tauscht a() mit dem Feld, auf dessen
+Deskriptor p zeigt (die alte Übergabe von Feldern an Prozeduren); zeigt p auf keines oder auf ein
+Feld anderen Typs, melden wir Fehler 68 (das Original prüft nicht). `TYPE(p)` liefert die Kennzahl
+der Variablen an p (# 0, $ 1, % 2, ! 3, & 8, | 9, Felder 4 5 6 7 12 13), sonst −1; auf dem 68000
+über eine Tabelle aller Variablen im Programm. `MALLOC` hat immer zwei Argumente (probe19:
+`MALLOC(16)` ist am Original Fehler 15).
+
+Offen: `ABSOLUTE x,a` (legt x an die Adresse a) braucht das Speicherabbild nach D6; am Original
+funktioniert es mit einem `MALLOC`-Block, auf die Adresse einer anderen Variablen stürzt es ab
+(probe19). Der Compiler lehnt `ABSOLUTE` vorerst ab.
 
 <a id="d22"></a>
 ## D22 – Ganzzahlige Zwischenwerte in D4–D7 (68000)

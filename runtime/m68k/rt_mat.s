@@ -46,9 +46,11 @@ rt_mat__vp:
         RTS
 
 ; A0 = slot of a float array, D0 = view number, D1 = 1: a 1-D array as column (n x 1)
+; (slot: block address, dimensions; block: extents with the last dimension first, then elements)
 rt_mat_view:
-        MOVEM.L D4-D5/A2,-(SP)
+        MOVEM.L D4-D5/A2-A3,-(SP)
         MOVE.L  D1,D5
+        MOVE.L  A0,A3                   ; A3 = slot
         MOVE.L  (A0),D2
         BNE     .dim
         MOVEQ   #15,D0                  ; array undimensioned
@@ -57,7 +59,7 @@ rt_mat_view:
         BSR     rt_mat__vp
         MOVE.L  A0,A2                   ; A2 = view
         MOVEQ   #0,D3
-        MOVE.W  (A1),D3                 ; dimensions
+        MOVE.W  4(A3),D3                ; dimensions
         CMP.L   #2,D3
         BLS     .ok
         MOVEQ   #18,D0                  ; wrong number of indices
@@ -67,12 +69,11 @@ rt_mat_view:
         MOVE.L  D0,D4                   ; D4 = lo
         MOVE.L  D3,D1
         LSL.L   #2,D1
-        LEA     4(A1,D1.L),A0           ; A0 = elements
+        LEA     0(A1,D1.L),A0           ; A0 = elements
         MOVE.L  D4,D2
         SUB.L   rt_arr_base,D2          ; D2 = lo - OPTION BASE (0 or 1)
-        MOVE.L  4(A1),D0                ; first extent: u0 - lo + 1, at least 0
-        SUB.L   D4,D0
-        ADDQ.L  #1,D0
+        MOVE.L  -4(A0),D0               ; extent of the first dimension (stored last)
+        SUB.L   D2,D0                   ; elements from lo: extent - (lo - base), at least 0
         BPL     .p0
         MOVEQ   #0,D0
 .p0:    CMP.L   #1,D3
@@ -83,26 +84,23 @@ rt_mat_view:
 .n1:    MOVE.L  A0,rt_mat__P(A2)
         TST.L   D5
         BNE     .col
-        MOVE.L  #1,rt_mat__R(A2)              ; row vector 1 x n
+        MOVE.L  #1,rt_mat__R(A2)        ; row vector 1 x n
         MOVE.L  D0,rt_mat__C(A2)
         CLR.L   rt_mat__RS(A2)
         MOVE.L  #8,rt_mat__CS(A2)
         BRA     .out
-.col:   MOVE.L  D0,rt_mat__R(A2)              ; column vector n x 1
+.col:   MOVE.L  D0,rt_mat__R(A2)        ; column vector n x 1
         MOVE.L  #1,rt_mat__C(A2)
         MOVE.L  #8,rt_mat__RS(A2)
         CLR.L   rt_mat__CS(A2)
         BRA     .out
 .two:   MOVE.L  D0,rt_mat__R(A2)
         MOVE.L  #8,rt_mat__RS(A2)
-        MOVE.L  4(A1),D1                ; column step: (u0 - OPTION BASE + 1) * 8
-        SUB.L   rt_arr_base,D1
-        ADDQ.L  #1,D1
+        MOVE.L  -4(A0),D1               ; column step: extent of the first dimension * 8
         LSL.L   #3,D1
         MOVE.L  D1,rt_mat__CS(A2)
-        MOVE.L  8(A1),D0
-        SUB.L   D4,D0
-        ADDQ.L  #1,D0
+        MOVE.L  (A1),D0                 ; second dimension (stored first)
+        SUB.L   D2,D0
         BPL     .p1
         MOVEQ   #0,D0
 .p1:    MOVE.L  D0,rt_mat__C(A2)
@@ -111,9 +109,9 @@ rt_mat_view:
         ADD.L   D1,A0
         ADDQ.L  #8,A0
 .n2:    MOVE.L  A0,rt_mat__P(A2)
-.out:   MOVEM.L (SP)+,D4-D5/A2
+.out:   MOVEM.L (SP)+,D4-D5/A2-A3
         RTS
-.err:   MOVEM.L (SP)+,D4-D5/A2
+.err:   MOVEM.L (SP)+,D4-D5/A2-A3
         JMP     rt_error
 
 ; D0 = view number | indices given << 8 | CPY << 10 | XCPY << 11, D1 = i, D2 = j (BASIC indices):
@@ -255,14 +253,11 @@ rt_mat_fill:
         MOVEM.L (SP)+,D4-D7/A2
         MOVEQ   #15,D0
         JMP     rt_error
-.dim:   MOVE.L  D0,A2
+.dim:   MOVE.L  D0,A2                   ; A2 = block
         MOVEQ   #0,D6
-        MOVE.W  (A2),D6                 ; dimensions
-        MOVEQ   #1,D7                   ; D7 = elements
-        LEA     4(A2),A2
+        MOVE.W  4(A0),D6                ; dimensions
+        MOVEQ   #1,D7                   ; D7 = elements: product of the extents
 .cnt:   MOVE.L  (A2)+,D1
-        SUB.L   rt_arr_base,D1
-        ADDQ.L  #1,D1
         MOVE.L  D7,D0
         JSR     rt_imul
         MOVE.L  D0,D7
