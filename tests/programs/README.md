@@ -21,6 +21,5 @@ auch am echten GFA-BASIC laufen kann:
 python3 tools/gfa/gfa_run.py tests/programs/arith.lst --out tests/programs/arith.out
 ```
 
-**Stand:** Die `.out`-Dateien von `arith`, `control`, `dataread`, `errors`, `printfmt`, `procs` und
-`strings` stammen noch vom Referenz-Interpreter, nicht vom Original. Der Abgleich am Original steht
-aus. Offen ist dabei unter anderem, ob `VAR` in `PROCEDURE p(VAR a,b)` auch für `b` gilt (`procs`).
+**Stand:** Die `.out`-Dateien aller Programme sind am Original erzeugt (Kopfzeile
+`' source: GFA-BASIC 3.5`); der Referenz-Interpreter liefert Byte für Byte dasselbe.

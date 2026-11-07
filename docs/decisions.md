@@ -110,7 +110,8 @@ Laut Handbuch sind `LOCAL`-Variablen und Parameter auch in den aufgerufenen Rout
 Variable (Name + Typ, Arrays getrennt) hat deshalb genau einen festen Speicherplatz. `LOCAL` und
 Wertparameter sichern beim Eintritt den alten Wert und stellen ihn beim Verlassen wieder her
 („shallow binding“). Das passt zum Z80, weil alle Variablen statisch liegen, und erlaubt Rekursion.
-`VAR`-Parameter binden den Parameternamen an die übergebene Variable.
+`VAR`-Parameter binden den Parameternamen an die übergebene Variable (echte Referenz, am Original
+bestätigt, probe10); `VAR` gilt für alle folgenden Parameter.
 
 <a id="d14"></a>
 ## D14 – `PRINT USING` nach dem Abgleich mit dem Original

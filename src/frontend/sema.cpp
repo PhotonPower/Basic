@@ -578,11 +578,11 @@ private:
             const hir::Var& pv = p_.vars[static_cast<std::size_t>(prm.var)];
             if (prm.byRef) {
                 const ast::Expr& a = *args[k];
-                if (a.kind != ExprKind::Var || !a.args.empty()) fail(a.pos, "VAR parameter needs a variable");
-                if (a.wholeArray != pv.array) fail(a.pos, pv.array ? "VAR parameter needs an array" : "VAR parameter needs a variable");
+                if (a.kind != ExprKind::Var || !a.args.empty()) fail(a.pos, "var-type mismatch: VAR parameter needs a variable");
+                if (a.wholeArray != pv.array) fail(a.pos, pv.array ? "var-type mismatch: VAR parameter needs an array" : "var-type mismatch: VAR parameter needs a variable");
                 auto v = makeExpr(Op::Load, typeOf(a.text));
                 v->var = varId(a.text, a.wholeArray);
-                if (v->type != pv.type) fail(a.pos, "VAR parameter has a different type");
+                if (v->type != pv.type) fail(a.pos, "var-type mismatch: VAR parameter has a different type");
                 out.push_back(std::move(v));
             } else {
                 out.push_back(convertTo(expr(*args[k]), pv.type, args[k]->pos));

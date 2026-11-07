@@ -1,4 +1,5 @@
 ' test: groups core print
+' source: GFA-BASIC 3.5
 ' DATA, READ, RESTORE
 READ a,b$,c%
 PRINT a;" ";b$;" ";c%

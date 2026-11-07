@@ -76,6 +76,7 @@ struct Slot {
     f64 f = 0;
     std::string s;
     std::shared_ptr<Array> arr;
+    int alias = -1;  // VAR parameter: the variable it stands for (probe10: a true reference)
 };
 
 // ---- control flow signals ----------------------------------------------------------------------
@@ -194,7 +195,13 @@ private:
     }
 
     // ---- variables ------------------------------------------------------------------------------
-    Slot& slot(int var) { return slots_[static_cast<std::size_t>(var)]; }
+    // The storage of a variable; a VAR parameter leads to the caller's variable.
+    int resolve(int var) const {
+        while (slots_[static_cast<std::size_t>(var)].alias >= 0) var = slots_[static_cast<std::size_t>(var)].alias;
+        return var;
+    }
+    Slot& slot(int var) { return slots_[static_cast<std::size_t>(resolve(var))]; }
+    Slot& raw(int var) { return slots_[static_cast<std::size_t>(var)]; }
     const hir::Var& var(int v) const { return p_.vars[static_cast<std::size_t>(v)]; }
 
     Value load(int v) {
@@ -578,7 +585,7 @@ private:
         if (n == "STR$") {
             const f64 x = argF(e, 0);
             char buf[512];
-            if (e.args.size() == 1) return S(fmtFloat(x, 13));
+            if (e.args.size() == 1) return S(fmtFloat(x, defnum_));  // STR$ follows DEFNUM (probe2 T33)
             if (e.args.size() == 2) return S(std::string(buf, static_cast<std::size_t>(rt_str_n(buf, sizeof buf, x, argInt(e, 1)))));
             return S(std::string(buf, static_cast<std::size_t>(rt_str_fmt(buf, sizeof buf, x, argInt(e, 1), argInt(e, 2), mode_))));
         }
@@ -649,7 +656,6 @@ private:
     struct Frame {
         Interp& in;
         std::vector<std::pair<int, Slot>> saved;
-        std::vector<std::pair<int, int>> byRef;  // (parameter, caller variable): copied back on exit
         bool normalExit = false;
         explicit Frame(Interp& i) : in(i) { in.frames_.push_back(this); }
         Frame(const Frame&) = delete;
@@ -657,20 +663,12 @@ private:
         void save(int v) {
             for (const auto& s : saved)
                 if (s.first == v) return;
-            saved.emplace_back(v, in.slot(v));
-            in.slot(v) = Slot();
+            saved.emplace_back(v, std::move(in.raw(v)));
+            in.raw(v) = Slot();
         }
         ~Frame() {
             in.frames_.pop_back();
-            if (normalExit)
-                for (const auto& [param, callerVar] : byRef) copyBack(param, callerVar);
-            for (auto it = saved.rbegin(); it != saved.rend(); ++it) in.slot(it->first) = std::move(it->second);
-        }
-        void copyBack(int param, int callerVar) {
-            Slot& p = in.slot(param);
-            Slot& c = in.slot(callerVar);
-            if (in.var(param).array) c.arr = p.arr;
-            else c = p;
+            for (auto it = saved.rbegin(); it != saved.rend(); ++it) in.raw(it->first) = std::move(it->second);
         }
     };
 
@@ -681,13 +679,11 @@ private:
             values.push_back(r.params[k].byRef ? Value() : eval(*args[k]));
         for (std::size_t k = 0; k < args.size(); ++k) {
             const int pv = r.params[k].var;
-            if (r.params[k].byRef) {
-                const int cv = args[k]->var;
-                if (cv == pv) continue;  // the same variable: nothing to bind
-                Slot copy = slot(cv);
+            if (r.params[k].byRef) {  // the parameter name stands for the caller's variable
+                const int target = resolve(args[k]->var);
+                if (target == resolve(pv)) continue;  // already the same variable
                 f.save(pv);
-                slot(pv) = std::move(copy);
-                f.byRef.emplace_back(pv, cv);
+                raw(pv).alias = target;
             } else {
                 f.save(pv);
                 store(pv, std::move(values[k]));

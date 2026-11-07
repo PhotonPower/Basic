@@ -116,8 +116,11 @@ Diese Punkte sind aus dem Handbuch nicht sicher zu entnehmen und werden am Origi
   `|` trennt im Original die Zeilen der Fehlermeldung. Alle Texte 0–35 stehen in
   `src/ir/interp.cpp` (`errorText`). `ERR` ist ein vorzeichenbehaftetes Byte: Nach `ERROR 200` ist
   `ERR` = −56, `ERR$(-56)` = „unknown error 200“ (probe9 T6).
-- **Offen:** Gilt `VAR` in `PROCEDURE p(VAR a,b)` für alle folgenden Parameter oder nur für `a`?
-  (Derzeit nur für `a`; Abgleich mit `tests/programs/procs.lst` am Original.)
+- **`VAR`-Parameter** (probe10): `VAR` gilt für **alle folgenden** Parameter (`p(VAR a,b)`: beide;
+  `p(a,VAR b)`: nur `b`). Ein `VAR`-Parameter ist eine echte Referenz: Eine Zuweisung wirkt sofort
+  auf die Variable des Aufrufers. Als Argument ist nur eine ganze Variable gleichen Typs erlaubt;
+  Konstante, Feldelement oder anderer Typ ergeben im Original Fehler 68 „var-type mismatch“, ein
+  Ausdruck Fehler 45 „too many parameters“. Der Compiler weist das schon beim Übersetzen zurück.
 - **Dateikanäle nach einem Fehler:** Nach einem mit `ON ERROR GOSUB` abgefangenen Fehler ist ein
   offener Kanal unbrauchbar: `PRINT #1` meldet Fehler 24 „file not open“, `OPEN "A",#1` dagegen
   „file already open“. Erst `CLOSE #1` und erneutes `OPEN "A"` machen ihn wieder nutzbar; was vorher

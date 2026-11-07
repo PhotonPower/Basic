@@ -1,0 +1,17 @@
+; source: GFA-BASIC 3.5 (Amiga, English), FS-UAE A500, Kickstart 1.2, 2026-11-07
+probe10
+T1 VAR a,b: x=10 y=20
+T2 a,VAR b: x=1 y=20
+   in ref: a=7 x=7
+T3 nach ref: x=7
+T4 Konstante als VAR
+   -> ERR 68 var-type mismatch
+T5 Ausdruck als VAR
+   -> ERR 45 too many parameters
+T6 Feldelement als VAR
+   -> ERR 68 var-type mismatch
+   f(1)=0
+T7 Integer an Float-VAR
+   -> ERR 68 var-type mismatch
+   i%=3
+ende

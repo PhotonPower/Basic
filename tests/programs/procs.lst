@@ -1,4 +1,5 @@
 ' test: groups core print
+' source: GFA-BASIC 3.5
 ' Prozeduren, Funktionen, DEFFN, LOCAL (dynamische Bindung), VAR, Rekursion
 x=1
 y=2
@@ -12,7 +13,7 @@ DEFFN quadrat(q)=q*q
 PRINT "quadrat(7)=";FN quadrat(7);" ";@quadrat(1.5)
 PRINT "x+y=";@summe(x,y)
 s$="abc"
-@anhaengen(s$,"def")
+@anhaengen("def",s$)
 PRINT s$
 n=5
 @lokal
@@ -25,6 +26,9 @@ DIM a%(4)
 PRINT a%(0);" ";a%(4)
 GOSUB zeige
 zeige
+r=1
+@referenz(r)
+PRINT "r nach referenz=";r
 PRINT @wort$(3)
 END
 PROCEDURE zeige
@@ -49,7 +53,7 @@ ENDFUNC
 FUNCTION summe(a,b)
   RETURN a+b
 ENDFUNC
-PROCEDURE anhaengen(VAR t$,u$)
+PROCEDURE anhaengen(u$,VAR t$)
   t$=t$+u$
 RETURN
 PROCEDURE lokal
@@ -70,6 +74,10 @@ PROCEDURE fuellen(VAR f%())
   FOR i%=0 TO 4
     f%(i%)=i%*i%
   NEXT i%
+RETURN
+PROCEDURE referenz(VAR p)
+  p=7
+  PRINT "in referenz: p=";p;" r=";r
 RETURN
 FUNCTION wort$(k)
   RETURN STRING$(k,"ab")

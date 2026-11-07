@@ -1,4 +1,5 @@
 ' test: groups core print
+' source: GFA-BASIC 3.5
 ' Fehlerbehandlung: ON ERROR GOSUB, RESUME NEXT, RESUME, RESUME Marke, ERR, ERR$
 ON ERROR GOSUB fehler
 a%=2147483647

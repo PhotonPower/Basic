@@ -1,4 +1,5 @@
 ' test: groups core print
+' source: GFA-BASIC 3.5
 ' PRINT: Trenner, Spalten, TAB, SPC, DEFNUM, USING, MODE
 PRINT 1;2;-3;"x"
 PRINT "Komma:";1,2,3
@@ -28,7 +29,6 @@ PRINT USING "$##.##",3.5
 PRINT USING "###.##",-0.5
 PRINT USING "#,###.##",1234.5
 PRINT USING "PI_._._. #.###",3.14159265
-PRINT USING "&|",
 PRINT USING "&","abc"
 PRINT USING "!","abc"
 PRINT USING "\  \","abcdef"

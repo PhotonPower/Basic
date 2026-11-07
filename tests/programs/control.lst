@@ -1,4 +1,5 @@
 ' test: groups core print
+' source: GFA-BASIC 3.5
 ' Kontrollfluss: Schleifen mit GFA-Semantik, IF, SELECT, EXIT IF, GOTO
 n%=0
 FOR i%=5 TO 1

@@ -276,9 +276,11 @@ private:
         std::vector<ast::Param> ps;
         if (!acceptPunct("(")) return ps;
         if (acceptPunct(")")) return ps;
+        bool byRef = false;  // VAR applies to all following parameters (probe10 T1, T2)
         do {
             ast::Param prm;
-            prm.byRef = acceptWord("VAR");
+            byRef = acceptWord("VAR") || byRef;
+            prm.byRef = byRef;
             prm.name = expectIdent("parameter");
             if (acceptPunct("(")) {
                 expectPunct(")");

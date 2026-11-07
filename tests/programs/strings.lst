@@ -1,4 +1,5 @@
 ' test: groups core string print
+' source: GFA-BASIC 3.5
 ' Stringfunktionen
 a$="Hallo Welt"
 PRINT LEFT$(a$,5);"|";RIGHT$(a$,4);"|";MID$(a$,7);"|";MID$(a$,2,3);"|";LEFT$(a$);"|";RIGHT$(a$)

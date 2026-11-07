@@ -24,8 +24,10 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 - Referenz-Interpreter auf der HIR (`basicc --run`): alle Numerik über `runtime/ref`, dynamische
   Bindung mit Sichern/Wiederherstellen, `ON ERROR GOSUB` mit `RESUME`/`RESUME NEXT`/`RESUME marke`,
   `PRINT` mit Zonen, `TAB`, `SPC`, `USING`, `DATA`/`READ`, Fehlernummern und `ERR$`-Texte vom
-  Original (probe9). Golden-Tests `tests/programs` (7 Programme, Ausgaben noch nicht am Original
-  abgeglichen).
+  Original (probe9). Golden-Tests `tests/programs` (7 Programme), Ausgaben am Original erzeugt; der
+  Interpreter stimmt Byte für Byte überein.
+- `VAR` gilt für alle folgenden Parameter und ist eine echte Referenz (probe10); `STR$` beachtet
+  `DEFNUM`.
 - `gfa_run.py`: Programme ohne `datei$`-Zeile werden umgeschrieben (`PRINT` in eine Datei, Kanal in
   Fehlerroutinen neu öffnen); wartet, bis FS-UAE den Fokus hat; erstes Return doppelt; prüft vor
   jedem Tastendruck, ob FS-UAE noch vorn ist, und bricht sonst ab (Rückgabewert 3), statt in ein

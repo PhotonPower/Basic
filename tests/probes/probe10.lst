@@ -1,0 +1,61 @@
+' probe10 - VAR-Parameter (GFA-BASIC 3.5, Amiga)
+' Ergebnisdatei: gfa_run.py setzt datei$ auf DH0:probe10.txt (docs/gfa-original.md).
+'
+datei$="DH0:probe10.txt"
+OPEN "O",#1,datei$
+ON ERROR GOSUB fehler
+PRINT #1,"probe10"
+'
+x=1
+y=2
+@zwei(x,y)
+PRINT #1,"T1 VAR a,b: x=";x;" y=";y
+x=1
+y=2
+@gemischt(x,y)
+PRINT #1,"T2 a,VAR b: x=";x;" y=";y
+x=1
+@ref(x)
+PRINT #1,"T3 nach ref: x=";x
+PRINT #1,"T4 Konstante als VAR"
+@ref(5)
+PRINT #1,"T5 Ausdruck als VAR"
+@ref(x+1)
+PRINT #1,"T6 Feldelement als VAR"
+DIM f(3)
+@ref(f(1))
+PRINT #1,"   f(1)=";f(1)
+PRINT #1,"T7 Integer an Float-VAR"
+i%=3
+@ref(i%)
+PRINT #1,"   i%=";i%
+'
+PRINT #1,"ende"
+CLOSE #1
+PRINT "fertig: ";datei$
+END
+'
+PROCEDURE fehler
+  ' Original: after an error channel #1 is unusable (ERR 24 file not open)
+  ' until it is closed and opened again
+  e%=ERR
+  CLOSE #1
+  OPEN "A",#1,datei$
+  PRINT #1,"   -> ERR ";e%;" ";ERR$(e%)
+  ON ERROR GOSUB fehler
+  RESUME NEXT
+RETURN
+'
+PROCEDURE zwei(VAR a,b)
+  a=10
+  b=20
+RETURN
+PROCEDURE gemischt(a,VAR b)
+  a=10
+  b=20
+RETURN
+' a is a reference to x: does x change at once (reference) or only at RETURN (copy back)?
+PROCEDURE ref(VAR a)
+  a=7
+  PRINT #1,"   in ref: a=";a;" x=";x
+RETURN

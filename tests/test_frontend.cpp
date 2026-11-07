@@ -107,7 +107,7 @@ void testStatements() {
              std::string("select X\ncase {1} {3 TO 5}\ncase { TO 0}\ncase {9 TO }\ncase {\"a\" TO \"z\"}\ncont\n"
                          "default\nendselect\n"));
     CHECK_EQ(parse("PROCEDURE p(a,VAR b%,c())\nLOCAL x,y$\nRETURN\nSUB q\nENDSUB\nFUNCTION f$(n)\nRETURN \"x\"\nENDFUNC"),
-             std::string("procedure P (A,VAR B%,C())\nlocal X Y$\nreturn\nprocedure Q\nreturn\nfunction F$ (N)\n"
+             std::string("procedure P (A,VAR B%,VAR C())\nlocal X Y$\nreturn\nprocedure Q\nreturn\nfunction F$ (N)\n"
                          "return \"x\"\nendfunc\n"));
     CHECK_EQ(parse("SUB x,1\nADD a%,b%"), std::string("command SUB X 1\ncommand ADD A% B%\n"));
     CHECK_EQ(parse("@p(1,2)\nGOSUB q\nr\nr(3)\nstop.it"),
@@ -186,7 +186,7 @@ void testSema() {
     CHECK_EQ(hir("q(1)"), std::string("error 1: procedure 'Q' not found\n"));
     CHECK_EQ(hir("x=@f(1)"), std::string("error 1: function 'F' not found\n"));
     CHECK_EQ(hir("p(1,2)\nPROCEDURE p(a)\nRETURN"), std::string("error 1: P expects 1 argument(s)\n"));
-    CHECK_EQ(hir("p(1)\nPROCEDURE p(VAR a)\nRETURN"), std::string("error 1: VAR parameter needs a variable\n"));
+    CHECK_EQ(hir("p(1)\nPROCEDURE p(VAR a)\nRETURN"), std::string("error 1: var-type mismatch: VAR parameter needs a variable\n"));
     CHECK_EQ(hir("GOTO x"), std::string("error 1: label 'X' not found\n"));
     CHECK_EQ(hir("GOTO x\nPROCEDURE p\nx:\nRETURN"), std::string("error 1: GOTO into or out of a procedure\n"));
     CHECK_EQ(hir("x=SIN(1)"), std::string("error 1: SIN is not supported yet\n"));
