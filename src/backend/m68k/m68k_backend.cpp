@@ -490,6 +490,20 @@ private:
                 line("MOVE.L  D0," + slot(i.dst));
                 return;
             }
+            case Kind::OpOvf: {
+                const std::string l = ".L" + std::to_string(i.label);
+                line("MOVE.L  " + slot(i.a) + ",D0");
+                if (i.op == "mul") {
+                    line("MOVE.L  " + slot(i.b) + ",D1");
+                    uses_.insert("rt_imul_v");
+                    line("JSR     rt_imul_v");
+                } else {
+                    line(std::string(i.op == "add" ? "ADD" : "SUB") + ".L   " + slot(i.b) + ",D0");
+                }
+                line("BVS     " + l);
+                line("MOVE.L  D0," + slot(i.dst));
+                return;
+            }
             case Kind::Cmp: {
                 const std::string s = i.op == "eq" ? "SEQ" : i.op == "ne" ? "SNE" : i.op == "lt" ? "SLT" : i.op == "le" ? "SLE" : i.op == "gt" ? "SGT" : "SGE";
                 line("MOVE.L  " + slot(i.a) + ",D0");

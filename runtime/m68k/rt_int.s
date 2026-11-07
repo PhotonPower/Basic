@@ -1,5 +1,6 @@
 ;! module    rt_int
 ;! provides  rt_idiv rt_imod rt_imul rt_conv_word rt_conv_byte rt_wrap_word rt_wrap_byte rt_iadd_chk rt_isub_chk rt_imul_chk
+;! provides  rt_imul_v
 ;! requires  rt_error
 ;! group     core
 ;! clobbers  D0-D3/A0-A1
@@ -90,8 +91,14 @@ rt_int__ovf:
         MOVEQ   #0,D0
         RTS
 
-; signed 32 x 32 with overflow: |a| * |b| from 16-bit products, then the sign
 rt_imul_chk:
+        BSR     rt_imul_v
+        BVS     rt_int__ovf
+        RTS
+
+; D0 = a, D1 = b -> D0 = a * b, V set if it does not fit 32 bits (D2 is kept)
+; signed 32 x 32 with overflow: |a| * |b| from 16-bit products, then the sign
+rt_imul_v:
         MOVEM.L D3-D5,-(SP)
         MOVE.L  D0,D5
         EOR.L   D1,D5                   ; D5 bit 31 = sign of the result
@@ -132,10 +139,11 @@ rt_imul_chk:
         BHI     .ovf
         NEG.L   D3
         MOVE.L  D3,D0
-.out:   MOVEM.L (SP)+,D3-D5
+.out:   MOVEM.L (SP)+,D3-D5           ; MOVEM keeps the flags: V clear from the MOVE
         RTS
 .ovf:   MOVEM.L (SP)+,D3-D5
-        BRA     rt_int__ovf
+        ORI     #$02,CCR                ; V
+        RTS
 
 rt_conv_word:
         CMP.L   #-32768,D0

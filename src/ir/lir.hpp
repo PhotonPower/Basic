@@ -27,7 +27,7 @@ enum class Kind : std::uint8_t {
     ConstS,   // dst = descriptor of the string constant `text`
     Load,     // dst = var (widened: Bool/Byte/Word -> I32; Str: the variable's descriptor)
     Store,    // var = a (the value already fits the variable)
-    Op,       // dst = a <op> b (I32): add sub and or xor not neg (b unused for not/neg)
+    Op,       // dst = a <op> b (I32): add sub and or xor not neg mov (b unused for not/neg/mov)
     Cmp,      // dst = (a <cond> b) ? -1 : 0, I32 operands
     RtCall,   // [dst =] symbol(args): runtime routine, conventions in docs/runtime.md
     Call,     // [dst =] routine(args) (procedure or function of the program)
@@ -47,6 +47,7 @@ enum class Kind : std::uint8_t {
     StoreAt,  // memory at address a = b, element type `mem`
     Bind,     // var refers to the storage at address a (VAR parameter; right after its Save)
     RoutineAddr,  // dst = address of routine (ON ERROR GOSUB)
+    OpOvf,    // dst = a <op> b (I32: add sub mul); if the result does not fit 32 bits goto label
 };
 
 struct Instr {

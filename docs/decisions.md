@@ -165,7 +165,11 @@ das Lowering mit 32 Bit und Überlaufprüfung: Das exakte Ergebnis passt in 32 B
 schlägt fehl, mit dem Fehler der Zielbreite (2, 4, 3). Vergleiche zweier Ganzzahlen sind `CMP`.
 `FOR` mit `%`-Variable, ganzzahligem Endwert und konstanter ganzzahliger Schrittweite zählt in 32 Bit;
 ein Überlauf heißt, dass der exakte Wert hinter dem Ende liegt (die Variable behält den umgebrochenen
-Wert). Ketten wie `a+b-c` bleiben beim Float-Weg, weil ein Zwischenergebnis überlaufen könnte.
+Wert). Ketten wie `a+b-c` oder `t+k*2` rechnen in 32 Bit;
+läuft ein Zwischenergebnis über, springt der Code auf den Float-Weg und rechnet den ganzen Ausdruck
+dort neu. Ohne Überlauf ist jeder Zwischenwert betragsmäßig kleiner als 2^31, der Float-Weg also
+exakt und das Ergebnis gleich. Weil die Operanden dabei zweimal ausgewertet werden, gilt das nur für
+Variablen, Konstanten und Array-Elemente mit solchen Indizes (keine Funktionsaufrufe).
 `tests/programs/intfast.lst` prüft die Grenzen gegen den Interpreter, der immer den Float-Weg geht.
 
 <a id="d15"></a>

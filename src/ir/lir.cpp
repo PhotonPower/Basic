@@ -34,6 +34,9 @@ std::string dump(const Program& p) {
                 case Kind::Op:
                     o += "  " + reg(i.dst) + " = " + i.op + " " + reg(i.a) + (i.b.id >= 0 ? ", " + reg(i.b) : std::string()) + "\n";
                     break;
+                case Kind::OpOvf:
+                    o += "  " + reg(i.dst) + " = " + i.op + ".ovf " + reg(i.a) + ", " + reg(i.b) + " else L" + std::to_string(i.label) + "\n";
+                    break;
                 case Kind::Cmp: o += "  " + reg(i.dst) + " = cmp." + i.op + " " + reg(i.a) + ", " + reg(i.b) + "\n"; break;
                 case Kind::RtCall:
                 case Kind::Call: {

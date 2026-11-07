@@ -980,6 +980,7 @@ private:
             case Op::Conv: return conv(e);
             case Op::ToInt:
                 if (intArith(*e.args[0])) return intArithCall(*e.args[0], 2);
+                if (intChain(*e.args[0])) return intChainConv(*e.args[0], Type::Int);
                 if (isIntLeaf(*e.args[0])) return intLeaf(*e.args[0]);
                 return rtcall("fp_to_i32", {expr(*e.args[0])}, VT::I32);
             case Op::Neg: return rtcall("fp_neg", {expr(*e.args[0])}, VT::F64);
@@ -1092,6 +1093,70 @@ private:
         return (x.op == Op::Add || x.op == Op::Sub || x.op == Op::Mul) && isIntLeaf(*x.args[0]) && isIntLeaf(*x.args[1]);
     }
 
+    // A chain of + - * over integer operands (intChain): in 32 bits with a jump to the float path on
+    // the first overflow. Without an overflow every intermediate value has |v| < 2^31, so the float
+    // path computes the same values exactly (D16 addendum). The operands are evaluated again on the
+    // float path, so they must be free of side effects: variables, constants, array elements with
+    // such indices.
+    static bool pureLeaf(const hir::Expr& e) {
+        switch (e.op) {
+            case Op::ConstInt:
+            case Op::ConstFloat:
+            case Op::Load: return true;
+            case Op::LoadElem:
+                for (const auto& a : e.args)
+                    if (!pureLeaf(*a) && !(a->op == Op::Conv && pureLeaf(*a->args[0]))) return false;
+                return true;
+            case Op::Conv: return pureLeaf(*e.args[0]);
+            default: return false;
+        }
+    }
+
+    static bool chainOperand(const hir::Expr& e) {
+        if (e.op == Op::Add || e.op == Op::Sub || e.op == Op::Mul) return chainOperand(*e.args[0]) && chainOperand(*e.args[1]);
+        return isIntLeaf(e) && pureLeaf(e);
+    }
+
+    static bool intChain(const hir::Expr& x) {
+        return (x.op == Op::Add || x.op == Op::Sub || x.op == Op::Mul) && chainOperand(*x.args[0]) && chainOperand(*x.args[1]);
+    }
+
+    Reg chainEval(const hir::Expr& e, int overflow) {
+        if (e.op != Op::Add && e.op != Op::Sub && e.op != Op::Mul) return intLeaf(e);
+        Reg a = chainEval(*e.args[0], overflow);
+        Reg b = chainEval(*e.args[1], overflow);
+        Reg r = reg(VT::I32);
+        Instr& i = emit(Kind::OpOvf);
+        i.dst = r;
+        i.a = a;
+        i.b = b;
+        i.op = e.op == Op::Add ? "add" : e.op == Op::Sub ? "sub" : "mul";
+        i.label = overflow;
+        return r;
+    }
+
+    void mov(Reg dst, Reg a) {
+        Instr& i = emit(Kind::Op);
+        i.dst = dst;
+        i.a = a;
+        i.op = "mov";
+    }
+
+    // the value of the chain x converted to `to` (Int, Word, Byte) like an assignment
+    Reg intChainConv(const hir::Expr& x, Type to) {
+        const int overflow = label(), done = label();
+        Reg r = reg(VT::I32);
+        Reg v = chainEval(x, overflow);
+        if (to == Type::Word) v = rtcall("rt_conv_word", {v}, VT::I32);
+        else if (to == Type::Byte) v = rtcall("rt_conv_byte", {v}, VT::I32);
+        mov(r, v);
+        jump(done);
+        place(overflow);
+        mov(r, convF(expr(x), to));
+        place(done);
+        return r;
+    }
+
     Reg intArithCall(const hir::Expr& x, int error) {
         Reg a = intLeaf(*x.args[0]);
         Reg b = intLeaf(*x.args[1]);
@@ -1107,6 +1172,7 @@ private:
             if (e.type == Type::Byte) return rtcall("rt_conv_byte", {r}, VT::I32);
             return r;
         }
+        if ((e.type == Type::Int || e.type == Type::Word || e.type == Type::Byte) && intChain(x)) return intChainConv(x, e.type);
         return convF(expr(x), e.type);
     }
 

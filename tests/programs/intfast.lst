@@ -73,6 +73,38 @@ FOR i%=1 TO e% STEP 2
 NEXT i%
 PRINT "22 ";n%;" ";i%
 PRINT "23 ";a%<m%;" ";m%<a%;" ";a%=a%;" ";-1<=0;" ";b%>=2;" ";b%<>1
+' Ketten aus + - * in 32 Bit, bei Ueberlauf eines Zwischenergebnisses der Float-Weg
+p%=100000
+q%=2147483647
+r%=-2147483647-1
+x%=p%*p%-p%*p%+1
+PRINT "24 ";x%;" ";r%
+x%=q%*q%-q%*q%+7
+PRINT "25 ";x%
+x%=q%+1-1
+PRINT "26 ";x%;" ";q%-1+1;" ";r%+1-1
+x%=r%*1+0
+PRINT "27 ";x%
+x%=r%*(-1)+0
+PRINT "28 ";x%
+x%=q%+q%-q%
+PRINT "29 ";x%
+w&=p%*2-199999
+PRINT "30 ";w&
+w&=p%*2+p%
+PRINT "31 ";w&
+y|=p%-99999+254
+PRINT "32 ";y|
+y|=p%-99999+255
+PRINT "33 ";y|
+DIM z%(3)
+z%(2)=46341
+x%=z%(2)*z%(2)-z%(2)*3
+PRINT "34 ";x%
+x%=z%(2)*z%(2)+z%(1)
+PRINT "35 ";x%
+x%=-(r%+1)*1-1
+PRINT "36 ";x%
 END
 PROCEDURE fehler
   PRINT "Fehler ";ERR

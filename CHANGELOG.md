@@ -40,6 +40,8 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 - `RESUME` setzt `ERR` auf 0 (probe12 T1); damit ist `errors2` am Original gleich.
 - `gfa_run.py`: Startmenü der Diskette nach einem Kaltstart (`boot` in `keys.json`), längere
   Wartezeiten für den Merge-Dialog und das Einlesen.
+- MC68000: Ketten aus `+ - *` über Ganzzahlen rechnen in 32 Bit mit Rücksprung auf den Float-Weg bei
+  Überlauf (D16, Nachtrag); neue LIR-Art `OpOvf`. Grenzfälle in `intfast`.
 - Gruppe `memory`, Stufe 1 (D21): `VARPTR`/`V:`, `PEEK`/`DPEEK`/`LPEEK`, `POKE`/`DPOKE`/`LPOKE`,
   `MALLOC`/`MFREE`, `BMOVE`, `BYTE{}` `CARD{}` `INT{}`/`WORD{}` `LONG{}`/`{}` `FLOAT{}` `SINGLE{}`
   `DOUBLE{}` `CHAR{}` (lesen und schreiben) in allen Ausführungen; Interpreter und C++-Ziel mit Fenstern in einem
