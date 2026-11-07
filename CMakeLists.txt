@@ -53,7 +53,7 @@ if(BASIC_WITH_EMULATORS)
     GIT_TAG        e74cf002e300e55dd55511b22e3f545fae5821a6)
   FetchContent_Declare(m68ktools
     GIT_REPOSITORY https://github.com/PhotonPower/MC68000.git
-    GIT_TAG        0074b8b4da269398d44253853cec5501d5a9ea60)
+    GIT_TAG        f41f822c08051b7ed33da783dda36094cdaa043a)
   FetchContent_MakeAvailable(z80tools m68ktools)
 endif()
 
