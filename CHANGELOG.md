@@ -13,6 +13,12 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
   abgefangenen Fehler im Original unbrauchbar ist.
 
 ### Hinzugefügt
+- Numerische Referenz `runtime/ref` (C99, nur Ganzzahlarithmetik): binary64-Grundoperationen
+  korrekt gerundet, `==`, Umwandlungen und Rundungsfunktionen, `ROUND`, Zahl → Text mit 13 Stellen und
+  `DEFNUM`, `VAL`/`VAL?` korrekt gerundet, Zufallsgenerator; Tests gegen die IEEE-Arithmetik des
+  Rechners, `strtod`/`printf` und die Ergebnisse am Original (`tests/test_runtime_ref.cpp`).
+- probe6 am Original ausgewertet: `VAL` mit Präfix (32 Bit, kein Vorzeichen davor), Gleichstand bei
+  der Ausgabe von 0 weg, `DEFNUM` mindestens 2 Stellen, `ROUND` rundet aufwärts. Entscheidung D13.
 - Abgleich mit dem Original: `tools/gfa/gfa_run.py` führt `.lst`-Programme im echten GFA-BASIC 3.5
   unter FS-UAE (macOS) aus (gemeinsames Verzeichnis als `DH0:`, Tastendrücke über `osascript`,
   Bildschirmfoto bei Zeitüberschreitung); Beispielkonfiguration, Tastenfolge `keys.json`, Python-Tests.

@@ -1,0 +1,45 @@
+' probe6 - Annahmen der Referenz (runtime/ref) pruefen (GFA-BASIC 3.5, Amiga)
+' Ergebnisdatei: gfa_run.py setzt datei$ auf DH0:probe6.txt (docs/gfa-original.md).
+'
+datei$="DH0:probe6.txt"
+OPEN "O",#1,datei$
+ON ERROR GOSUB fehler
+PRINT #1,"probe6"
+'
+' --- 1. VAL mit Praefix: Bereich ---
+PRINT #1,"T1 &HFFFFFFFF=";VAL("&HFFFFFFFF");" &H80000000=";VAL("&H80000000");" &H100000000=";VAL("&H100000000")
+PRINT #1,"T2 -&H10=";VAL("-&H10");" &HFF.5=";VAL("&HFF.5");" VAL?(&HFF.5)=";VAL?("&HFF.5")
+PRINT #1,"T3 VAL?(&H)=";VAL?("&H");" VAL(&H)=";VAL("&H");" VAL?(&HG)=";VAL?("&HG");" VAL?(-x)=";VAL?("-x")
+PRINT #1,"T4 $10=";VAL("$10");" &O17=";VAL("&O17");" &X101=";VAL("&X101");" %2=";VAL("%2")
+PRINT #1,"T5 +5=";VAL("+5");" VAL?(+5)=";VAL?("+5");" 1E+x=";VAL("1E+x");" VAL?(1E+x)=";VAL?("1E+x")
+'
+' --- 2. Gleichstand an der 13. Stelle ---
+PRINT #1,"T6 12345678901235 [";12345678901235;"] -12345678901235 [";-12345678901235;"]"
+PRINT #1,"T7 1234567890123.5 [";1234567890123.5;"] 0.12345678901235 [";0.12345678901235;"]"
+'
+' --- 3. DEFNUM: Rundung und Exponentschwellen ---
+DEFNUM 1
+PRINT #1,"T8 DEFNUM 1: [";2.5;"] [";0.25;"] [";9.5;"] [";-2.5;"] [";0.35;"]"
+DEFNUM 3
+PRINT #1,"T9 DEFNUM 3: [";12345;"] [";1E+13;"] [";1E+14;"] [";0.00001234;"] [";0.000001234;"]"
+PRINT #1,"T10 DEFNUM 3: [";99999;"] [";999.5;"] [";1234567;"]"
+DEFNUM 13
+'
+' --- 4. ROUND ---
+PRINT #1,"T11 ROUND: ";ROUND(-2.5);" ";ROUND(0.35,1);" ";ROUND(1234.5,-2);" ";ROUND(1250,-2);" ";ROUND(-0.125,2)
+'
+PRINT #1,"ende"
+CLOSE #1
+PRINT "fertig: ";datei$
+END
+'
+PROCEDURE fehler
+  ' Original: after an error channel #1 is unusable (ERR 24 file not open)
+  ' until it is closed and opened again
+  e%=ERR
+  CLOSE #1
+  OPEN "A",#1,datei$
+  PRINT #1,"   -> ERR ";e%;" ";ERR$(e%)
+  ON ERROR GOSUB fehler
+  RESUME NEXT
+RETURN

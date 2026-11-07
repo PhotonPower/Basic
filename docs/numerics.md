@@ -22,7 +22,7 @@ Bewusst vereinfachte Semantik, damit die Z80-Implementierung klein bleibt:
 | denormalisierte Zahlen | gibt es nicht: Ergebnisse unterhalb von 2⁻¹⁰²² werden zu 0 |
 | ±Unendlich, NaN | gibt es nicht: Überlauf löst Fehler 1 „overflow“ aus, wie im Original (probe3 T16, T18, T19). Die Grenze liegt bei binary64 anders: Im Original ist `1E300*1E300` noch kein Überlauf (probe2 T15) |
 | `VAL` außerhalb des Bereichs | ergibt 0 ohne Fehler, wie im Original (`VAL("1E10000")`, probe3 T20) |
-| Unterlauf | Ergebnis 0 ohne Fehler (wie Original, probe1 T49) |
+| Unterlauf | Ergebnis 0 ohne Fehler (wie Original, probe1 T49): Ist das mit unbegrenztem Exponenten auf 53 Bit gerundete Ergebnis kleiner als 2⁻¹⁰²², wird es 0 ([D13](decisions.md#d13)) |
 | Division durch 0 | GFA-Laufzeitfehler (Original: Fehler 0 „divide by zero“, probe1 T15) |
 | −0 | gibt es nicht: Ergebnisse 0 haben immer positives Vorzeichen |
 | `SQR`, `LOG` außerhalb des Definitionsbereichs | GFA-Laufzeitfehler: 5 bei `SQR` negativ, 6 bei `LOG(0)` (probe1 T51, T52) |
@@ -106,8 +106,11 @@ von Grundoperationen.
 
 `INT` rundet ab (floor, ✔ `INT(-0.5)` = −1, probe1 T17), `TRUNC`/`FIX` schneidet Richtung 0 ab,
 `FRAC(x) = x − TRUNC(x)`. `CINT` rundet bei genau ,5 **von 0 weg** (✔ 0,5 → 1, 1,5 → 2, 2,5 → 3,
-−0,5 → −1, −1,5 → −2, probe1 T16). `ROUND` ebenso: `ROUND(2.5)` = 3, `ROUND(0.125,2)` = 0,13
-(probe1 T17; 0,125 ist exakt darstellbar).
+−0,5 → −1, −1,5 → −2, probe1 T16). `ROUND` dagegen rundet **aufwärts**: ✔ `ROUND(x,n)` =
+`INT(x·10ⁿ+0,5)/10ⁿ`, also `ROUND(2.5)` = 3, `ROUND(-2.5)` = −2, `ROUND(0.125,2)` = 0,13,
+`ROUND(-0.125,2)` = −0,12, `ROUND(1250,-2)` = 1300 (probe1 T17, probe6 T11). Weil auf dem Binärwert
+gerechnet wird, ergibt `ROUND(0.35,1)` im Original 0,3 (0,35·10 < 3,5 bei 48 Bit), bei uns 0,4
+(0,35·10 = 3,5 in binary64, [D11](decisions.md#d11)).
 
 ## Ungefähre Gleichheit `==`
 
@@ -139,8 +142,12 @@ Differenztests Ausgaben vergleichen.
 
 - Ausgabe mit höchstens **13 signifikanten Stellen** wie GFA-BASIC, deterministisch aus dem
   Bitmuster berechnet (exakte Ganzzahlarithmetik auf der Mantisse, keine Fließkomma-Zwischenschritte).
+  Gerundet wird der exakte Binärwert, bei einem exakten Gleichstand von 0 weg (✔ `12345678901235` →
+  `12345678901240`, `1234567890123.5` → `1234567890124`, probe6 T6, T7).
 - `DEFNUM n` (Anzahl signifikanter Stellen) und `MODE` (Dezimal- und Tausendertrennzeichen) gehören
-  zur Formatierung und werden in `rt_fmt_flt` bzw. `PRINT USING` berücksichtigt.
+  zur Formatierung und werden in `rt_fmt_flt` bzw. `PRINT USING` berücksichtigt. ✔ `DEFNUM 1` gibt
+  2 Stellen aus (`2.5`, `0.25`), die Schwellen der Exponentdarstellung hängen nicht von `DEFNUM` ab
+  (`DEFNUM 3`: `12300`, `10000000000000`, `1.0E+14`, `0.0000123`, `1.23E-06`; probe6 T8–T10).
 - Formatregeln am Original (probe1 T22–T40), `PRINT` und `STR$` geben gleich aus:
   - **kein** Leerzeichen vor positiven Zahlen (`[1][-1][-12]`), führende Null (`0.5`, `-0.5`);
   - 13 signifikante Stellen, nachfolgende Nullen entfallen (`0.3333333333333`, `0.6666666666667`,
@@ -187,7 +194,12 @@ Differenztests Ausgaben vergleichen.
   - Mehrere Werte mit einem Format: Im Original wird nur der erste formatiert, der zweite erscheint
     als `?2.75` (probe4 T31, probe5 T30, T31). Wir wenden das Format auf jeden Wert an.
 - `VAL` liest Dezimal, `&H`/`$`, `&X`/`%`, `&O` (✔ `VAL("1.5E3")` = 1500, `VAL("&HFF")` = 255,
-  `VAL("%101")` = 5, `VAL(".5x")` = 0,5 – Lesen endet am ersten ungültigen Zeichen, probe1 T54) und ist korrekt gerundet (Text → nächstgelegene
+  `VAL("%101")` = 5, `VAL(".5x")` = 0,5 – Lesen endet am ersten ungültigen Zeichen, probe1 T54) und ist korrekt gerundet.
+  Am Original (probe4 T47, probe6 T1–T5): Mit Präfix wird eine 32-Bit-Zahl gelesen, die überläuft
+  und als vorzeichenbehaftet gilt (`&HFFFFFFFF` = −1, `&H100000000` = 0); vor dem Präfix ist kein
+  Vorzeichen erlaubt (`VAL("-&H10")` = 0); ein Präfix ohne Ziffern ergibt 0 mit `VAL?` = 0. Ein `E`
+  wird auch ohne Ziffern verbraucht (`VAL?("1E")` = 2, `VAL?("1E+x")` = 2). Außerhalb des Bereichs
+  ergibt `VAL` 0 ohne Fehler. Insgesamt (Text → nächstgelegene
   darstellbare Zahl), damit `VAL(STR$(x))` stabil ist.
 
 ## Zufallszahlen

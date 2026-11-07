@@ -84,6 +84,19 @@ die ungenaue Konstante `PI` (wir nehmen den nächstgelegenen binary64-Wert), das
 Ganzzahl- und Rundungsregeln, `FOR`-Semantik, Ausgabeformat, Fehlernummern und -texte, die Regel von
 `==` (siehe [numerics.md](numerics.md)).
 
+<a id="d13"></a>
+## D13 – Festlegungen der numerischen Referenz (0.1)
+
+Mit `runtime/ref` festgelegt, wo weder Handbuch noch Original eine Antwort geben:
+
+- **Unterlauf:** Das Ergebnis wird mit unbegrenztem Exponenten auf 53 Bit gerundet; ist es dann
+  kleiner als 2⁻¹⁰²², wird es 0 (ohne Fehler, wie im Original).
+- **`ROUND(x,n)`** mit |x·10ⁿ| ≥ 2⁵² liefert x unverändert (es gibt keine Stelle mehr zu runden; so
+  kann auch x·10ⁿ nicht überlaufen). 10ⁿ entsteht durch fortgesetzte Multiplikation mit 10.
+- **`VAL`** behält höchstens 800 signifikante Ziffern; weitere wirken nur als Rundungsinformation.
+  Das ist exakt, weil jeder Mittelpunkt zwischen zwei binary64-Zahlen höchstens 767 Ziffern hat.
+- **`DEFNUM`** über 13 zählt als 13.
+
 <a id="d12"></a>
 ## D12 – Ersatzverhalten für Eigenheiten von `INSTR` und `PRINT USING`
 

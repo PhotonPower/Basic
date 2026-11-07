@@ -6,6 +6,12 @@ foreach(name targets)
   add_test(NAME ${name} COMMAND test_${name})
 endforeach()
 
+# C reference runtime (runtime/ref) against the host's IEEE arithmetic and the original's results.
+add_executable(test_runtime_ref test_runtime_ref.cpp)
+target_link_libraries(test_runtime_ref PRIVATE basic_rt_ref)
+basic_set_warnings(test_runtime_ref)
+add_test(NAME runtime_ref COMMAND test_runtime_ref)
+
 # Emulator harness: runs generated code in the emulators of the sister projects (docs/testing.md).
 if(BASIC_WITH_EMULATORS)
   add_library(basic_harness STATIC

@@ -57,6 +57,9 @@ if(BASIC_WITH_EMULATORS)
   FetchContent_MakeAvailable(z80tools m68ktools)
 endif()
 
+# ---- C reference runtime ----------------------------------------------------------------
+add_subdirectory(runtime/ref)
+
 # ---- core library ---------------------------------------------------------------------
 # Frontend, IR, backends and the runtime linker are added here as they are written
 # (see docs/architecture.md and docs/roadmap.md).

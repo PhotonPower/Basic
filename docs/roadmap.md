@@ -10,10 +10,13 @@ Dokumentation von Architektur, Zwischencode, Runtime, Numerik, Zielsystemen und 
 
 ## 0.1 – Numerische Referenz
 
-- `runtime/ref`: `fp_add/sub/mul/div/sqrt/cmp`, Konvertierungen Integer ↔ Float, `INT`/`TRUNC`/`FRAC`/`CINT`.
-- Zahl → Text (13 Stellen) und Text → Zahl (`VAL`), korrekt gerundet.
-- Zufallsgenerator.
-- Generator für Konformanzfälle (`tools/`) und Unit-Tests der Referenz gegen bekannte Werte.
+- ✔ `runtime/ref`: `fp_add/sub/mul/div/sqrt/cmp`, `==`, Konvertierungen Integer ↔ Float,
+  `INT`/`TRUNC`/`FRAC`/`CINT`/`ROUND`.
+- ✔ Zahl → Text (13 Stellen, `DEFNUM`) und Text → Zahl (`VAL`, `VAL?`), korrekt gerundet.
+- ✔ Zufallsgenerator.
+- ✔ Unit-Tests der Referenz gegen die IEEE-Arithmetik des Rechners und die Ergebnisse am Original.
+- `PRINT USING` und `STR$(x,y,z)` (Regeln aus probe4/probe5).
+- Generator für Konformanzfälle (`tools/`).
 
 ## 0.2 – Frontend und IR
 
