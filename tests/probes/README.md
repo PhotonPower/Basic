@@ -19,6 +19,7 @@ Ausführen mit `tools/gfa/gfa_run.py`, Einrichtung und Regeln in [docs/gfa-origi
 | `probe19.lst` | `ARRPTR`/`*x`, String- und Feld-Deskriptoren, `SWAP *p,a()`, `TYPE(*x)`, `ABSOLUTE`; `MALLOC` mit einem Argument – ausgewertet (2026-11-07) |
 | `probe20.lst` | `POS` nach LF/CR/BS, `CRSCOL`/`CRSLIN`, `PRINT AT`, `LOCATE`, `HTAB`/`VTAB`, `TAB` nach `AT`, `TIMER`, `RINSTR` – ausgewertet (2026-11-07) |
 | `probe21.lst` | Wovon die Zone des Kommas in `PRINT` abhängt (Anfang der Anweisung) – ausgewertet (2026-11-07) |
+| `probe15.lst` | `INPUT`/`LINE INPUT` mit Eingaben über `--after`: ungültige Zahl, Folgezeilen, überzählige Werte, Leerzeichen – ausgewertet (2026-11-07), das Programm aktiviert dafür sein Ausgabefenster |
 | `probe10.lst` | `VAR`-Parameter: Geltung für folgende Parameter, Referenz oder Kopie, unzulässige Argumente – ausgewertet (2026-11-07) |
 
 Ergebnisse: `results/<name>.txt` (erzeugt am Original).

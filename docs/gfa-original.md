@@ -66,6 +66,13 @@ Einrichtungsfehler, `3` FS-UAE hat während der Tastenfolge den Fokus verloren.
   Fehlerprozedur merkt sich deshalb zuerst `ERR`, schließt den Kanal und öffnet ihn mit `OPEN "A"`
   neu (siehe `probe1.lst`, Prozedur `fehler`).
 - Jeder Test hat eine Kennung (`T1`, `T2` …), damit Ergebnisse eindeutig zugeordnet werden können.
+- Prüfprogramme mit Tastatureingabe (`INPUT`, `INKEY$`) aktivieren vor der ersten Eingabe ihr
+  Ausgabefenster mit `~ActivateWindow(WINDOW(0))`, sonst landen die Tasten im Editor (probe15). Die
+  Eingaben kommen über `gfa_run.py --after` (z. B. `--after type:12 --after key:return`).
+- Stürzt das Original ab („Software error“), bleibt die gepufferte Ergebnisdatei leer. Abhilfe:
+  vor riskanten Befehlen eine Spurzeile schreiben und die Datei schließen und mit `OPEN "A"` wieder
+  öffnen (probe17–20, Prozedur `flush`). FS-UAE vor jedem Lauf beenden, ein liegengebliebener
+  Zustand lässt GFA-BASIC beim Start abstürzen.
 
 ## Eigene Programme auf dem Amiga
 

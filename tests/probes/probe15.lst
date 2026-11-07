@@ -7,6 +7,8 @@ datei$="DH0:probe15.txt"
 OPEN "O",#1,datei$
 PRINT #1,"probe15"
 CLS
+' das eigene Ausgabefenster aktivieren, damit die Tasten dort ankommen (nicht im Editor)
+~ActivateWindow(WINDOW(0))
 ' T1 Eingabe abc, dann 12: ungueltige Zahl
 INPUT "T1 Zahl";x
 PRINT #1,"T1 x=";x

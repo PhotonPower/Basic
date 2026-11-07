@@ -93,10 +93,11 @@ das Programm gibt nur die Aufforderung aus und setzt danach die Spalte auf 0.
 
 Nach der Befehlsreferenz (Kap. 5): Aufforderung „text? “ bei `"text";`, „text“ bei `"text",`,
 „? “ ohne Text (am Original gesehen: `T1 Zahl? `, probe15). Werte von `INPUT` durch Kommas getrennt,
-fehlende aus weiteren Zeilen. Unsere Festlegungen, wo die Referenz schweigt und probe15 nicht weiter
-kam (die Tasten erreichten das Ausgabefenster nicht): Folgezeilen fordern mit „? “ auf; eine
-ungültige Zahl (auch eine leere Eingabe) wiederholt Aufforderung und Eingabe, ohne Piepton; Werte
-über die Zahl der Variablen hinaus werden verworfen; ein String behält seine Leerzeichen;
+fehlende aus weiteren Zeilen. Wo die Referenz schweigt, am Original bestätigt (probe15, nachdem das
+Prüfprogramm sein Ausgabefenster mit `~ActivateWindow(WINDOW(0))` aktiviert): Folgezeilen fordern
+mit „? “ auf; eine ungültige Zahl wiederholt Aufforderung und Eingabe ohne Meldung (eine leere
+Eingabe behandeln wir ebenso); Werte über die Zahl der Variablen hinaus werden verworfen; ein String
+behält seine Leerzeichen;
 Anführungszeichen haben keine Bedeutung. `INKEY$` liefert das nächste Zeichen oder "" am Ende
 (auf einer zeilengepufferten Konsole erst nach Return), ein Zeilenvorschub zählt als Return (13).
 Das Ende der Eingabe während `INPUT` ist Fehler 26.

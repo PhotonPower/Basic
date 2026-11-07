@@ -54,7 +54,7 @@ laufen in der OS-Emulation (`test_m68k_programs`) und unter Kickstart 1.2 im FS-
 ✔ Transzendente Funktionen (`runtime/ref/rt_math.c`, 68000 bitgleich, probe13).
 ✔ Zahlenausgabe 2,6-mal schneller (Länge der großen Zahlen nach Bedarf).
 ✔ Sequentielle Dateien (probe14) in allen Ausführungen; auf dem Amiga im FS-UAE geprüft.
-✔ Tastatureingabe (D20); offen am Original: Verhalten bei ungültiger Zahl und Folgezeilen.
+✔ Tastatureingabe (D20), am Original bestätigt (probe15).
 ✔ Wahlfreie Dateien (probe16) in allen Ausführungen; auf dem Amiga im FS-UAE geprüft.
 ✔ Ganzzahl-Abkürzungen im Lowering (D16, Nachtrag).
 ✔ `MKx$`/`CVx` (ohne Speicherzugriff).

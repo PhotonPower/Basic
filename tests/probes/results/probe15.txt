@@ -1,0 +1,10 @@
+probe15
+T1 x=12
+T2 a$=[hallo welt]
+T3 b=1 c=2
+T4 d=3 e$=[x y]
+T5 f=4
+T6 g$=[a,b , c]
+T7 h$=[  mit leer  ]
+T8 k=7
+ende

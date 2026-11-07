@@ -189,9 +189,9 @@ Diese Punkte sind aus dem Handbuch nicht sicher zu entnehmen und werden am Origi
   Ausführungen. Bei `INPUT #` beendet ein CR einen Wert, ein LF direkt danach gehört dazu (probe18
   T2, T7).
 - **Tastatureingabe** (`INPUT`, `LINE INPUT`, `INKEY$`, `INPUT$(n)`): nach der Befehlsreferenz und
-  [D20](decisions.md#d20). Offen am Original: Anzeige und Verhalten bei einer ungültigen Zahl, bei
-  zu wenigen und zu vielen Werten in einer Zeile (probe15 braucht einen Weg, Tasten an das
-  Ausgabefenster zu schicken).
+  [D20](decisions.md#d20), am Original bestätigt (probe15): Eine ungültige Zahl wiederholt die
+  Aufforderung ohne Meldung, fehlende Werte holt eine neue Zeile mit „? “, überzählige Werte werden
+  übergangen, ein String behält Leerzeichen vorn und hinten.
 - ~~**`SELECT` mit Mehrzeichen-Strings**~~ (Anhang C, Punkt 8), am Original (probe4 T1–T9):
   - Die Zeichen werden **Big-Endian** gepackt: `CASE "ab"` = 97·256 + 98 = 24930, `CASE "abcd"` =
     1633837924. Die Formel im Handbuch (ASCII1 + 255 · ASCII2) ist falsch, auch die
