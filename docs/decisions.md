@@ -275,3 +275,21 @@ verschiebt Strings), auch als Quelle von `CHAR{}`.
 
 Offen: `*x`/`ARRPTR`, `ABSOLUTE`, `VARPTR` auf den Descriptor statt die Zeichen, Adressen, die über
 Bereiche hinweg gelten.
+
+<a id="d22"></a>
+## D22 – Ganzzahlige Zwischenwerte in D4–D7 (68000)
+
+Das 68000-Backend legt ganzzahlige virtuelle Register in D4–D7, die die Laufzeitroutinen ohnehin
+erhalten; Vorrang haben die meistbenutzten, gewichtet mit der Schleifentiefe. Jede BASIC-Routine
+sichert die benutzten Register beim Eintritt im eigenen Rahmen (`MOVEM.L`) und stellt sie beim
+Verlassen wieder her. BASIC-Variablen bleiben im Speicher: Sie sind wegen der dynamischen Bindung (D15)
+und für Fehlerroutinen überall sichtbar.
+
+Mit `ON ERROR` bekommen nur Werte ein Register, die innerhalb einer Anweisung leben. `RESUME`
+setzt an einer Anweisungsgrenze fort, nachdem die Laufzeit womöglich aus einer Routine
+herausgesprungen ist, die D4–D7 verändert und nicht mehr zurückgesetzt hat; dort sind solche Werte
+tot. Ohne `ON ERROR` beendet ein Fehler das Programm, dann gilt jede Lebensdauer.
+
+Ist das Ergebnis ein Register, rechnen `+ - AND OR XOR NOT` direkt dort; Vergleiche mit einem Register
+sind ein `CMP` ohne Umweg über D0. `* 2^k` (k bis 8) in Ganzzahl-Ketten ist `ASL` mit Prüfung des
+V-Flags. `tests/programs/regs.lst` prüft Schleifen über Aufrufe hinweg und Rekursion.

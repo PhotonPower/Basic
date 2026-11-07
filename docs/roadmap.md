@@ -60,8 +60,9 @@ laufen in der OS-Emulation (`test_m68k_programs`) und unter Kickstart 1.2 im FS-
 ✔ `MKx$`/`CVx` (ohne Speicherzugriff).
 ✔ Gruppe `memory` (D21): `VARPTR`/`V:`, `PEEK`/`POKE` (8/16/32 Bit), `MALLOC`/`MFREE`, `BMOVE`,
 `BYTE{}` … `CHAR{}`.
-Weiter: `memory` Rest (`*x`/`ARRPTR`, `ABSOLUTE`, voller Umbau nach D6), Werte in Prozessorregistern,
-Gruppe `matrix`.
+✔ Ganzzahl-Ketten in 32 Bit (D16, Nachtrag), Zwischenwerte in D4–D7 (D22).
+Weiter: Gruppe `matrix`; `memory` Rest (`*x`/`ARRPTR`, `ABSOLUTE`, voller Umbau nach D6); weitere
+Optimierungen (Variablen in Registern innerhalb von Schleifen ohne Aufrufe, Fließkomma inline).
 
 - Quelltext-Linker (`src/link`) mit Map-Datei und Label-Prüfung.
 - LIR → 68000-Assembler, `runtime/m68k` (Integer, Strings, Ausgabe, Fließkomma-Kern), `platform/amiga`

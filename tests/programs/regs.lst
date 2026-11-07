@@ -1,0 +1,64 @@
+' test: groups core print
+' Werte in Prozessorregistern (68000): Schleifen ueber Aufrufe hinweg, Rekursion, Funktionen mitten
+' im Ausdruck, LOCAL in Schleifen. Ohne ON ERROR (Register ueber Anweisungen hinweg).
+s%=0
+FOR i%=1 TO 20
+  FOR j%=1 TO i%
+    s%=s%+i%*j%-@g(j%)
+  NEXT j%
+  @p(i%)
+NEXT i%
+PRINT s%;" ";t%
+PRINT @fib(15);" ";@sum(30)
+k%=0
+WHILE k%<5
+  a%=k%*3+@g(k%)*2-1
+  PRINT a%;" ";
+  INC k%
+WEND
+PRINT
+DIM f%(10)
+FOR i%=0 TO 10
+  f%(i%)=i%*i%+@g(i%)
+NEXT i%
+x%=0
+FOR i%=10 TO 0 STEP -2
+  x%=x%*2+f%(i%)-f%(10-i%)
+NEXT i%
+PRINT x%;" ";f%(10)
+w&=0
+b|=0
+FOR i%=1 TO 100
+  w&=w&+i%
+  b|=(b|+i%) AND 255
+NEXT i%
+PRINT w&;" ";b|
+END
+FUNCTION g(n%)
+  LOCAL m%,r%
+  r%=0
+  FOR m%=1 TO n%
+    r%=r%+m%
+  NEXT m%
+  RETURN r% MOD 7
+ENDFUNC
+PROCEDURE p(n%)
+  LOCAL q%
+  FOR q%=1 TO n%
+    t%=t%+q%*n%-@g(q%)
+  NEXT q%
+RETURN
+FUNCTION fib(n%)
+  IF n%<2
+    RETURN n%
+  ENDIF
+  RETURN @fib(n%-1)+@fib(n%-2)
+ENDFUNC
+FUNCTION sum(n%)
+  LOCAL i%,r%
+  r%=0
+  FOR i%=1 TO n%
+    r%=r%+i%*2+@g(i%)
+  NEXT i%
+  RETURN r%
+ENDFUNC

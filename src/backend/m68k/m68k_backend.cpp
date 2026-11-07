@@ -64,7 +64,33 @@ private:
     }
 
     // value of type t from memory (m0 = operand at offset 0, m4 = at offset 4) into a register slot
+    // the processor register of a virtual register, or "" (frame slot, alias or constant)
+    std::string inReg(const Reg& r) const {
+        const auto k = static_cast<std::size_t>(r.id);
+        if (r.id < 0 || k >= regOf_.size() || regOf_[k] < 0 || (k < alias_.size() && !alias_[k].empty())) return "";
+        return "D" + std::to_string(regOf_[k]);
+    }
+
     void loadValue(hir::Type t, const std::string& m0, const std::string& m4, const Reg& dst) {
+        const std::string d = inReg(dst);
+        if (!d.empty() && t != hir::Type::Float) {  // straight into the register
+            switch (t) {
+                case hir::Type::Word:
+                    line("MOVE.W  " + m0 + "," + d);
+                    line("EXT.L   " + d);
+                    return;
+                case hir::Type::Byte:
+                    line("MOVEQ   #0," + d);
+                    line("MOVE.B  " + m0 + "," + d);
+                    return;
+                case hir::Type::Bool:
+                    line("MOVE.B  " + m0 + "," + d);
+                    line("EXT.W   " + d);
+                    line("EXT.L   " + d);
+                    return;
+                default: line("MOVE.L  " + m0 + "," + d); return;
+            }
+        }
         switch (t) {
             case hir::Type::Float:
                 line("MOVE.L  " + m0 + "," + slot(dst));
@@ -162,6 +188,9 @@ private:
     std::string slot(const Reg& r, int offset = 0) const {
         const auto k = static_cast<std::size_t>(r.id);
         if (k < alias_.size() && !alias_[k].empty() && offset == 0) return alias_[k];
+        // a processor register: the whole value (offsets 2 and 3 are its low word and byte; 4 is the
+        // unused half of an integer argument slot)
+        if (k < regOf_.size() && regOf_[k] >= 0) return "D" + std::to_string(regOf_[k]);
         if (k < constOf_.size() && constKnown_[k]) {
             const std::int32_t v = constOf_[k];
             if (offset == 2) return "#" + std::to_string(static_cast<std::int16_t>(v & 0xFFFF));
@@ -216,6 +245,16 @@ private:
     }
 
     std::vector<int> slotOf_;  // virtual register -> slot
+    std::vector<int> regOf_;   // virtual register -> D4..D7, or -1 (in its slot)
+    std::vector<int> savedRegs_;  // D registers the routine uses: saved on entry, restored on return
+
+    std::string regList() const {
+        std::string l;
+        for (int r : savedRegs_) l += (l.empty() ? "D" : "/D") + std::to_string(r);
+        return l;
+    }
+    // where the routine keeps the saved registers: below the slots and the statement record
+    std::string regSave() const { return std::to_string(-8 * slots_ - (p_.onError ? 24 : 0) - 4 * static_cast<int>(savedRegs_.size())) + "(A6)"; }
     int slots_ = 0;
 
     // Lifetimes in code order: from the first to the last appearance of a register. A register that
@@ -273,10 +312,74 @@ private:
                     if (last[k] < to) last[k] = to, grown = true;
                 }
         }
+        // Integer registers into D4..D7 (kept by the runtime routines), the most used first, weighted
+        // by the loop depth. With ON ERROR only registers inside one statement: RESUME continues at
+        // a statement boundary, possibly after the runtime unwound from deep inside a routine that
+        // had changed D4..D7.
+        regOf_.assign(n, -1);
+        savedRegs_.clear();
+        {
+            std::vector<long> linePos;
+            for (std::size_t i = 0; i < f.code.size(); ++i)
+                if (f.code[i].kind == Kind::Line) linePos.push_back(static_cast<long>(i));
+            std::vector<std::pair<long, long>> backJumps;
+            for (std::size_t i = 0; i < f.code.size(); ++i) {
+                const Instr& in = f.code[i];
+                if ((in.kind == Kind::Jump || in.kind == Kind::BranchZ || in.kind == Kind::BranchNZ) && in.label >= 0) {
+                    const long target = labelPos[static_cast<std::size_t>(in.label)];
+                    if (target >= 0 && target <= static_cast<long>(i)) backJumps.emplace_back(target, static_cast<long>(i));
+                }
+            }
+            std::vector<double> weight(n, 0.0);
+            auto add = [&](const Reg& r, long pos) {
+                if (r.id < 0) return;
+                int depth = 0;
+                for (const auto& [from, to] : backJumps)
+                    if (pos >= from && pos <= to) ++depth;
+                double w = 1;
+                for (int d = 0; d < std::min(depth, 5); ++d) w *= 8;
+                weight[static_cast<std::size_t>(r.id)] += w;
+            };
+            for (std::size_t i = 0; i < f.code.size(); ++i) {
+                const Instr& in = f.code[i];
+                const long pos = static_cast<long>(i);
+                add(in.dst, pos);
+                add(in.a, pos);
+                add(in.b, pos);
+                for (const Reg& r : in.args) add(r, pos);
+            }
+            std::vector<std::size_t> cand;
+            for (std::size_t k = 0; k < n; ++k) {
+                if (!seen[k] || f.regTypes[k] != VT::I32 || constKnown_[k]) continue;
+                if (p_.onError) {
+                    const auto it = std::upper_bound(linePos.begin(), linePos.end(), first[k]);
+                    if (it != linePos.end() && *it <= last[k]) continue;  // crosses a statement boundary
+                }
+                cand.push_back(k);
+            }
+            std::stable_sort(cand.begin(), cand.end(), [&](std::size_t a, std::size_t b) { return weight[a] > weight[b]; });
+            std::vector<std::vector<std::pair<long, long>>> busy(4);
+            for (std::size_t k : cand) {
+                for (int r = 0; r < 4; ++r) {
+                    bool free = true;
+                    for (const auto& [a, b] : busy[static_cast<std::size_t>(r)])
+                        if (!(last[k] < a || b < first[k])) {
+                            free = false;
+                            break;
+                        }
+                    if (!free) continue;
+                    busy[static_cast<std::size_t>(r)].emplace_back(first[k], last[k]);
+                    regOf_[k] = 4 + r;
+                    break;
+                }
+            }
+            for (int r = 0; r < 4; ++r)
+                if (!busy[static_cast<std::size_t>(r)].empty()) savedRegs_.push_back(4 + r);
+        }
         // linear scan
         std::vector<std::size_t> order;
         for (std::size_t k = 0; k < n; ++k)
-            if (seen[k]) order.push_back(k);
+            if (seen[k] && regOf_[k] < 0) order.push_back(k);
         std::sort(order.begin(), order.end(), [&](std::size_t a, std::size_t b) { return first[a] < first[b]; });
         slotOf_.assign(n, 0);
         slots_ = 0;
@@ -340,7 +443,8 @@ private:
         out_.code += "; ---- " + (f.routine < 0 ? std::string("main program") : f.name) + "\n" + name + ":\n";
         scanConsts(f);
         assignSlots(f);
-        line("LINK    A6,#" + std::to_string(-8 * slots_ - (p_.onError ? 24 : 0)));
+        line("LINK    A6,#" + std::to_string(-8 * slots_ - (p_.onError ? 24 : 0) - 4 * static_cast<int>(savedRegs_.size())));
+        if (!savedRegs_.empty()) line("MOVEM.L " + regList() + "," + regSave());
         if (hasRecord()) {  // own statement record; until the first statement a copy of the caller's
             uses_.insert("rt_err_ctx");
             const std::string l = ".E" + std::to_string(local_++);
@@ -400,9 +504,19 @@ private:
         static const std::map<std::string, std::pair<const char*, const char*>> cc = {
             {"eq", {"BEQ", "BNE"}}, {"ne", {"BNE", "BEQ"}}, {"lt", {"BLT", "BGE"}},
             {"le", {"BLE", "BGT"}}, {"gt", {"BGT", "BLE"}}, {"ge", {"BGE", "BLT"}}};
-        const auto& [yes, no] = cc.at(c.op);
-        line("MOVE.L  " + slot(c.a) + ",D0");
-        line("CMP.L   " + slot(c.b) + ",D0");
+        static const std::map<std::string, std::string> swapped = {{"eq", "eq"}, {"ne", "ne"}, {"lt", "gt"},
+                                                                   {"le", "ge"}, {"gt", "lt"}, {"ge", "le"}};
+        std::string cond = c.op;
+        if (!inReg(c.a).empty()) {
+            line("CMP.L   " + slot(c.b) + "," + inReg(c.a));
+        } else if (!inReg(c.b).empty()) {  // b - a: the condition mirrored
+            line("CMP.L   " + slot(c.a) + "," + inReg(c.b));
+            cond = swapped.at(cond);
+        } else {
+            line("MOVE.L  " + slot(c.a) + ",D0");
+            line("CMP.L   " + slot(c.b) + ",D0");
+        }
+        const auto& [yes, no] = cc.at(cond);
         line(std::string(ifTrue ? yes : no) + "     .L" + std::to_string(target));
     }
 
@@ -471,9 +585,36 @@ private:
             }
             case Kind::Op: {
                 if (i.op == "mov") {
+                    if (slot(i.a) == slot(i.dst) && i.dst.type != VT::F64) return;
                     line("MOVE.L  " + slot(i.a) + "," + slot(i.dst));
                     if (i.dst.type == VT::F64) line("MOVE.L  " + slot(i.a, 4) + "," + slot(i.dst, 4));
                     return;
+                }
+                {  // the result register as the work register, unless it is the second operand
+                    std::string d = inReg(i.dst);
+                    Reg a = i.a, b = i.b;
+                    const bool commutes = i.op == "add" || i.op == "and" || i.op == "or" || i.op == "xor";
+                    if (!d.empty() && b.id >= 0 && slot(b) == d) {
+                        if (commutes) std::swap(a, b);
+                        else d.clear();
+                    }
+                    if (!d.empty()) {
+                        if (slot(a) != d) line("MOVE.L  " + slot(a) + "," + d);
+                        if (i.op == "not") line("NOT.L   " + d);
+                        else if (i.op == "neg") line("NEG.L   " + d);
+                        else if (i.op == "xor") {
+                            std::string src = inReg(b);
+                            if (src.empty()) {
+                                line("MOVE.L  " + slot(b) + ",D1");
+                                src = "D1";
+                            }
+                            line("EOR.L   " + src + "," + d);
+                        } else {
+                            const std::string m = i.op == "add" ? "ADD" : i.op == "sub" ? "SUB" : i.op == "and" ? "AND" : "OR";
+                            line(m + ".L   " + slot(b) + "," + d);
+                        }
+                        return;
+                    }
                 }
                 line("MOVE.L  " + slot(i.a) + ",D0");
                 if (i.op == "not") line("NOT.L   D0");
@@ -492,6 +633,38 @@ private:
             }
             case Kind::OpOvf: {
                 const std::string l = ".L" + std::to_string(i.label);
+                if (i.op == "mul") {  // times 2^k (k = 1..8): ASL sets V if the sign bit changes on the way
+                    Reg a = i.a, b = i.b;
+                    if (isConst(a)) std::swap(a, b);
+                    if (isConst(b)) {
+                        const std::int32_t c = constOf_[static_cast<std::size_t>(b.id)];
+                        int k = 0;
+                        while (k <= 8 && (std::int32_t{1} << k) != c) ++k;
+                        if (k >= 1 && k <= 8) {
+                            std::string d = inReg(i.dst);
+                            const std::string w = d.empty() ? "D0" : d;
+                            if (slot(a) != w) line("MOVE.L  " + slot(a) + "," + w);
+                            line("ASL.L   #" + std::to_string(k) + "," + w);
+                            line("BVS     " + l);
+                            if (d.empty()) line("MOVE.L  D0," + slot(i.dst));
+                            return;
+                        }
+                    }
+                }
+                if (i.op != "mul") {  // straight in the result register (on overflow it is rewritten)
+                    std::string d = inReg(i.dst);
+                    Reg a = i.a, b = i.b;
+                    if (!d.empty() && slot(b) == d) {
+                        if (i.op == "add") std::swap(a, b);
+                        else d.clear();
+                    }
+                    if (!d.empty()) {
+                        if (slot(a) != d) line("MOVE.L  " + slot(a) + "," + d);
+                        line(std::string(i.op == "add" ? "ADD" : "SUB") + ".L   " + slot(b) + "," + d);
+                        line("BVS     " + l);
+                        return;
+                    }
+                }
                 line("MOVE.L  " + slot(i.a) + ",D0");
                 if (i.op == "mul") {
                     line("MOVE.L  " + slot(i.b) + ",D1");
@@ -552,6 +725,7 @@ private:
                     line("MOVE.L  " + slot(i.a) + ",D0");
                     if (i.a.type == VT::F64) line("MOVE.L  " + slot(i.a, 4) + ",D1");
                 }
+                if (!savedRegs_.empty()) line("MOVEM.L " + regSave() + "," + regList());
                 line("UNLK    A6");
                 line("RTS");
                 return;

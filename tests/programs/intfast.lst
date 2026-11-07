@@ -105,6 +105,21 @@ x%=z%(2)*z%(2)+z%(1)
 PRINT "35 ";x%
 x%=-(r%+1)*1-1
 PRINT "36 ";x%
+' Multiplikation mit Zweierpotenzen (ASL mit Ueberlaufpruefung)
+q%=1073741823
+x%=q%*2+0
+PRINT "37 ";x%
+x%=(q%+1)*2+0
+PRINT "38 ";x%
+x%=-q%*4+q%*4
+PRINT "39 ";x%
+r%=-1073741824
+x%=r%*2+0
+PRINT "40 ";x%
+x%=r%*256-r%*256
+PRINT "41 ";x%
+x%=8*r%/r%+256*q%-256*q%
+PRINT "42 ";x%
 END
 PROCEDURE fehler
   PRINT "Fehler ";ERR
