@@ -1,6 +1,9 @@
 #include "m68k_runner.hpp"
 
 #include "rt_gfx.hpp"
+#include "rt_gui.hpp"
+
+#include <sstream>
 
 #include <cstdio>
 #include <exception>
@@ -23,6 +26,10 @@ constexpr m68k::Address kTestStackTop = 0x00080000;
 // graphics ports of m68k-test (platform/m68k-test/plat_gfx.s, D25)
 constexpr m68k::Address kGfxCommand = 0x00FF0010, kGfxArg = 0x00FF0014, kGfxStrAddr = 0x00FF0018,
                         kGfxStrLen = 0x00FF001C, kGfxMode = 0x00FF0020, kGfxPoint = 0x00FF0024;
+// requesters and menus (platform/m68k-test/plat_gui.s, D26): text dialogs with brt::Gui
+constexpr m68k::Address kGuiNum = 0x00FF0030, kGuiStrAddr = 0x00FF0034, kGuiStrLen = 0x00FF0038,
+                        kGuiCommand = 0x00FF003C, kGuiResult = 0x00FF0040, kGuiResultLen = 0x00FF0044,
+                        kGuiResultChar = 0x00FF0048;
 
 std::string hex8(std::uint32_t v) {
     char buf[12];
@@ -39,13 +46,64 @@ M68kRun runTest(const std::vector<std::uint8_t>& image, const M68kOptions& optio
     brt::Gfx gfx;
     std::vector<std::int32_t> gfxArgs;
     std::uint32_t strAddr = 0, strLen = 0, gfxMode = 0;
+    brt::Gui gui;
+    brt::Output guiOut;
+    std::vector<std::int32_t> guiNums;
+    std::vector<std::string> guiStrs;
+    std::uint32_t guiStrAddr = 0;
+    std::int32_t guiResult = 0;
+    std::string guiText;  // the string result
+    std::size_t guiTextPos = 0;
+    std::size_t inputPos = 0;
+    const auto readString = [&](std::uint32_t addr, std::uint32_t len) {
+        std::string r;
+        for (std::uint32_t k = 0; k < len; ++k) r += static_cast<char>(memory.read8(static_cast<m68k::Address>(addr + k)));
+        return r;
+    };
+    // one command of rt_gui: the dialogs read the input where the keyboard port stands
+    const auto guiCommand = [&](std::uint32_t code) {
+        std::istringstream in(inputPos < options.input.size() ? options.input.substr(inputPos) : std::string());
+        gui.in = &in;
+        guiResult = 0;
+        guiText.clear();
+        guiTextPos = 0;
+        const auto num = [&](std::size_t k) { return k < guiNums.size() ? guiNums[k] : 0; };
+        const auto str = [&](std::size_t k) { return k < guiStrs.size() ? guiStrs[k] : std::string(); };
+        const std::string name = code < static_cast<std::uint32_t>(brt::kGuiCommandCount) ? brt::kGuiCommands[code] : "";
+        if (name == "ALERT") guiResult = gui.alert(guiOut, num(0), str(0), num(1), str(1));
+        else if (name == "FILESELECT") guiText = gui.fileselect(guiOut, str(0), str(1), str(2));
+        else if (name == "FORM INPUT") guiText = gui.formInput(guiOut, num(0), str(0));
+        else if (name == "MENU") gui.menu(guiOut, guiStrs);
+        else if (name == "MENU FLAGS") gui.menuFlags(num(0), num(1));
+        else if (name == "MENU TEXT") gui.menuText(num(0), str(0));
+        else if (name == "MENU KILL") gui.menuKill();
+        else if (name == "MENU VALUE") guiResult = gui.value(num(0));
+        else if (name == "ON MENU") {
+            try {
+                guiResult = gui.onMenu(guiOut) ? 1 : 0;
+            } catch (const brt::Gui::EndOfInput&) {
+                guiResult = -1;
+            }
+        }
+        const std::streamoff used = in.tellg();
+        inputPos = used < 0 ? options.input.size() : inputPos + static_cast<std::size_t>(used);
+        if (guiText.size() > 255) guiText.resize(255);
+        result.console += guiOut.buf;
+        guiOut.buf.clear();
+        guiNums.clear();
+        guiStrs.clear();
+    };
     cpu.writeOverride = [&](m68k::Address a, m68k::Size s, m68k::Long v) {
         if (a == kTestConsole && s == m68k::Size::B) {
             result.console += static_cast<char>(v & 0xFF);
             return true;
         }
         if (s != m68k::Size::L) return false;
-        if (a == kGfxArg) gfxArgs.push_back(static_cast<std::int32_t>(v));
+        if (a == kGuiNum) guiNums.push_back(static_cast<std::int32_t>(v));
+        else if (a == kGuiStrAddr) guiStrAddr = v;
+        else if (a == kGuiStrLen) guiStrs.push_back(readString(guiStrAddr, v));
+        else if (a == kGuiCommand) guiCommand(v);
+        else if (a == kGfxArg) gfxArgs.push_back(static_cast<std::int32_t>(v));
         else if (a == kGfxStrAddr) strAddr = v;
         else if (a == kGfxStrLen) strLen = v;
         else if (a == kGfxMode) gfxMode = v;
@@ -60,8 +118,13 @@ M68kRun runTest(const std::vector<std::uint8_t>& image, const M68kOptions& optio
         }
         return true;
     };
-    std::size_t inputPos = 0;
     cpu.readOverride = [&](m68k::Address a, m68k::Size s, m68k::Long& v) {
+        if (s == m68k::Size::L && (a == kGuiResult || a == kGuiResultLen || a == kGuiResultChar)) {
+            if (a == kGuiResult) v = static_cast<m68k::Long>(guiResult);
+            else if (a == kGuiResultLen) v = static_cast<m68k::Long>(guiText.size());
+            else v = guiTextPos < guiText.size() ? static_cast<std::uint8_t>(guiText[guiTextPos++]) : 0;
+            return true;
+        }
         if (a == kGfxPoint && s == m68k::Size::L) {  // POINT(x, y) of the last two arguments
             const std::int32_t x = gfxArgs.size() >= 2 ? gfxArgs[gfxArgs.size() - 2] : 0;
             const std::int32_t y = gfxArgs.empty() ? 0 : gfxArgs.back();

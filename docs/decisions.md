@@ -458,8 +458,14 @@ keine Fenster; dort werden sie Textdialoge auf demselben Eingabestrom wie `INPUT
   ewig. Tasten, Maustasten und andere Nachrichten (`ON MENU KEY/BUTTON GOSUB`, `ON MESSAGE GOSUB`)
   gibt es auf einer Konsole nicht.
 
-Stufe 2: auf dem Amiga echte Requester und Intuition-Menüs, die 68000-Ziele über `rt_gui`/`plat_gui`
-wie die Grafik.
+68000 (Stufe 2a): `runtime/m68k/rt_gui.s` sammelt Zahlen und Strings (`rt_gui_num`, `rt_gui_str`,
+`rt_gui_arr` für `MENU m$()`) und ruft mit dem Befehlscode (`brt::kGuiCommands`) `plat_gui`. Auf
+m68k-test geht das über Ports an den Testtreiber, der dieselbe `brt::Gui` benutzt; `gui1` läuft dort
+mit derselben Ausgabe. `ON MENU` liefert die Nummer der Prozedur von `ON MENU GOSUB`, der Compiler
+ruft sie direkt auf (so sieht die Registeroptimierung den Aufruf); am Ende der Eingabe endet das
+Programm über `rt_end`.
+
+Stufe 2b: auf dem Amiga echte Requester und Intuition-Menüs in `platform/amiga/plat_gui.s`.
 
 <a id="d27"></a>
 ## D27 – `RESERVE` und `FRE` ohne Speicherbuchhaltung

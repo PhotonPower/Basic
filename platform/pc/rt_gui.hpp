@@ -23,6 +23,26 @@
 
 namespace brt {
 
+// The commands of rt_gui on the 68000 (runtime/m68k/rt_gui.s, plat_gui): the code is the index.
+// Arguments: numbers and strings in the order of the BASIC command; the result a number or a string.
+inline constexpr const char* kGuiCommands[] = {
+    "ALERT",      // nums symbol,default; strs text,buttons -> number of the button
+    "FILESELECT", // strs title,ok,path -> name
+    "FORM INPUT", // num n; str old -> text
+    "MENU",       // strs: the entries of m$()
+    "MENU FLAGS", // nums item,flags
+    "MENU TEXT",  // num item; str text
+    "MENU KILL",
+    "ON MENU",    // -> 1 an entry was chosen, 0 none, -1 the end of the input
+    "MENU VALUE", // num x -> MENU(x)
+};
+inline constexpr int kGuiCommandCount = static_cast<int>(sizeof kGuiCommands / sizeof kGuiCommands[0]);
+inline int guiCommandCode(const std::string& name) {
+    for (int k = 0; k < kGuiCommandCount; ++k)
+        if (name == kGuiCommands[k]) return k;
+    return -1;
+}
+
 class Gui {
 public:
     std::istream* in = nullptr;    // the keyboard stream (shared with INPUT)

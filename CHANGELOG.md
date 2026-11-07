@@ -40,6 +40,8 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 - `RESUME` setzt `ERR` auf 0 (probe12 T1); damit ist `errors2` am Original gleich.
 - `gfa_run.py`: Startmenü der Diskette nach einem Kaltstart (`boot` in `keys.json`), längere
   Wartezeiten für den Merge-Dialog und das Einlesen.
+- Requester und Menüs auf dem 68000 (D26 Stufe 2a): `rt_gui` mit Port-Protokoll auf m68k-test;
+  `gui1` läuft dort. `ON MENU GOSUB` als direkter Aufruf hinter `ON MENU`.
 - probe25 am Original: `RESERVE`/`FRE` (D27), Verzeichnisbefehle, `FILES`-Format, `SOUND`, Polygone.
   Neu: `POLYLINE`/`POLYFILL` mit `OFFSET` in allen Ausführungen (auch Amiga: `AreaMove`/`AreaDraw`);
   `RESERVE`, `FRE`, `CLEAR`, `SOUND`, `WAVE` auch auf dem 68000; `MKDIR`, `RMDIR`, `CHDIR`,

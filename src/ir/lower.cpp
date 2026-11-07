@@ -1,11 +1,13 @@
 #include "lower.hpp"
 
 #include "rt_gfx.hpp"
+#include "rt_gui.hpp"
 
 #include <cmath>
 #include <cstring>
 #include <functional>
 #include <map>
+#include <set>
 #include <string>
 
 #include "rt_gfx.hpp"
@@ -69,6 +71,7 @@ private:
     bool strings_ = false;          // the program uses string values: release temporaries (D18)
     bool onError_ = false;          // the program uses ON ERROR: statement records (docs/runtime.md)
     std::vector<bool> resumeTarget_;  // per HIR label: target of a RESUME label
+    std::set<int> menuProcs_;       // the procedures of ON MENU GOSUB
     std::vector<std::pair<int, int>> stmtLabels_;  // (start, after) of the enclosing statements
     Reg base_;                      // number of string temporaries at the entry of the routine
 
@@ -204,6 +207,73 @@ private:
         return rtcall("rt_arr_elem", args, VT::Addr);
     }
 
+    // ---- requesters and menus (D26): arguments one by one, then the command (rt_gui) -------------
+    void guiNum(const hir::Expr& e) { rtcallVoid("rt_gui_num", {toI(expr(e))}); }
+    void guiStr(const hir::Expr& e) { rtcallVoid("rt_gui_str", {expr(e)}); }
+    Reg guiCmd(const char* name, VT result) {
+        return rtcall(result == VT::Str ? "rt_gui_cmds" : "rt_gui_cmd", {constI(brt::guiCommandCode(name))}, result);
+    }
+
+    bool guiCommand(const hir::Stmt& s) {
+        const std::string& n = s.name;
+        if (n == "ALERT") {
+            guiNum(*s.args[0]);
+            guiNum(*s.args[2]);
+            guiStr(*s.args[1]);
+            guiStr(*s.args[3]);
+            storeTarget(*s.targets[0], convF(guiCmd("ALERT", VT::I32), var(s.targets[0]->var).type));
+        } else if (n == "FILESELECT") {
+            for (int k = 0; k < 3; ++k) guiStr(*s.args[static_cast<std::size_t>(k)]);
+            storeTarget(*s.targets[0], guiCmd("FILESELECT", VT::Str));
+        } else if (n == "FORM INPUT") {
+            guiNum(*s.args[0]);
+            if (s.mode == 1) {
+                rtcallVoid("rt_gui_str", {loadTarget(*s.targets[0])});
+            } else {
+                Reg e = reg(VT::Str);
+                emit(Kind::ConstS).dst = e;
+                rtcallVoid("rt_gui_str", {e});
+            }
+            storeTarget(*s.targets[0], guiCmd("FORM INPUT", VT::Str));
+        } else if (n == "MENU") {
+            if (s.mode == 0) {
+                rtcallVoid("rt_gui_arr", {addrOf(s.targets[0]->var)});
+                guiCmd("MENU", VT::I32);
+            } else {
+                guiNum(*s.args[0]);
+                if (s.mode == 1) {
+                    guiNum(*s.args[1]);
+                    guiCmd("MENU FLAGS", VT::I32);
+                } else {
+                    guiStr(*s.args[1]);
+                    guiCmd("MENU TEXT", VT::I32);
+                }
+            }
+        } else if (n == "MENU KILL") {
+            guiCmd("MENU KILL", VT::I32);
+            rtcallVoid("rt_menu_gosub", {constI(0)});
+        } else if (n == "ON MENU GOSUB") {
+            rtcallVoid("rt_menu_gosub", {constI(s.vars[0] + 1)});
+        } else if (n == "ON MENU" || n == "SLEEP") {
+            for (const auto& a : s.args) expr(*a);
+            Reg r = rtcall("rt_on_menu", {}, VT::I32);  // routine + 1 of ON MENU GOSUB, 0: nothing to do
+            for (int p : menuProcs_) {
+                const int next = label();
+                branchZ(cmp("eq", r, constI(p + 1)), next);
+                Instr i;
+                i.kind = Kind::Call;
+                i.routine = p;
+                f_->code.push_back(i);
+                place(next);
+            }
+        } else if (n == "MENU KEY" || n == "ON MENU KEY GOSUB" || n == "ON MENU BUTTON GOSUB" || n == "ON MESSAGE GOSUB") {
+            for (const auto& a : s.args) expr(*a);  // no keys, buttons or messages yet
+        } else {
+            return false;
+        }
+        return true;
+    }
+
     // CLEAR: all variables 0 or "", all arrays erased
     void clearAll() {
         for (std::size_t v = 0; v < p_.vars.size(); ++v) {
@@ -265,6 +335,7 @@ private:
             for (const auto& st : b) {
                 if (st->kind == SKind::OnError) onError_ = true;
                 if (st->kind == SKind::Resume && st->mode == 2) resumeTarget_[static_cast<std::size_t>(st->label)] = true;
+                if (st->kind == SKind::Cmd && st->name == "ON MENU GOSUB") menuProcs_.insert(st->vars[0]);
                 for (const auto& br : st->branches) blk(br.body);
                 for (const auto& c : st->cases) blk(c.body);
                 blk(st->body);
@@ -914,6 +985,7 @@ private:
             for (const auto& a : s.args) expr(*a);
             return;
         }
+        if (guiCommand(s)) return;
         if (n == "OPTION BASE") {
             rtcallVoid("rt_arr_set_base", {toI(expr(*s.args[0]))});
             return;
@@ -1549,6 +1621,10 @@ private:
         if (n == "POS") {
             expr(*e.args[0]);
             return rtcall("rt_pos", {}, VT::I32);
+        }
+        if (n == "MENU") {
+            guiNum(*e.args[0]);
+            return guiCmd("MENU VALUE", VT::I32);
         }
         if (n == "FRE") {
             if (!e.args.empty()) expr(*e.args[0]);

@@ -179,7 +179,7 @@ Diese Punkte sind aus dem Handbuch nicht sicher zu entnehmen und werden am Origi
   already exists“ (203). `ERR$(50)` ist im Original verstümmelt („file isn4fields greater than
   record“); wir liefern „fields greater than record“.
 - **Requester und Menüs** (Stufe 1, [D26](decisions.md#d26)): `ALERT`, `FILESELECT`, `FORM INPUT`,
-  `MENU`, `ON MENU`, `MENU()` als Textdialoge im Interpreter und C++-Ziel. 68000 folgt.
+  `MENU`, `ON MENU`, `MENU()` als Textdialoge im Interpreter, C++-Ziel und auf m68k-test. Amiga folgt.
 - **Grafik und Fenster** (Stufe 1, [D25](decisions.md#d25)): `OPENS`, `OPENW`, `CLOSEW`, `CLOSES`,
   `CLEARW`, `TITLEW`, `TITLES`, `COLOR`, `SETCOLOR`, `GRAPHMODE`, `DEFFILL`, `BOUNDARY`, `DEFLINE`,
   `PLOT`, `LINE`, `DRAW` (Koordinaten), `BOX`, `PBOX`, `CIRCLE`, `PCIRCLE`, `ELLIPSE`, `PELLIPSE`,
