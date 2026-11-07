@@ -42,7 +42,7 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
   Wartezeiten für den Merge-Dialog und das Einlesen.
 - MC68000: Registerplätze im Rahmen werden nach Lebensdauer geteilt (auch über Schleifen und die
   Rücksprünge von `RESUME`); der größte Rahmen der Testprogramme schrumpft von mehreren KB auf
-  unter 100 Bytes.
+  104 Bytes (`main` von `arrays`; `main` von `arith` von 2880 auf 40 Bytes).
 - MC68000: Zahlenausgabe 2,6-mal schneller (`rt_flt_dec` rechnet mit so vielen Langwörtern, wie
   Exponent und Stellenzahl verlangen, statt immer mit 40); im Mittel 13 700 statt 35 100 Befehle je
   Zahl, bitgleich. Die Testprogramme brauchen 2- bis 4-mal weniger Befehle.
