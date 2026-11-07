@@ -1,10 +1,11 @@
 # Unit tests (no external framework, see test_util.hpp).
-foreach(name targets)
+foreach(name targets frontend)
   add_executable(test_${name} test_${name}.cpp)
   target_link_libraries(test_${name} PRIVATE basiccore)
   basic_set_warnings(test_${name})
   add_test(NAME ${name} COMMAND test_${name})
 endforeach()
+target_compile_definitions(test_frontend PRIVATE BASIC_SOURCE_DIR="${PROJECT_SOURCE_DIR}")
 
 # C reference runtime (runtime/ref) against the host's IEEE arithmetic and the original's results.
 add_executable(test_runtime_ref test_runtime_ref.cpp)

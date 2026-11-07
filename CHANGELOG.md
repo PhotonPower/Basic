@@ -13,6 +13,10 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
   abgefangenen Fehler im Original unbrauchbar ist.
 
 ### Hinzugefügt
+- Frontend, erster Teil: Lexer und Parser für den Sprachkern (Ausdrücke mit der am Original
+  ermittelten Rangfolge, Zuweisung, `PRINT`, alle Schleifen, `IF`/`SELECT`, Prozeduren und
+  Funktionen, `DATA`/`READ`, Labels, Fehlerbehandlung, allgemeine Befehle), `basicc --emit-ast`;
+  Tests lesen alle Prüfprogramme ohne Fehler.
 - Numerische Referenz `runtime/ref` (C99, nur Ganzzahlarithmetik): binary64-Grundoperationen
   korrekt gerundet, `==`, Umwandlungen und Rundungsfunktionen, `ROUND`, Zahl → Text mit 13 Stellen und
   `DEFNUM`, `VAL`/`VAL?` korrekt gerundet, Zufallsgenerator; Tests gegen die IEEE-Arithmetik des

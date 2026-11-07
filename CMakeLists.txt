@@ -64,8 +64,12 @@ add_subdirectory(runtime/ref)
 # Frontend, IR, backends and the runtime linker are added here as they are written
 # (see docs/architecture.md and docs/roadmap.md).
 add_library(basiccore STATIC
-  src/target.cpp)
-target_include_directories(basiccore PUBLIC include)
+  src/target.cpp
+  src/frontend/lexer.cpp
+  src/frontend/parser.cpp
+  src/frontend/ast_dump.cpp
+  src/frontend/builtins.cpp)
+target_include_directories(basiccore PUBLIC include src)
 target_compile_features(basiccore PUBLIC cxx_std_20)
 basic_set_warnings(basiccore)
 

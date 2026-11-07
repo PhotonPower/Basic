@@ -1,7 +1,8 @@
 # Bedienung
 
-> Stand 0.0.1: Nur `--version`, `--help` und `--targets` sind umgesetzt. Der Rest beschreibt die
-> geplante Kommandozeile.
+> Stand: Umgesetzt sind `--version`, `--help`, `--targets` und `--emit-ast <programm.lst>`
+> (Syntaxbaum, eine Zeile je Anweisung; Syntaxfehler als `datei:zeile:spalte: meldung` auf stderr,
+> Rückgabewert 1). Der Rest beschreibt die geplante Kommandozeile.
 
 ```sh
 basicc --targets                                   # Zielsysteme und ihre Befehlsgruppen
