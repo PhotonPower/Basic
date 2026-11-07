@@ -209,7 +209,8 @@ Diese Punkte sind aus dem Handbuch nicht sicher zu entnehmen und werden am Origi
     übergangen.
   - `POLYLINE n,x(),y() [OFFSET dx,dy]` zeichnet nur n−1 Strecken, schließt also nicht (anders als die
     Referenz). `POLYFILL` schließt und füllt jede Zeile zwischen den äußersten Umrisspunkten, mit
-    `BOUNDARY 1` den Umriss im Randstift (T8). Die Punkte stehen in x(0)…x(n−1).
+    `BOUNDARY 1` den Umriss im Randstift (T8). Die Punkte stehen in x(0)…x(n−1). Auf dem Amiga zeichnen
+    `AreaMove`/`AreaDraw`/`AreaEnd`; `poly1` gibt unter Kickstart 1.2 im FS-UAE genau `poly1.out` aus.
   - Die Verzeichnisbefehle sind im Interpreter und im C++-Ziel umgesetzt; auf dem 68000 folgen sie.
 - **Fehlerroutine ohne `RESUME`** (probe12 T2): Endet die Routine von `ON ERROR GOSUB` mit `RETURN`
   ohne `RESUME`, gilt der Fehler als nicht abgefangen; das Original zeigt die Meldung und hält an. Wir
