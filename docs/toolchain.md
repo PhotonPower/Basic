@@ -55,6 +55,10 @@ ohne Emulatoren (`-DBASIC_WITH_EMULATORS=OFF`).
 Nicht nötig für den Start, aber hilfreich:
 
 - MC68000: die versehentlich eingecheckten Dateien im Wurzelverzeichnis entfernen (Windows, siehe oben).
+- MC68000: Ein ausdrückliches `BRA.S` zu einem nahen Label meldet „branch too far for .S“, wenn genug
+  Code davor steht, obwohl der Abstand 2 Byte beträgt; ohne `.S` wählt der Assembler dort `.W`.
+  Nachstellbar mit `fp_add` + `fp_cmp` aus `runtime/m68k` (Stand Commit `0074b8b`). Bis dahin
+  schreiben die Runtime-Module Sprünge ohne Größe.
 
 - Z80: Ausgabe eines Binarys mit AMSDOS-Header; optional `.dsk`-Image.
 - Z80: Speicher mit 6128-Bankumschaltung im Emulator.

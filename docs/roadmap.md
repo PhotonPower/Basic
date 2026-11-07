@@ -36,6 +36,10 @@ Dokumentation von Architektur, Zwischencode, Runtime, Numerik, Zielsystemen und 
 
 ## 0.4 – MC68000 / Amiga
 
+Stand: ✔ Quelltext-Linker (`src/link`), ✔ Plattform `m68k-test`, ✔ Konformanz-Harness
+(`tests/test_conformance_m68k.cpp`), ✔ `fp_add`/`fp_sub`/`fp_neg`/`fp_cmp` bitgenau. Weiter: übrige
+Fließkomma-Routinen, Zahlenausgabe, Strings, LIR und Backend.
+
 - Quelltext-Linker (`src/link`) mit Map-Datei und Label-Prüfung.
 - LIR → 68000-Assembler, `runtime/m68k` (Integer, Strings, Ausgabe, Fließkomma-Kern), `platform/amiga`
   und `platform/m68k-test`.

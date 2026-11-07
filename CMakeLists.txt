@@ -79,7 +79,8 @@ add_library(basiccore STATIC
   src/frontend/sema.cpp
   src/ir/hir.cpp
   src/ir/interp.cpp
-  src/backend/cpp/cpp_backend.cpp)
+  src/backend/cpp/cpp_backend.cpp
+  src/link/linker.cpp)
 target_include_directories(basiccore PUBLIC include src)
 target_link_libraries(basiccore PUBLIC basic_rt_pc)
 target_compile_features(basiccore PUBLIC cxx_std_20)
