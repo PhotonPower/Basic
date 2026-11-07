@@ -309,6 +309,16 @@ private:
         expectPunct(")");
     }
 
+    // INPUT/LINE INPUT "text"; or "text", : the prompt becomes the first argument, variant 1 (";",
+    // "? " follows) or 2 (",": no question mark)
+    void inputPrompt(Stmt& s) {
+        if (!at(Tok::String) || !(atPunct(";", 1) || atPunct(",", 1))) return;
+        const ast::Pos p = pos();
+        auto e = make(ExprKind::String, p, take().text);
+        s.variant = acceptPunct(";") ? 1 : (take(), 2);
+        s.args.push_back(std::move(e));
+    }
+
     // Arguments of a generic command; "#n" (file channel) is an argument of its own kind.
     void exprList(Stmt& s) {
         if (at(Tok::End)) return;
@@ -584,6 +594,7 @@ private:
             take();
             Stmt s = stmt(StmtKind::Command, p);
             s.name = "LINE INPUT";
+            inputPrompt(s);
             exprList(s);
             return s;
         }
@@ -595,7 +606,9 @@ private:
                 expectWord("BASE");
                 s.name = "OPTION BASE";
             }
+            if (word == "INPUT") inputPrompt(s);
             exprList(s);
+            if (word == "WRITE" && acceptPunct(";")) s.variant = 1;  // WRITE ...; : no line feed
             return s;
         }
         // assignment or procedure call

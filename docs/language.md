@@ -165,6 +165,10 @@ Diese Punkte sind aus dem Handbuch nicht sicher zu entnehmen und werden am Origi
   Fehler des Dateisystems sind AmigaDOS-Codes als vorzeichenbehaftetes Byte: −51 „object not
   found“ (205), −54 „object in use“ (202, z. B. eine Datei zweimal zum Schreiben). `""` in einem
   String ist ein Anführungszeichen. Noch nicht umgesetzt: die Modi `R` (wahlfrei) und `U`.
+- **Tastatureingabe** (`INPUT`, `LINE INPUT`, `INKEY$`, `INPUT$(n)`): nach der Befehlsreferenz und
+  [D20](decisions.md#d20). Offen am Original: Anzeige und Verhalten bei einer ungültigen Zahl, bei
+  zu wenigen und zu vielen Werten in einer Zeile (probe15 braucht einen Weg, Tasten an das
+  Ausgabefenster zu schicken).
 - ~~**`SELECT` mit Mehrzeichen-Strings**~~ (Anhang C, Punkt 8), am Original (probe4 T1–T9):
   - Die Zeichen werden **Big-Endian** gepackt: `CASE "ab"` = 97·256 + 98 = 24930, `CASE "abcd"` =
     1633837924. Die Formel im Handbuch (ASCII1 + 255 · ASCII2) ist falsch, auch die

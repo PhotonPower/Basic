@@ -15,6 +15,7 @@ namespace basic::harness {
 namespace {
 
 constexpr m68k::Address kTestConsole = 0x00FF0000;
+constexpr m68k::Address kTestInput = 0x00FF0004;  // long read: next byte of the input, or -1
 constexpr m68k::Address kTestStackTop = 0x00080000;
 
 std::string hex8(std::uint32_t v) {
@@ -35,6 +36,12 @@ M68kRun runTest(const std::vector<std::uint8_t>& image, const M68kOptions& optio
             return true;
         }
         return false;
+    };
+    std::size_t inputPos = 0;
+    cpu.readOverride = [&](m68k::Address a, m68k::Size s, m68k::Long& v) {
+        if (a != kTestInput || s != m68k::Size::L) return false;
+        v = inputPos < options.input.size() ? static_cast<std::uint8_t>(options.input[inputPos++]) : 0xFFFFFFFFu;
+        return true;
     };
     m68k::CpuState st = cpu.state();
     st.regs.pc = options.origin;

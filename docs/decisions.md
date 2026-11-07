@@ -84,6 +84,23 @@ die ungenaue Konstante `PI` (wir nehmen den nächstgelegenen binary64-Wert), das
 Ganzzahl- und Rundungsregeln, `FOR`-Semantik, Ausgabeformat, Fehlernummern und -texte, die Regel von
 `==` (siehe [numerics.md](numerics.md)).
 
+<a id="d20"></a>
+## D20 – Tastatureingabe auf einer Textkonsole
+
+`INPUT`, `LINE INPUT`, `INKEY$` und `INPUT$(n)` lesen aus einem Zeichenstrom (Terminal, Datei,
+Eingabeport von `m68k-test`, `Input()` auf dem Amiga). Das Echo der Eingabe ist Sache der Konsole;
+das Programm gibt nur die Aufforderung aus und setzt danach die Spalte auf 0.
+
+Nach der Befehlsreferenz (Kap. 5): Aufforderung „text? “ bei `"text";`, „text“ bei `"text",`,
+„? “ ohne Text (am Original gesehen: `T1 Zahl? `, probe15). Werte von `INPUT` durch Kommas getrennt,
+fehlende aus weiteren Zeilen. Unsere Festlegungen, wo die Referenz schweigt und probe15 nicht weiter
+kam (die Tasten erreichten das Ausgabefenster nicht): Folgezeilen fordern mit „? “ auf; eine
+ungültige Zahl (auch eine leere Eingabe) wiederholt Aufforderung und Eingabe, ohne Piepton; Werte
+über die Zahl der Variablen hinaus werden verworfen; ein String behält seine Leerzeichen;
+Anführungszeichen haben keine Bedeutung. `INKEY$` liefert das nächste Zeichen oder "" am Ende
+(auf einer zeilengepufferten Konsole erst nach Return), ein Zeilenvorschub zählt als Return (13).
+Das Ende der Eingabe während `INPUT` ist Fehler 26.
+
 <a id="d19"></a>
 ## D19 – Fehler in Kopfzeilen; Abweichungen der Fehlerbehandlung vom Original
 

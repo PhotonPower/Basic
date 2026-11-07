@@ -34,6 +34,7 @@ foreach(program ${BASIC_TEST_PROGRAMS})
   add_test(NAME pc_${name}
            COMMAND ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:pc_${name}>
                    -DEXPECTED=${CMAKE_CURRENT_SOURCE_DIR}/programs/${name}.out
+                   -DINPUT=${CMAKE_CURRENT_SOURCE_DIR}/programs/${name}.in
                    -P ${CMAKE_CURRENT_SOURCE_DIR}/compare_output.cmake)
 endforeach()
 

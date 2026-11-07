@@ -100,6 +100,13 @@ class Interp {
 public:
     Interp(const hir::Program& p, const RunOptions& o) : p_(p), opt_(o), slots_(p.vars.size()) {
         rt_randomize(o.seed);
+        kbd_.in = o.input;
+        if (o.live != nullptr)
+            kbd_.flush = [this] {
+                *opt_.live << out_.buf;
+                opt_.live->flush();
+                out_.buf.clear();
+            };
     }
 
     RunResult run() {
@@ -143,6 +150,7 @@ private:
     std::vector<Slot> slots_;
     brt::Output out_;
     brt::Files files_;
+    brt::Keyboard kbd_;
     int line_ = 0;
     std::uint64_t steps_ = 0;
     int err_ = 0;
@@ -431,7 +439,8 @@ private:
         if (n == "EOF") return I(files_.eof(f(0)));
         if (n == "LOF") return I(files_.lof(f(0)));
         if (n == "EXIST") return I(brt::Files::exist(s(0)));
-        if (n == "INPUT$") return S(files_.inputChars(f(0), f(1)));
+        if (n == "INPUT$") return argc == 1 ? S(kbd_.chars(f(0))) : S(files_.inputChars(f(0), f(1)));
+        if (n == "INKEY$") return S(kbd_.inkey());
         if (n == "LEFT$") return S(brt::left(s(0), argc > 1 ? f(1) : F64_ONE));
         if (n == "RIGHT$") return S(brt::right(s(0), argc > 1 ? f(1) : F64_ONE));
         if (n == "MID$") return S(argc > 2 ? brt::mid(s(0), f(1), f(2)) : brt::mid(s(0), f(1)));
@@ -912,6 +921,17 @@ private:
             files_.kill(eval(*s.args[0]).s);
             return;
         }
+        if (n == "INPUT" || n == "LINE INPUT") {  // from the keyboard
+            kbd_.begin(out_, eval(*s.args[0]).s, s.mode);
+            for (const auto& t : s.targets) {
+                const Type ty = var(t->var).type;
+                if (n == "LINE INPUT") storeTarget(*t, Value::ofStr(kbd_.line(out_)));
+                else if (ty == Type::Str) storeTarget(*t, Value::ofStr(kbd_.field(out_)));
+                else storeTarget(*t, convert(Value::ofFloat(kbd_.number(out_)), ty));
+            }
+            brt::Keyboard::end(out_);
+            return;
+        }
         if (n == "INPUT#" || n == "LINE INPUT#") {
             const f64 ch = eval(*s.args[0]).f;
             for (const auto& t : s.targets) {
@@ -932,7 +952,7 @@ private:
                 if (v.type == Type::Str) brt::writeValue(out, v.s, first);
                 else brt::writeValue(out, v.f, first);
             }
-            out.newline();
+            if (s.mode != 1) out.newline();  // WRITE ...; : no line feed
             if (file) files_.flush(ch);
             return;
         }

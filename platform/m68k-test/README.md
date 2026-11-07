@@ -7,3 +7,4 @@ ist `STOP #$2700`.
 `plat_alloc` liefert Speicher ab `$100000` (String-Heap, Array-Bereich), `plat_file` eine RAM-Platte
 für die Dateiroutinen (16 Dateien zu höchstens 16 KiB, Namen bis 32 Zeichen, Regeln für „object in
 use“ wie AmigaDOS).
+`plat_getc` liest die Tastatureingabe vom Port `$00FF0004` (Langwort: nächstes Byte oder −1).

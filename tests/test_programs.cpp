@@ -47,6 +47,9 @@ int main() {
         CHECK(d.empty());
         RunOptions opt;
         opt.seed = seedOf(src);
+        const fs::path inputPath = fs::path(entry.path()).replace_extension(".in");  // keyboard input
+        std::istringstream input(fs::exists(inputPath) ? read(inputPath) : std::string());
+        opt.input = &input;
         opt.maxSteps = 10'000'000;
         const RunResult r = interpret(h, opt);
         if (!r.ok) std::cerr << name << ":" << r.line << ": " << r.message << "\n";

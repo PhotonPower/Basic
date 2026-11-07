@@ -817,6 +817,17 @@ private:
             rtcallVoid("rt_file_kill", {expr(*s.args[0])});
             return;
         }
+        if (n == "INPUT" || n == "LINE INPUT") {  // from the keyboard (rt_kbd)
+            rtcallVoid("rt_kbd_begin", {expr(*s.args[0]), constI(s.mode)});
+            for (const auto& t : s.targets) {
+                const Type ty = var(t->var).type;
+                if (n == "LINE INPUT") storeTarget(*t, rtcall("rt_kbd_line", {}, VT::Str));
+                else if (ty == Type::Str) storeTarget(*t, rtcall("rt_kbd_field", {}, VT::Str));
+                else storeTarget(*t, convF(rtcall("rt_kbd_num", {}, VT::F64), ty));
+            }
+            rtcallVoid("rt_kbd_end", {});
+            return;
+        }
         if (n == "INPUT#" || n == "LINE INPUT#") {
             Reg ch = toI(expr(*s.args[0]));
             for (const auto& t : s.targets) {
@@ -835,7 +846,7 @@ private:
                 Reg v = expr(*s.args[k]);
                 rtcallVoid(v.type == VT::Str ? "rt_write_str" : "rt_print_flt", {v});
             }
-            rtcallVoid("rt_print_nl", {});
+            if (s.mode != 1) rtcallVoid("rt_print_nl", {});  // WRITE ...; : no line feed
             if (file) rtcallVoid("rt_file_deselect", {});
             return;
         }
@@ -1088,6 +1099,8 @@ private:
         if (n == "EOF") return rtcall("rt_file_eof", {toI(arg(e, 0))}, VT::I32);
         if (n == "LOF") return rtcall("rt_file_lof", {toI(arg(e, 0))}, VT::I32);
         if (n == "EXIST") return rtcall("rt_file_exist", {arg(e, 0)}, VT::I32);
+        if (n == "INKEY$") return rtcall("rt_kbd_inkey", {}, VT::Str);
+        if (n == "INPUT$" && e.args.size() == 1) return rtcall("rt_kbd_chars", {toI(arg(e, 0))}, VT::Str);
         if (n == "INPUT$") {
             Reg cnt = toI(arg(e, 0));
             return rtcall("rt_file_chars", {cnt, toI(arg(e, 1))}, VT::Str);

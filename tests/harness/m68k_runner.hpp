@@ -9,7 +9,7 @@
 namespace basic::harness {
 
 enum class M68kPlatform {
-    Test,   ///< m68k-test: MOVE.B to $00FF0000 is console output; the program ends with STOP
+    Test,   ///< m68k-test: MOVE.B to $00FF0000 is console output, MOVE.L $00FF0004 reads the input; STOP ends
     Amiga,  ///< amiga: AmigaDOS hunk program with the sister project's OS emulation (dos Write -> console)
 };
 
@@ -24,6 +24,7 @@ struct M68kRun {
 struct M68kOptions {
     std::uint32_t origin = 0x1000;   ///< test: load address and entry point; amiga: base of the first hunk
     std::uint64_t maxInstructions = 10'000'000;
+    std::string input;                ///< test: keyboard input, read byte by byte from $00FF0004 (-1 at the end)
 };
 
 /// Assembles `source` with the sister project's assembler (test: plain program with ORG semantics;

@@ -1,0 +1,37 @@
+' probe15 - Tastatureingabe: INPUT, LINE INPUT (GFA-BASIC 3.5, Amiga)
+' Ergebnisdatei: gfa_run.py setzt datei$ auf DH0:probe15.txt (docs/gfa-original.md).
+' Lauf mit Eingaben (gfa_run.py --after, siehe results/probe15.txt); was auf dem Bildschirm
+' erscheint, zeigt das Bildschirmfoto am Ende (das Programm wartet dafuer 3 Sekunden).
+'
+datei$="DH0:probe15.txt"
+OPEN "O",#1,datei$
+PRINT #1,"probe15"
+CLS
+' T1 Eingabe abc, dann 12: ungueltige Zahl
+INPUT "T1 Zahl";x
+PRINT #1,"T1 x=";x
+' T2 Eingabe hallo welt: Text mit Komma als Trenner, kein Fragezeichen
+INPUT "T2 Text",a$
+PRINT #1,"T2 a$=[";a$;"]"
+' T3 Eingabe 1, dann 2: zwei Variablen auf zwei Zeilen
+INPUT b,c
+PRINT #1,"T3 b=";b;" c=";c
+' T4 Eingabe 3,x y: zwei Werte in einer Zeile
+INPUT d,e$
+PRINT #1,"T4 d=";d;" e$=[";e$;"]"
+' T5 Eingabe 4,5: ein Wert zu viel
+INPUT f
+PRINT #1,"T5 f=";f
+' T6 Eingabe a,b , c: LINE INPUT nimmt die ganze Zeile
+LINE INPUT "T6 Zeile";g$
+PRINT #1,"T6 g$=[";g$;"]"
+' T7 Eingabe mit Leerzeichen vorn und hinten
+INPUT "T7";h$
+PRINT #1,"T7 h$=[";h$;"]"
+' T8 Eingabe  7 : Zahl mit Leerzeichen
+INPUT "T8";k
+PRINT #1,"T8 k=";k
+PRINT "Ende"
+PRINT #1,"ende"
+CLOSE #1
+PAUSE 150

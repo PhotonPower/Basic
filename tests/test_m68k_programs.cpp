@@ -82,6 +82,16 @@ int main() {
             }
             harness::M68kOptions opt;
             opt.maxInstructions = 500'000'000;
+            const fs::path inputPath = fs::path(entry.path()).replace_extension(".in");  // keyboard input
+            if (fs::exists(inputPath)) {
+                if (amiga) {  // the OS emulation reads nothing (dos Read: end of file)
+                    std::cout << label << ": skipped (no keyboard input in the OS emulation)\n";
+                    ++skipped;
+                    --g_checks;
+                    continue;
+                }
+                opt.input = read(inputPath);
+            }
             if (amiga) opt.origin = 0x20000;  // hunk standard (docs/amiga500.md)
             const harness::M68kRun run = harness::runM68kSource(source, amiga ? harness::M68kPlatform::Amiga : harness::M68kPlatform::Test, opt);
             ++ran;

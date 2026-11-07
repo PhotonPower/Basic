@@ -9,6 +9,8 @@
 // runtime/ref. Errors are thrown as brt::Error with the GFA error number.
 
 #include <cstdint>
+#include <istream>
+#include <functional>
 #include <cstdio>
 #include <string>
 
@@ -203,6 +205,33 @@ private:
     bool inUse(const std::string& name, const Channel* except) const;
     int peekByte(Channel& c);
     std::string item(Channel& c);
+};
+
+// ---- keyboard (docs/language.md, reference chapter 5) ---------------------------------------------
+// INPUT/LINE INPUT read lines from a stream (the terminal echoes what is typed). Prompt: "text? "
+// after "text";, "text" after "text",, "? " without text. Values of INPUT are separated by commas;
+// missing values come from further lines (prompt "? "); a value that is not a number repeats the
+// prompt and the input. INKEY$ and INPUT$(n) read characters (a line feed counts as Return, 13).
+// At the end of the input: error 26.
+class Keyboard {
+public:
+    std::istream* in = nullptr;          // nullptr: no input (the end at once)
+    std::function<void()> flush;         // writes the collected output before waiting
+
+    void begin(Output& out, const std::string& text, int mode);
+    std::string field(Output& out);      // INPUT into a string variable
+    f64 number(Output& out);             // INPUT into a number
+    std::string line(Output& out);       // LINE INPUT
+    static void end(Output& out) { out.col = 0; }  // the Return moved the cursor to the next line
+    std::string inkey();                 // INKEY$: one character or ""
+    std::string chars(f64 n);            // INPUT$(n)
+
+private:
+    std::string prompt_, line_;
+    std::size_t pos_ = std::string::npos;  // start of the next field; npos: no field left
+    bool whole_ = false;                   // line_ not yet taken (LINE INPUT)
+    void read(Output& out, const std::string& prompt);
+    std::string next(Output& out);
 };
 
 // WRITE: numbers as by PRINT, strings in quotes, separated by commas

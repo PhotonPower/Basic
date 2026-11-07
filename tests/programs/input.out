@@ -1,0 +1,10 @@
+Zahl? Zahl? x=12
+Texta$=[hallo welt]
+? ? b=1 c=2
+? d=3 e$=[x y]
+? w&=7
+Zeile? g$=[a,b , c]
+? ? g$=[erste] h$=[zweite]
+81 RS|||
+1,"a"2
+? Fehler 26 end of file

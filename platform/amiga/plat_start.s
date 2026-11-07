@@ -1,5 +1,5 @@
 ;! module    plat_start
-;! provides  plat_start plat_dosbase plat_out plat_sp plat_rc
+;! provides  plat_start plat_dosbase plat_out plat_in plat_sp plat_rc
 ;! requires  main plat_exit plat_alloc
 ;! group     core
 ;! doc       amiga: AmigaDOS entry point; own stack, opens dos.library, gets Output(), calls main, then plat_exit.
@@ -23,6 +23,8 @@ plat_start:
         MOVE.L  D0,A6
         JSR     -60(A6)                 ; Output()
         MOVE.L  D0,plat_out
+        JSR     -54(A6)                 ; Input()
+        MOVE.L  D0,plat_in
         MOVE.L  #plat_start__STACK,D0
         JSR     plat_alloc
         MOVE.L  A0,D0
@@ -50,4 +52,6 @@ plat_out:
 plat_sp:
         DC.L    0
 plat_rc:
+        DC.L    0
+plat_in:
         DC.L    0

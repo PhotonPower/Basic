@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <functional>
+#include <iostream>
 #include <initializer_list>
 #include <string>
 #include <utility>
@@ -51,6 +52,7 @@ using ArrVar = Var<Array<T>>;
 struct State {
     Output out;
     Files files;
+    Keyboard kbd;
     int err = 0;
     void (*onError)() = nullptr;
     int handlerDepth = 0;
@@ -274,6 +276,12 @@ int header(F f) {
 
 // ---- program start -----------------------------------------------------------------------------
 inline int run(const char* name, void (*program)(), const std::pair<const char*, bool>* data, std::size_t dataCount) {
+    rt.kbd.in = &std::cin;
+    rt.kbd.flush = [] {  // the prompt appears before the program waits
+        std::fwrite(rt.out.buf.data(), 1, rt.out.buf.size(), stdout);
+        std::fflush(stdout);
+        rt.out.buf.clear();
+    };
 #ifdef _WIN32
     _setmode(_fileno(stdout), _O_BINARY);  // "\n" stays "\n"
 #endif

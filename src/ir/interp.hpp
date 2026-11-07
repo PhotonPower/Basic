@@ -4,6 +4,7 @@
 // results are the reference for the compiled targets.
 
 #include <cstdint>
+#include <iosfwd>
 #include <string>
 
 #include "hir.hpp"
@@ -13,6 +14,8 @@ namespace basic {
 struct RunOptions {
     std::uint32_t seed = 1;        // start value of the random generator (RANDOMIZE without value)
     std::uint64_t maxSteps = 0;    // stop after this many statements, 0 = no limit
+    std::istream* input = nullptr; // keyboard (INPUT, INKEY$); nullptr: no input
+    std::ostream* live = nullptr;  // if set, the output goes here as it is printed (not into RunResult)
 };
 
 struct RunResult {

@@ -201,7 +201,7 @@ private:
     // ---- expressions ----------------------------------------------------------------------------
     static bool impure(const hir::Expr& e) {
         if (e.op == Op::CallFunc) return true;
-        if (e.op == Op::Builtin && (e.sval == "RND" || e.sval == "RANDOM" || e.sval == "RAND" || e.sval == "INPUT$" ||
+        if (e.op == Op::Builtin && (e.sval == "RND" || e.sval == "RANDOM" || e.sval == "RAND" || e.sval == "INPUT$" || e.sval == "INKEY$" ||
                                     e.sval == "EOF" || e.sval == "LOF"))
             return true;  // order matters: random numbers, reading files
         for (const auto& a : e.args)
@@ -341,7 +341,8 @@ private:
         if (n == "EOF") return "brt::rt.files.eof(" + a(0) + ")";
         if (n == "LOF") return "brt::rt.files.lof(" + a(0) + ")";
         if (n == "EXIST") return "brt::Files::exist(" + a(0) + ")";
-        if (n == "INPUT$") return call("brt::rt.files.inputChars", e);
+        if (n == "INPUT$") return argc == 1 ? "brt::rt.kbd.chars(" + a(0) + ")" : call("brt::rt.files.inputChars", e);
+        if (n == "INKEY$") return "brt::rt.kbd.inkey()";
         if (n == "CFLOAT") return a(0);
         if (n == "ROUND") return argc > 1 ? ordered({e.args[0].get(), e.args[1].get()}, [](const std::vector<std::string>& x) {
             return "brt::round(" + x[0] + ", brt::toInt(" + x[1] + "))";
@@ -783,6 +784,16 @@ private:
             line(in, "brt::rt.files.kill(" + arg(0) + ");");
             return;
         }
+        if (n == "INPUT" || n == "LINE INPUT") {  // from the keyboard
+            line(in, "brt::rt.kbd.begin(brt::rt.out, " + arg(0) + ", " + std::to_string(s.mode) + ");");
+            for (const auto& t : s.targets) {
+                if (n == "LINE INPUT") line(in, lvalue(*t) + " = brt::rt.kbd.line(brt::rt.out);");
+                else if (t->type == Type::Str) line(in, lvalue(*t) + " = brt::rt.kbd.field(brt::rt.out);");
+                else line(in, lvalue(*t) + " = " + conv("brt::rt.kbd.number(brt::rt.out)", Type::Float, t->type) + ";");
+            }
+            line(in, "brt::Keyboard::end(brt::rt.out);");
+            return;
+        }
         if (n == "INPUT#" || n == "LINE INPUT#") {
             line(in, "{");
             line(in + 1, "const f64 ch_ = " + arg(0) + ";");
@@ -805,7 +816,7 @@ private:
             }
             for (std::size_t k = file ? 1 : 0; k < s.args.size(); ++k)
                 line(in + 1, "brt::writeValue(o_, " + arg(k) + ", " + (k == (file ? 1u : 0u) ? "true" : "false") + ");");
-            line(in + 1, "o_.newline();");
+            if (s.mode != 1) line(in + 1, "o_.newline();");
             if (file) line(in + 1, "brt::rt.files.flush(ch_);");
             line(in, "}");
             return;

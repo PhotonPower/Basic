@@ -1,6 +1,11 @@
 # Runs EXE and compares its standard output with the file EXPECTED (differential test of the pc
 # target, docs/testing.md).
-execute_process(COMMAND ${EXE} OUTPUT_VARIABLE actual ERROR_VARIABLE errors RESULT_VARIABLE status)
+# INPUT: file with the keyboard input of the program (optional)
+if(DEFINED INPUT AND EXISTS ${INPUT})
+  execute_process(COMMAND ${EXE} INPUT_FILE ${INPUT} OUTPUT_VARIABLE actual ERROR_VARIABLE errors RESULT_VARIABLE status)
+else()
+  execute_process(COMMAND ${EXE} OUTPUT_VARIABLE actual ERROR_VARIABLE errors RESULT_VARIABLE status)
+endif()
 file(READ ${EXPECTED} expected)
 if(NOT actual STREQUAL expected)
   message(FATAL_ERROR "output differs from ${EXPECTED}\n--- expected\n${expected}--- actual\n${actual}${errors}")

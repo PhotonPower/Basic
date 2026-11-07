@@ -61,7 +61,7 @@ NAMED_KEYS = {
 # Amiga keymap. Only the characters needed for file names and simple answers are listed.
 def _layout_us() -> dict[str, tuple[str, bool]]:
     table = {c: (c, False) for c in "abcdefghijklmnopqrstuvwxyz0123456789.-/"}
-    table.update({":": (";", True), "_": ("-", True), " ": (" ", False), ">": (".", True)})
+    table.update({":": (";", True), "_": ("-", True), " ": (" ", False), ">": (".", True), ",": (",", False)})
     return table
 
 
@@ -262,13 +262,16 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--out", type=Path, help="copy the result here as well")
     p.add_argument("--screenshot", action="store_true", help="always save a screenshot after the run")
     p.add_argument("--dry-run", action="store_true", help="only print the prepared program and the AppleScript")
+    p.add_argument("--after", action="append", default=[], metavar="STEP",
+                   help="key step after the start of the program (as in keys.json, e.g. wait:3 type:12 key:return); "
+                        "for programs that read the keyboard")
     args = p.parse_args(argv)
 
     name = amiga_name(args.program.stem)
     lst_name, txt_name = f"{name}.lst", f"{name}.txt"
     program = prepare_program(args.program.read_text(), f"DH0:{txt_name}")
     keys = json.loads(args.keys.read_text())
-    script = build_script(keys["run"], args.amiga_layout, args.app, {"file": f"dh0:{lst_name}"})
+    script = build_script(keys["run"] + args.after, args.amiga_layout, args.app, {"file": f"dh0:{lst_name}"})
 
     if args.dry_run:
         print(program)

@@ -669,6 +669,75 @@ void Files::kill(const std::string& name) {
     std::remove(name.c_str());
 }
 
+// ---- keyboard ----------------------------------------------------------------------------------
+void Keyboard::read(Output& out, const std::string& prompt) {
+    out.put(prompt);
+    if (flush) flush();
+    if (in == nullptr || !std::getline(*in, line_)) throw Error{26};  // end of file
+    if (!line_.empty() && line_.back() == '\r') line_.pop_back();
+    pos_ = 0;
+    whole_ = true;
+}
+
+void Keyboard::begin(Output& out, const std::string& text, int mode) {
+    prompt_ = mode == 0 ? "? " : mode == 1 ? text + "? " : text;
+    read(out, prompt_);
+}
+
+std::string Keyboard::next(Output& out) {
+    if (pos_ == std::string::npos) read(out, "? ");  // more values than on the line
+    whole_ = false;
+    const std::size_t comma = line_.find(',', pos_);
+    std::string f;
+    if (comma == std::string::npos) {
+        f = line_.substr(pos_);
+        pos_ = std::string::npos;
+    } else {
+        f = line_.substr(pos_, comma - pos_);
+        pos_ = comma + 1;
+    }
+    return f;
+}
+
+std::string Keyboard::field(Output& out) { return next(out); }
+
+f64 Keyboard::number(Output& out) {
+    for (;;) {
+        const std::string f = trim(next(out));
+        std::int32_t used = 0;
+        const f64 v = rt_val(f.data(), static_cast<std::int32_t>(f.size()), &used);
+        if (!f.empty() && used == static_cast<std::int32_t>(f.size())) return v;
+        read(out, prompt_);  // not a number: the prompt and the input again
+    }
+}
+
+std::string Keyboard::line(Output& out) {
+    if (!whole_) read(out, "? ");
+    whole_ = false;
+    pos_ = std::string::npos;
+    return line_;
+}
+
+std::string Keyboard::inkey() {
+    if (flush) flush();
+    if (in == nullptr) return "";
+    const int c = in->get();
+    if (c == std::char_traits<char>::eof()) return "";
+    return std::string(1, c == '\n' ? '\r' : static_cast<char>(c));
+}
+
+std::string Keyboard::chars(f64 nf) {
+    if (flush) flush();
+    const std::int32_t n = toInt(nf);
+    std::string s;
+    for (std::int32_t k = 0; k < n; ++k) {
+        const int c = in == nullptr ? std::char_traits<char>::eof() : in->get();
+        if (c == std::char_traits<char>::eof()) throw Error{26};
+        s += c == '\n' ? '\r' : static_cast<char>(c);
+    }
+    return s;
+}
+
 void writeValue(Output& out, f64 x, bool first) {
     if (!first) out.put(",");
     out.value(x);

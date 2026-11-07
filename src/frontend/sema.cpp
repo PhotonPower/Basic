@@ -44,8 +44,7 @@ hir::ExprPtr constFloat(f64 v) {
 }
 
 // Builtins the runtime does not provide yet (input, files ...).
-const std::set<std::string, std::less<>> kNotYet = {
-    "INKEY$", "TIMER", "MKI$", "MKL$", "MKS$", "MKD$", "CVI", "CVL", "CVS", "CVD", "AT", "POS", "RINSTR",
+const std::set<std::string, std::less<>> kNotYet = { "TIMER", "MKI$", "MKL$", "MKS$", "MKD$", "CVI", "CVL", "CVS", "CVD", "AT", "POS", "RINSTR",
 };
 
 // Commands handled by the interpreter with their argument forms.
@@ -722,16 +721,26 @@ private:
             argc(1, 1);
             h->args.push_back(convertTo(expr(*s.args[0]), Type::Str, s.args[0]->pos));
         } else if (n == "INPUT" || n == "LINE INPUT") {
-            if (s.args.empty() || !isChannel(*s.args[0])) fail(s.pos, n + " from the keyboard is not supported yet");
-            argc(2, 64);
-            h->name = n + "#";
-            h->args.push_back(channel(*s.args[0]));
-            for (std::size_t k = 1; k < s.args.size(); ++k) {
+            std::size_t first = 1;
+            if (!s.args.empty() && isChannel(*s.args[0])) {  // from a file
+                argc(2, 64);
+                h->name = n + "#";
+                h->args.push_back(channel(*s.args[0]));
+            } else {  // from the keyboard: prompt (mode 1: "text"; 2: "text",), then the variables
+                h->mode = s.variant;
+                auto prompt = makeExpr(Op::ConstStr, Type::Str);
+                if (s.variant != 0) prompt->sval = s.args[0]->text;
+                else first = 0;
+                h->args.push_back(std::move(prompt));
+                if (s.args.size() <= first) fail(s.pos, n + " needs variables");
+            }
+            for (std::size_t k = first; k < s.args.size(); ++k) {
                 if (s.args[k]->kind != ExprKind::Var) fail(s.args[k]->pos, n + " needs variables");
                 h->targets.push_back(lvalue(*s.args[k]));
                 if (n == "LINE INPUT" && h->targets.back()->type != Type::Str) fail(s.args[k]->pos, "LINE INPUT needs string variables");
             }
-        } else if (n == "WRITE") {  // WRITE [#n,]values: strings in quotes, separated by commas
+        } else if (n == "WRITE") {  // WRITE [#n,]values[;]: strings in quotes, separated by commas
+            h->mode = s.variant;  // 1: no line feed
             std::size_t k = 0;
             if (!s.args.empty() && isChannel(*s.args[0])) {
                 h->name = "WRITE#";
@@ -930,7 +939,7 @@ private:
         const Builtin* b = findBuiltin(e.text);
         if (b->printOnly) fail(e.pos, e.text + " is only allowed in PRINT");
         if (kNotYet.count(e.text) != 0) fail(e.pos, e.text + " is not supported yet");
-        if (e.text == "INPUT$" && e.args.size() == 1) fail(e.pos, "INPUT$ from the keyboard is not supported yet");
+
         const int n = static_cast<int>(e.args.size());
         if (n < b->minArgs || (b->maxArgs >= 0 && n > b->maxArgs))
             fail(e.pos, e.text + ": wrong number of arguments");

@@ -66,6 +66,8 @@ int run(const std::string& path, std::uint32_t seed) {
     if (!diags.empty()) return 1;
     basic::RunOptions options;
     options.seed = seed;
+    options.input = &std::cin;   // INPUT, INKEY$ read the standard input
+    options.live = &std::cout;   // prompts appear before the program waits
     const basic::RunResult r = basic::interpret(h, options);
     std::cout << r.output;
     if (!r.ok) {

@@ -1,0 +1,30 @@
+' test: groups core print input
+' Tastatureingabe (Eingabe aus input.in): INPUT mit und ohne Text, mehrere Werte, ungueltige Zahl,
+' LINE INPUT, INKEY$, INPUT$(n), WRITE mit ";". Nach der Befehlsreferenz, nicht am Original
+' geprueft (der Bildschirm des Originals zeigt die Eingaben, die Ausgabedatei nicht).
+INPUT "Zahl";x
+PRINT "x=";x
+INPUT "Text",a$
+PRINT "a$=[";a$;"]"
+INPUT b,c
+PRINT "b=";b;" c=";c
+INPUT d,e$
+PRINT "d=";d;" e$=[";e$;"]"
+INPUT w&
+PRINT "w&=";w&
+LINE INPUT "Zeile";g$
+PRINT "g$=[";g$;"]"
+LINE INPUT g$,h$
+PRINT "g$=[";g$;"] h$=[";h$;"]"
+k$=INKEY$
+PRINT ASC(k$);" ";INPUT$(2);"|";
+PRINT INKEY$;"|";INKEY$;"|"
+WRITE 1,"a";
+WRITE 2
+ON ERROR GOSUB ende
+INPUT z
+PRINT "nie"
+PROCEDURE ende
+  PRINT "Fehler ";ERR;" ";ERR$(ERR)
+  END
+RETURN

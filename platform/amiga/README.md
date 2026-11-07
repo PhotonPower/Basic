@@ -14,4 +14,5 @@ Intuition/Graphics dazu. Siehe [docs/targets.md](../../docs/targets.md#amiga-mc6
 | `plat_alloc`, `plat_free_all` | Speicher über `AllocMem`/`FreeMem` |
 | `plat_exit` | Ende aus jeder Tiefe: leeren, freigeben, `CloseLibrary`, zurück zu AmigaDOS |
 | `plat_file` | Dateien über `dos.library` (`Open`, `Read`, `Write`, `Seek`, `Close`, `DeleteFile`, `Lock`), Fehler aus `IoErr()` |
+| `plat_getc` | Tastatur über `Read(Input())`; schreibt vorher die gepufferte Ausgabe |
 | `plat_error` | nicht abgefangener Laufzeitfehler: Meldung, Rückgabewert 10 |
