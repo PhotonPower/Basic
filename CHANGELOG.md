@@ -22,6 +22,10 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
   Rundungsregeln, `FOR`-Semantik, Ausgabeformat, Fehlernummern und das GFA-8-Byte-Float-Format
   (48 Bit Mantisse) in `docs/numerics.md` und `docs/language.md` eingetragen; neue offene Frage zu D4
   in `docs/roadmap.md`. Folgefragen als `tests/probes/probe2.lst`.
+- probe2 am Original ausgewertet (`tests/probes/results/probe2.txt`): Ausdrücke ohne 32-Bit-Überlauf,
+  Byte-Überlauf (Fehler 3), `FOR` mit negativer Schrittweite und am Bereichsende, 16-Bit-Exponent,
+  ungenaue Konstante `PI`, Schwellen der Exponentdarstellung, `DEFNUM`, fehlerhaftes `MKS$`.
+  Folgefragen als `tests/probes/probe3.lst`.
 - `CLAUDE.md` mit Hinweisen für Agenten; `docs/gfa-original.md`.
 - Projektgerüst: Verzeichnisstruktur, CMake, CI (Linux/macOS/Windows, Sanitizer, Build ohne Emulatoren).
 - Einbindung der Schwesterprojekte PhotonPower/Z80 (`e74cf00`) und PhotonPower/MC68000 (`0074b8b`)

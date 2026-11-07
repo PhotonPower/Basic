@@ -54,15 +54,17 @@ Dokumentation von Architektur, Zwischencode, Runtime, Numerik, Zielsystemen und 
    unter `docs/` liegen, oder bleibt sie außerhalb (Rechtefrage des Handbuchtextes)?
 3. ~~**Zugang zum Original**~~ – vorhanden: GFA-BASIC 3.5 im FS-UAE auf dem Mac; automatisiert über
    `tools/gfa/gfa_run.py` ([gfa-original.md](gfa-original.md)). probe1 ist ausgewertet
-   (`tests/probes/results/probe1.txt`), probe2 formuliert die Folgefragen.
+   (`tests/probes/results/probe1.txt`), ebenso probe2; probe3 formuliert die Folgefragen.
 4. ~~**GFA-Float-Format** (`FLOAT{}`, `MKD$`/`CVD`)~~ – geklärt (probe1 T42–T45): 48 Bit Mantisse mit
    führender 1, 16 Bit Exponent mit Bias `$3FE`, Vorzeichen durch Negieren des Exponentworts
-   ([numerics.md](numerics.md#fließkommaformat)). Offen bleibt `MKS$` (probe2).
+   ([numerics.md](numerics.md#fließkommaformat)). `MKS$` ist im Original offenbar fehlerhaft (probe2).
 5. **Amiga-Ausgabe:** Shell-Ausgabe (`Output()`) als Standard oder von Anfang an ein eigenes Fenster
    wie im Original?
-6. **Festlegung D4 gegen das Original:** GFA-BASIC 3.5 rechnet mit 48 Bit Mantisse; das ändert
-   sichtbare Ergebnisse (`FOR x=0 TO 1 STEP 0.1`: 10 statt 11 Durchläufe, probe1 T21). Außerdem
-   meldet das Original bei Fließkomma-Überlauf keinen Fehler (probe1 T48, T50), und `==` folgt einer
-   anderen Regel als in [numerics.md](numerics.md#ungefähre-gleichheit-) angenommen (T41). Soll die
+6. **Festlegung D4 gegen das Original:** GFA-BASIC 3.5 rechnet mit 48 Bit Mantisse und 16 Bit
+   Exponent (Bereich bis etwa 10^±9500); das ändert sichtbare Ergebnisse (`FOR x=0 TO 1 STEP 0.1`: 10
+   statt 11 Durchläufe, probe1 T21; `1E300*1E300` = `1.0E+600` statt Überlauf, probe2 T15). `==`
+   folgt einer anderen Regel als in [numerics.md](numerics.md#ungefähre-gleichheit-) angenommen
+   (probe1 T41, probe2 T34–T39). Dazu kommen Eigenheiten, bei denen fraglich ist, ob wir sie
+   nachbilden wollen: die ungenaue Konstante `PI` und das fehlerhafte `MKS$`. Soll die
    Referenz das GFA-Format nachbilden (bitgleich zum Original) oder bei binary64 bleiben (bitgleich nur
    zwischen den eigenen Zielen)? Entscheidung nötig vor 0.1.

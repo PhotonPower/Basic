@@ -71,11 +71,11 @@ Diese Punkte sind aus dem Handbuch nicht sicher zu entnehmen und werden am Origi
 (`tests/probes/*.lst`, Ablauf in [gfa-original.md](gfa-original.md), Ergebnisse unter
 `tests/probes/results`). Bestätigtes wird als Testprogramm unter `tests/programs` festgehalten.
 
-- ~~**Arithmetik in Ausdrücken:**~~ Überlauf bei der Zuweisung an `%`/`&` ist ein Laufzeitfehler (2
-  bzw. 4), die Zielvariable bleibt unverändert; `INC` bricht ohne Fehler um (probe1 T1–T6, Details in
-  [numerics.md](numerics.md#ganzzahlen)). Offen: Wird im Ausdruck in Integer oder in Float gerechnet
-  (probe2)?
-- **`FOR … NEXT`** (probe1 T18–T21), entgegen dem Handbuch (Anhang C, Punkt 15):
+- ~~**Arithmetik in Ausdrücken:**~~ Ausdrücke rechnen ohne 32-Bit-Überlauf (wie in Float); erst die
+  Zuweisung an `%`/`&`/`|` prüft den Bereich (Fehler 2/4/3), die Zielvariable bleibt dann unverändert.
+  `INC`/`DEC` brechen ohne Fehler um (probe1 T1–T6, probe2 T1–T8, Details in
+  [numerics.md](numerics.md#ganzzahlen)).
+- ~~**`FOR … NEXT`**~~ (probe1 T18–T21, probe2 T10–T14), entgegen dem Handbuch (Anhang C, Punkt 15):
   - `FOR i%=5 TO 1` läuft **nicht** (0 Durchläufe); die Laufvariable hat danach den Startwert 5. Die
     Bedingung wird also vor dem ersten Durchlauf geprüft.
   - Nach `FOR i%=1 TO 3` ist `i%` = 4 (Endwert + Schrittweite).
@@ -83,11 +83,14 @@ Diese Punkte sind aus dem Handbuch nicht sicher zu entnehmen und werden am Origi
     ändert die Zahl der Durchläufe nicht.
   - `FOR x=0 TO 1 STEP 0.1` läuft 10-mal (Folge der 48-Bit-Mantisse, siehe
     [numerics.md](numerics.md#fließkommaformat)).
-  - Offen (probe2): negative Schrittweite, Schrittweite einmal oder jedes Mal ausgewertet, Überlauf der
-    Laufvariablen am Bereichsende.
-- **Zahlenausgabe:** Grundregeln sind geklärt (kein Leerzeichen vor positiven Zahlen, `0.5`, 13
-  Stellen, `1.0E+15`, Kommazonen zu 16 Spalten; [numerics.md](numerics.md#zahl--text)). Offen:
-  Schwellen der Exponentdarstellung, `DEFNUM`, `MODE` (probe2).
+  - `FOR i%=5 TO 1 STEP -1`: 5 Durchläufe, danach `i%` = 0. `FOR i%=1 TO 10 STEP 3`: 4 Durchläufe,
+    danach `i%` = 13. `FOR x=1 TO 0 STEP -0.25`: 5 Durchläufe, danach `x` = −0,25.
+  - Auch die Schrittweite wird **einmal** beim Eintritt ausgewertet.
+  - Am Bereichsende bricht die Laufvariable ohne Fehler um: `FOR i%=2147483646 TO 2147483647` läuft
+    2-mal, danach ist `i%` = −2147483648 (die Schleife endet trotzdem).
+- **Zahlenausgabe:** geklärt bis auf `MODE` (kein Leerzeichen vor positiven Zahlen, `0.5`, 13
+  Stellen, Exponent ab 10¹⁴ und unter 10⁻⁵, `DEFNUM`, Kommazonen zu 16 Spalten;
+  [numerics.md](numerics.md#zahl--text)).
 - ~~**`CINT`:**~~ rundet bei genau ,5 von 0 weg (probe1 T16).
 - **Fehlernummern** (Anhang C, Punkt 17), am Original ermittelt, Text wie von `ERR$` geliefert:
 
@@ -95,6 +98,7 @@ Diese Punkte sind aus dem Handbuch nicht sicher zu entnehmen und werden am Origi
   |---|---|---|
   | 0 | divide by zero | `1/0`, `1 DIV 0` (probe1 T14, T15) |
   | 2 | no integer\|-2147483648 .. 2147483647 | Überlauf bei Zuweisung an `%` (probe1 T1) |
+  | 3 | no byte\|0 .. 255 | Überlauf bei Zuweisung an `\|` (probe2 T6) |
   | 4 | no word\|-32768 .. 32767 | Überlauf bei Zuweisung an `&` (probe1 T4) |
   | 5 | no negative squareroot | `SQR(-1)` (probe1 T51) |
   | 6 | logarithm only for\|numbers greater zero | `LOG(0)` (probe1 T52) |

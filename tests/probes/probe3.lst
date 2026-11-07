@@ -1,0 +1,80 @@
+' probe3 - Folgefragen aus probe2 (GFA-BASIC 3.5, Amiga)
+' Ergebnisdatei: gfa_run.py setzt datei$ auf DH0:probe3.txt (docs/gfa-original.md).
+'
+datei$="DH0:probe3.txt"
+OPEN "O",#1,datei$
+ON ERROR GOSUB fehler
+PRINT #1,"probe3"
+'
+' --- 1. Ist ^ bei Zweierpotenzen exakt? ---
+h=1
+FOR k%=1 TO 28
+  h=h/2
+NEXT k%
+' h = 2^-28 exakt, g = 2^-29 exakt
+g=h/2
+@hexbytes("T1 2^-28 halbiert",MKD$(h))
+@hexbytes("T2 2^(-28)",MKD$(2^(-28)))
+@hexbytes("T3 2^-29 halbiert",MKD$(g))
+@hexbytes("T4 2^(-29)",MKD$(2^(-29)))
+'
+' --- 2. == mit exakten Werten ---
+PRINT #1,"T5 1==1+g: ";1==1+g;" 1==1+h: ";1==1+h
+PRINT #1,"T6 1==1-g: ";1==1-g;" 1==1-h: ";1==1-h;" 1==1-g/2: ";1==1-g/2
+PRINT #1,"T7 1+g==1+h: ";1+g==1+h;" 1+h==1+g: ";1+h==1+g
+PRINT #1,"T8 1+h==1+h+g: ";1+h==1+h+g;" 1+h==1+2*h: ";1+h==1+2*h
+@hexbytes("T9 1+g",MKD$(1+g))
+@hexbytes("T10 1-g",MKD$(1-g))
+@hexbytes("T11 1-h",MKD$(1-h))
+PRINT #1,"T12 0.5==0.5+g/2: ";0.5==0.5+g/2;" 0.5==0.5+h/2: ";0.5==0.5+h/2
+PRINT #1,"T13 1.9999==1.9999+h: ";1.9999==1.9999+h;" 1.9999==1.9999+g: ";1.9999==1.9999+g
+PRINT #1,"T14 -1==-1-g: ";-1==-1-g;" -1==-1-h: ";-1==-1-h
+PRINT #1,"T15 0==0: ";0==0;" 0==g*g*g*g: ";0==g*g*g*g
+'
+' --- 3. Ende des Exponentbereichs ---
+x=1E+300
+FOR k%=1 TO 6
+  PRINT #1,"T16 Quadrat ";k%
+  x=x*x
+  PRINT #1,"   x=";x
+NEXT k%
+x=1E-300
+FOR k%=1 TO 6
+  PRINT #1,"T17 Quadrat ";k%
+  x=x*x
+  PRINT #1,"   x=";x
+NEXT k%
+PRINT #1,"T18 EXP(30000)"
+x=EXP(30000)
+PRINT #1,"   x=";x
+PRINT #1,"T19 1E+300^40"
+x=1E+300^40
+PRINT #1,"   x=";x
+PRINT #1,"T20 VAL(1E10000)"
+x=VAL("1E10000")
+PRINT #1,"   x=";x
+'
+PRINT #1,"ende"
+CLOSE #1
+PRINT "fertig: ";datei$
+END
+'
+PROCEDURE fehler
+  ' Original: after an error channel #1 is unusable (ERR 24 file not open)
+  ' until it is closed and opened again
+  e%=ERR
+  CLOSE #1
+  OPEN "A",#1,datei$
+  PRINT #1,"   -> ERR ";e%;" ";ERR$(e%)
+  ON ERROR GOSUB fehler
+  RESUME NEXT
+RETURN
+'
+PROCEDURE hexbytes(t$,s$)
+  LOCAL i%,h$
+  h$=""
+  FOR i%=1 TO LEN(s$)
+    h$=h$+HEX$(ASC(MID$(s$,i%,1)),2)+" "
+  NEXT i%
+  PRINT #1,t$;": ";h$
+RETURN

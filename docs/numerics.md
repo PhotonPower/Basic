@@ -20,7 +20,7 @@ Bewusst vereinfachte Semantik, damit die Z80-Implementierung klein bleibt:
 |---|---|
 | Rundung | nur „round to nearest, ties to even“ |
 | denormalisierte Zahlen | gibt es nicht: Ergebnisse unterhalb von 2⁻¹⁰²² werden zu 0 |
-| ±Unendlich, NaN | gibt es nicht: Überlauf löst einen GFA-Laufzeitfehler aus (Original: **kein** Fehler bei `1E300*1E300` und `EXP(1000)`, probe1 T48, T50; Ergebnis noch unbekannt) |
+| ±Unendlich, NaN | gibt es nicht: Überlauf löst einen GFA-Laufzeitfehler aus (Original: `1E300*1E300` und `EXP(1000)` sind dort kein Überlauf, weil der Exponent 16 Bit hat; probe1 T48, T50, probe2 T15, T16) |
 | Unterlauf | Ergebnis 0 ohne Fehler (wie Original, probe1 T49) |
 | Division durch 0 | GFA-Laufzeitfehler (Original: Fehler 0 „divide by zero“, probe1 T15) |
 | −0 | gibt es nicht: Ergebnisse 0 haben immer positives Vorzeichen |
@@ -39,7 +39,10 @@ Exponent, beide Big-Endian.
 - Exponent: Bias `$3FE`, Wert = m · 2^(e − `$3FE`).
 - Vorzeichen: Bei negativen Zahlen ist das Exponentwort negiert (Zweierkomplement), die Mantisse
   bleibt positiv.
-- 0 ist `00 00 00 00 00 00 00 00`.
+- 0 ist `00 00 00 00 00 00 00 00`; −0 gibt es nicht (`-1*0`, probe2 T18).
+- Der Exponent hat 16 Bit, der Wertebereich reicht also bis etwa 10^±9500: `1E300*1E300` ergibt
+  ohne Fehler `1.0E+600` (Bytes `8E B3 97 14 29 7A 0B C8`), `EXP(1000)` ergibt `1.970071114025E+434`
+  (probe2 T15–T17). Was beim Überschreiten dieses Bereichs passiert, klärt probe3.
 
 | Wert | Bytes |
 |---|---|
@@ -47,8 +50,17 @@ Exponent, beide Big-Endian.
 | −2,5 | `A0 00 00 00 00 00 FC 00` (`$FC00` = −`$0400`) |
 | 0,1 | `CC CC CC CC CC CD 03 FB` |
 
-`MKS$` lieferte für 1 und 0,1 gleichermaßen `FF FF FF 7F` (probe1 T46, T47); das 4-Byte-Format ist
-damit noch nicht verstanden (probe2).
+`MKS$` scheint im Original fehlerhaft zu sein: 1, 2 und 0,1 ergeben `FF FF FF 7F`, −1 ergibt
+`FF FF FF FF`, 0 ergibt `00 00 00 00`, und `CVS(MKS$(1.5))` ist 9.223371487099E+18 (etwa 2⁶³)
+(probe1 T46, T47, probe2 T40–T44). Das sieht nach einer sättigenden Umwandlung aus, nicht nach einem
+Fließkommaformat. Ob wir das nachbilden, ist offen ([roadmap.md](roadmap.md#offene-fragen)).
+`CVD(MKD$(0.1))` ergibt wieder 0,1 (probe2 T45).
+
+**`PI`** ist im Original ungenau: Bytes `C9 0F DA A2 21 DB 04 00`, also 3,14159265359141670…
+statt 3,14159265358979… (Abweichung 1,6·10⁻¹², 114 Einheiten der letzten Stelle; probe2 T19, T21).
+Daher die Ausgabe `3.141592653591` (probe1 T34). Das Dezimalliteral `3.14159265359` wird dagegen
+korrekt gerundet eingelesen (`C9 0F DA A2 21 77`, probe2 T20). Transzendente Funktionen sind im
+Original nicht genau: `EXP(1000)` hat einen relativen Fehler von etwa 4·10⁻¹² (probe2 T16).
 
 > **Abweichung vom Original:** GFA-BASIC 3.5 rechnet mit 48 Bit Mantisse, nicht mit den 53 Bit von
 > binary64. Das ist im Ergebnis sichtbar: `FOR x=0 TO 1 STEP 0.1` läuft im Original 10-mal (probe1
@@ -80,10 +92,11 @@ von Grundoperationen.
 | Thema | Festlegung (✔ = am Original bestätigt) |
 |---|---|
 | Darstellung | Zweierkomplement; `%` 32 Bit, `&` 16 Bit, `\|` 8 Bit ohne Vorzeichen, `!` 0/−1 |
-| `INC`, `DEC`, `ADD x,y`, `SUB`, `MUL` (Befehle), `ADD()` … (Funktionen) | ohne Überlaufprüfung, Umbruch modulo 2ⁿ der Zielbreite (Referenz: `INC a\|` von 255 → 0). ✔ für `INC a%` (2147483647 → −2147483648) und `INC w&` (32767 → −32768), probe1 T3, T5 |
-| `+ - *` in Ausdrücken, Zuweisung an Ganzzahlvariable | ✔ mit Überlaufprüfung: `b%=a%+1`, `b%=a%*2`, `b%=3E9` → Fehler 2 „no integer\|-2147483648 .. 2147483647“; `w&=w&+1` → Fehler 4 „no word\|-32768 .. 32767“. Die Zielvariable bleibt unverändert (probe1 T1, T2, T4, T6). Ob im Ausdruck in Integer oder Float gerechnet und erst bei der Zuweisung geprüft wird, klärt probe2 |
+| `INC`, `DEC`, `ADD x,y`, `SUB`, `MUL` (Befehle), `ADD()` … (Funktionen) | ohne Überlaufprüfung, Umbruch modulo 2ⁿ der Zielbreite (Referenz: `INC a\|` von 255 → 0). ✔ für `INC a%` (2147483647 → −2147483648), `INC w&` (32767 → −32768), `INC c\|` (255 → 0), `DEC c\|` (0 → 255), `DEC a%` (−2147483648 → 2147483647), probe1 T3, T5, probe2 T5, T7, T8 |
+| `+ - *` in Ausdrücken | ✔ ohne Überlauf, wie in Float: `x=a%+1` ergibt 2147483648, `x=a%*2` 4294967294, `b%=a%+1-1` und `b%=(a%*2) DIV 2` ergeben 2147483647 ohne Fehler (probe2 T1–T4) |
+| Zuweisung an Ganzzahlvariable | ✔ mit Bereichsprüfung: `b%=a%+1`, `b%=3E9` → Fehler 2 „no integer\|-2147483648 .. 2147483647“; `w&=w&+1` → Fehler 4 „no word\|-32768 .. 32767“; `c\|=c\|+1` bei 255 → Fehler 3 „no byte\|0 .. 255“. Die Zielvariable bleibt unverändert (probe1 T1, T2, T4, T6, probe2 T6) |
 | Float → Ganzzahl (Zuweisung) | ✔ Abschneiden Richtung 0: 2,5 → 2, 3,5 → 3, −2,5 → −2, 2,7 → 2, −2,7 → −2, `7/2` → 3 (probe1 T7–T12) |
-| `DIV`, `MOD`, `\` | ✔ Abschneiden Richtung 0, Rest mit dem Vorzeichen des Dividenden: `-7 DIV 2` = −3, `-7 MOD 2` = −1, `7 MOD -2` = 1 (probe1 T13) |
+| `DIV`, `MOD`, `\` | ✔ Abschneiden Richtung 0, Rest mit dem Vorzeichen des Dividenden: `-7 DIV 2` = −3, `-7 MOD 2` = −1, `7 MOD -2` = 1, `-7\2` = −3, `7\-2` = −3 (probe1 T13, probe2 T9) |
 | Division durch 0 | ✔ Fehler 0 „divide by zero“, auch bei `DIV` (probe1 T14) |
 | Schiebebefehle | wie in der Referenz (`SHL&`, `SHR\|` mit Breite, Bitnummer `AND 31`) |
 | Float → Ganzzahl außerhalb des Bereichs | ✔ Fehler 2 bzw. 4 (probe1 T6) |
@@ -104,7 +117,15 @@ Am Original (probe1 T41): `1==1+2^-29` ist wahr (−1), `1==1+2^-28` ist falsch 
 2^-27 und 2^-26. Bei 1 (Mantisse `$800000000000`) liegt 2^-29 auf Bit 18, 2^-28 auf Bit 19 der
 48-Bit-Mantisse; Unterschiede in den unteren 19 Bit werden also ignoriert. Die 28-Bit-Rundung oben
 ergibt für 2^-28 dagegen „gleich“ (genau halbe Stelle, gerade Rundung) und muss angepasst werden;
-die genaue Regel (Abschneiden oder Differenz, absolut oder relativ) klärt probe2.
+die genaue Regel ist noch offen.
+
+probe2 T34–T39: Die Grenze liegt bei 1,5 und bei 1000 an derselben relativen Stelle (2^-29 gleich,
+2^-28 ungleich), die Regel ist also relativ. `1==1-2^-29` ist wahr, `1==1-2^-28` falsch. `0==1E-20`
+und `1E-20==2E-20` sind falsch. `1+2^-29==1+2^-28` ist falsch, obwohl die Differenz nur 2^-29 beträgt;
+`1==1+3*2^-30` und `1==1+(2^-28-2^-40)` sind wahr. Das passt am ehesten zu „untere 19 Bit der Mantisse
+abschneiden, dann vergleichen“, aber nicht zu `1==1-2^-29` (anderer Exponent). Die Testwerte entstehen
+mit `^`, das im Original womöglich nicht exakt rechnet; probe3 wiederholt die Fälle mit exakt
+halbierten Werten und gibt die Bytes aus.
 
 ## Zahl ↔ Text
 
@@ -119,12 +140,15 @@ Differenztests Ausgaben vergleichen.
   - **kein** Leerzeichen vor positiven Zahlen (`[1][-1][-12]`), führende Null (`0.5`, `-0.5`);
   - 13 signifikante Stellen, nachfolgende Nullen entfallen (`0.3333333333333`, `0.6666666666667`,
     `33.33333333333`, `0.3` für `0.1+0.2`);
-  - ganze Zahlen bis mindestens 13 Stellen ohne Exponent (`1234567890123`, `2147483648`), `1E15` als
-    `1.0E+15`; Exponentdarstellung mit mindestens einer Nachkommastelle und Vorzeichen im Exponenten
-    (`1.0E+100`, `-1.0E-100`); `1E-5` als `0.00001`. Die genauen Schwellen klärt probe2;
-  - `PI` gibt `3.141592653591` aus. Korrekt auf 13 Stellen gerundet wäre `3.14159265359` (sowohl aus
-    binary64 als auch aus dem auf 48 Bit gerundeten Wert). Die Umwandlung im Original ist also nicht
-    korrekt gerundet oder die Konstante weicht ab (probe2);
+  - ohne Exponent, solange der auf 13 Stellen gerundete Betrag unter 10¹⁴ und mindestens 10⁻⁵ ist:
+    `10000000000000` (10¹³), `15000000000000`, `0.00001`, `0.0001`, `-0.000123`; mit Exponent
+    `1.0E+14`, `1.5E+14`, `1.0E-06`, `1.25E-08`, und `99999999999999` wird zu `1.0E+14` (probe1
+    T28–T33, probe2 T25–T32). Im Exponentformat steht mindestens eine Nachkommastelle, der Exponent
+    hat Vorzeichen und mindestens zwei Ziffern (`1.0E-06`, `1.0E+600`);
+  - `PI` gibt `3.141592653591` aus. Das liegt an der ungenauen Konstante (siehe oben), nicht an der
+    Ausgabe (probe2 T19–T22);
+  - `DEFNUM 4` rundet auf 4 Stellen, ohne die Exponentschwelle zu ändern: `3.142`, `123500`,
+    `0.0001235`; `STR$` ebenso (probe2 T33);
   - Komma in `PRINT` springt auf die nächste Spalte, die ein Vielfaches von 16 ist (probe1 T39).
 - Werden die Formatregeln bestätigt, kommen sie als Golden-Tests nach `tests/programs`.
 - `VAL` liest Dezimal, `&H`/`$`, `&X`/`%`, `&O` (✔ `VAL("1.5E3")` = 1500, `VAL("&HFF")` = 255,
