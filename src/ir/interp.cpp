@@ -176,6 +176,7 @@ private:
     brt::Gfx gfx_;
     brt::Gui gui_;
     int menuProc_ = -1;  // ON MENU GOSUB
+    std::int32_t reserve_ = brt::kReserveStart;  // RESERVE / FRE
     int line_ = 0;
     std::uint64_t steps_ = 0;
     int err_ = 0;
@@ -548,6 +549,7 @@ private:
             return I(brt::rinstr(s(1), s(2), f(0)));
         }
         if (n == "POS") return I(out_.pos());
+        if (n == "FRE") return I(reserve_);  // no accounting of the memory used (D27)
         if (n == "MENU") return I(gui_.value(toI32(fp_trunc(f(0)))));
         if (n == "POINT") return I(gfx_.point(toI32(fp_trunc(f(0))), toI32(fp_trunc(f(1)))));
         if (n == "CRSCOL") return I(out_.crsCol);
@@ -921,6 +923,10 @@ private:
 
     // ---- graphics (D25): the arguments from left to right, then brt::Gfx ------------------------
     bool gfxCommand(const hir::Stmt& s) {
+        if (s.name == "GFX ARG") {
+            gfx_.arg(toI32(fp_trunc(eval(*s.args[0]).f)));
+            return true;
+        }
         if (!brt::Gfx::isCommand(s.name)) return false;
         std::vector<std::int32_t> v;
         std::string str;
@@ -1249,6 +1255,23 @@ private:
             files_.kill(eval(*s.args[0]).s);
             return;
         }
+        if (n == "MKDIR") return files_.mkdir(eval(*s.args[0]).s);
+        if (n == "RMDIR") return files_.rmdir(eval(*s.args[0]).s);
+        if (n == "CHDIR") return brt::Files::chdir(eval(*s.args[0]).s);
+        if (n == "FILES" || n == "DIR") {
+            const std::string path = eval(*s.args[0]).s;
+            const std::string to = s.mode == 1 ? eval(*s.args[1]).s : std::string();
+            const std::vector<std::string> lines = brt::Files::listing(path, n == "FILES");
+            if (s.mode == 1) {
+                brt::writeLines(to, lines);
+            } else {
+                for (const std::string& l : lines) {
+                    out_.put(l);
+                    out_.newline();
+                }
+            }
+            return;
+        }
         if (n == "NAME") {
             const std::string from = eval(*s.args[0]).s;
             files_.name(from, eval(*s.args[1]).s);
@@ -1354,6 +1377,15 @@ private:
         if (n == "ERROR") throw RuntimeError{toI32(fp_trunc(eval(*s.args[0]).f))};
         if (n == "CLEAR") {
             for (Slot& sl : slots_) sl = Slot();
+            return;
+        }
+        if (n == "RESERVE") {  // the size of the memory; the variables are cleared (probe25 T2)
+            if (!s.args.empty()) reserve_ = toI32(fp_trunc(eval(*s.args[0]).f));
+            for (Slot& sl : slots_) sl = Slot();
+            return;
+        }
+        if (n == "SOUND" || n == "WAVE") {
+            for (const auto& a : s.args) eval(*a);
             return;
         }
         // CLS, PAUSE, DELAY, TRON, TROFF: no effect on the output of the reference

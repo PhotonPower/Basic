@@ -1,0 +1,23 @@
+' test: groups core print
+' RESERVE/FRE (D27, probe25 T1/T2), CLEAR, SOUND/WAVE ohne Ton (SOUND wartet nicht, probe25 T7).
+PRINT FRE();" ";FRE(0)
+a=1.5
+b%=7
+c$="text"
+DIM f(3),g$(2)
+f(1)=2
+g$(1)="x"
+RESERVE 100000
+PRINT FRE(0);" ";a;" ";b%;" [";c$;"]"
+DIM f(5),g$(4)
+PRINT f(1);" [";g$(1);"]"
+f(2)=3
+a=4
+CLEAR
+PRINT a;" ";FRE(0)
+DIM f(1)
+PRINT f(0)
+SOUND 440,20
+SOUND 880,200,100,1
+WAVE 0,0
+PRINT "ende"

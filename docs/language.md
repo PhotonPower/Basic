@@ -191,7 +191,26 @@ Diese Punkte sind aus dem Handbuch nicht sicher zu entnehmen und werden am Origi
   Variable (`DIM a$(max)`). `LIST` schreibt Schlüsselwörter groß und eigene Namen klein: Ein klein
   geschriebener Prozedurname am Anfang einer Anweisung ist ein Aufruf, auch wenn er wie ein
   Schlüsselwort heißt (`exit`, `write(…)`). Eine zugeklappte Prozedur steht als `> PROCEDURE name`.
-  `VSYNC` wird übergangen (keine Grafik); `FRE` folgt mit dem Speichermodell (D6).
+  `VSYNC` wird übergangen.
+- **Speicher, Verzeichnisse, Ton, Polygone** (probe25, [D27](decisions.md#d27)):
+  - `RESERVE n` setzt die Größe des BASIC-Speichers und löscht alle Variablen und Felder
+    (probe25 T2). Danach ist `FRE(0)` genau n, `FRE()` 16 weniger. `RESERVE` ohne Argument bringt das
+    Original zum Absturz („Software error – task held“); bei uns löscht es nur die Variablen.
+  - `FRE` zählt nicht, was belegt ist. Vor dem ersten `RESERVE` liefert es 61440; das Original zeigt
+    für ein kleines Programm 61478–61712 (T1). Strings belegen dort Länge + 4 Byte, Felder
+    Elemente · Größe + 12 Byte; `FRE()` räumt Strings nicht auf, `FRE(0)` schon.
+  - `MKDIR` eines vorhandenen Verzeichnisses ist kein Fehler (T3). `RMDIR` meldet für ein nicht leeres
+    Verzeichnis -40 (directory not empty), löscht eine Datei wie `KILL` und meldet für einen fehlenden
+    Namen -51 (T6). `CHDIR "/"` geht eine Ebene hinauf (T5). `EXIST` gilt auch für Verzeichnisse.
+  - `FILES p$ [TO f$]`: eine Zeile pro Eintrag, Datei mit Leerzeichen, Verzeichnis mit `*` vorn, die
+    Größe rechtsbündig bis Spalte 39, dann ` hh:mm:ss tt.mm.jjjj`. `DIR` listet nur die Namen der
+    Dateien, keine Verzeichnisse (T4). Bei uns alphabetisch geordnet.
+  - `SOUND` wartet nicht (T7); Interpreter, C++ und 68000 geben keinen Ton aus, `WAVE` wird
+    übergangen.
+  - `POLYLINE n,x(),y() [OFFSET dx,dy]` zeichnet nur n−1 Strecken, schließt also nicht (anders als die
+    Referenz). `POLYFILL` schließt und füllt jede Zeile zwischen den äußersten Umrisspunkten, mit
+    `BOUNDARY 1` den Umriss im Randstift (T8). Die Punkte stehen in x(0)…x(n−1).
+  - Die Verzeichnisbefehle sind im Interpreter und im C++-Ziel umgesetzt; auf dem 68000 folgen sie.
 - **Fehlerroutine ohne `RESUME`** (probe12 T2): Endet die Routine von `ON ERROR GOSUB` mit `RETURN`
   ohne `RESUME`, gilt der Fehler als nicht abgefangen; das Original zeigt die Meldung und hält an. Wir
   beenden das Programm mit der Fehlermeldung. `RESUME` löscht `ERR` (probe12 T1, T3, T4).

@@ -186,7 +186,7 @@ private:
         std::function<void(const hir::Block&)> scan = [&](const hir::Block& b) {
             for (const auto& s : b) {
                 if (s->kind == SKind::Goto) gotoTargets_.insert(s->label);
-                if (s->kind == SKind::Cmd && s->name == "CLEAR") clear_ = true;
+                if (s->kind == SKind::Cmd && (s->name == "CLEAR" || s->name == "RESERVE")) clear_ = true;
                 scan(s->body);
                 scan(s->elseBody);
                 for (const auto& br : s->branches) scan(br.body);
@@ -438,6 +438,7 @@ private:
             });
         }
         if (n == "POS") return "brt::rt.out.pos()";
+        if (n == "FRE") return "brt::rt.reserve";
         if (n == "MENU") return "brt::rt.gui.value(brt::gfxInt(" + a(0) + "))";
         if (n == "POINT")
             return ordered({e.args[0].get(), e.args[1].get()}, [](const std::vector<std::string>& x) {
@@ -836,7 +837,11 @@ private:
         static const std::set<std::string> gfx = {"OPENS", "CLOSES", "OPENW", "CLOSEW", "CLEARW", "TITLEW", "TITLES",
                                                   "FRONTS", "BACKS", "FRONTW", "BACKW", "COLOR", "SETCOLOR", "GRAPHMODE",
                                                   "DEFFILL", "BOUNDARY", "DEFLINE", "PLOT", "LINE", "DRAW", "BOX",
-                                                  "PBOX", "CIRCLE", "PCIRCLE", "ELLIPSE", "PELLIPSE", "TEXT"};
+                                                  "PBOX", "CIRCLE", "PCIRCLE", "ELLIPSE", "PELLIPSE", "TEXT", "POLYLINE", "POLYFILL"};
+        if (n == "GFX ARG") {
+            line(in, "brt::rt.gfx.arg(brt::gfxInt(" + arg(0) + "));");
+            return;
+        }
         if (gfx.count(n) != 0) {  // D25: the arguments from left to right, then brt::Gfx
             line(in, "{");
             line(in + 1, "std::vector<std::int32_t> v_;");
@@ -1136,6 +1141,33 @@ private:
         }
         if (n == "CLEAR") {
             line(in, "clear_all();");
+            return;
+        }
+        if (n == "RESERVE") {  // probe25 T2: the variables are cleared
+            if (!s.args.empty()) line(in, "brt::rt.reserve = brt::gfxInt(" + arg(0) + ");");
+            line(in, "clear_all();");
+            return;
+        }
+        if (n == "SOUND" || n == "WAVE") {
+            for (std::size_t k = 0; k < s.args.size(); ++k) line(in, "(void)(" + arg(k) + ");");
+            return;
+        }
+        if (n == "MKDIR" || n == "RMDIR") {
+            line(in, "brt::rt.files." + std::string(n == "MKDIR" ? "mkdir" : "rmdir") + "(" + arg(0) + ");");
+            return;
+        }
+        if (n == "CHDIR") {
+            line(in, "brt::Files::chdir(" + arg(0) + ");");
+            return;
+        }
+        if (n == "FILES" || n == "DIR") {
+            line(in, "{");
+            line(in + 1, "const std::string p_ = " + arg(0) + ";");
+            if (s.mode == 1) line(in + 1, "const std::string t_ = " + arg(1) + ";");
+            line(in + 1, "const auto l_ = brt::Files::listing(p_, " + std::string(n == "FILES" ? "true" : "false") + ");");
+            if (s.mode == 1) line(in + 1, "brt::writeLines(t_, l_);");
+            else line(in + 1, "for (const std::string& x_ : l_) { brt::rt.out.put(x_); brt::rt.out.newline(); }");
+            line(in, "}");
             return;
         }
         // CLS, PAUSE, DELAY, TRON, TROFF: no effect on the output

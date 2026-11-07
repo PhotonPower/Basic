@@ -296,6 +296,13 @@ constexpr int kErrObjectInUse = 202;
 constexpr int kErrObjectExists = 203;
 constexpr int kErrSeek = 219;
 constexpr int kErrObjectNotFound = 205;
+constexpr int kErrDirNotEmpty = 216;  // ERR -40 (probe25 T6)
+
+// FRE before any RESERVE: about what the original shows for a small program (probe25 T1, D27)
+constexpr std::int32_t kReserveStart = 61440;
+
+// FILES/DIR ... TO name$: the listing into a file (overwritten)
+void writeLines(const std::string& name, const std::vector<std::string>& lines);
 
 class Files {
 public:
@@ -319,6 +326,14 @@ public:
     static std::int32_t exist(const std::string& name);
     void kill(const std::string& name);
     void name(const std::string& from, const std::string& to);  // NAME a$ AS b$
+    // directories (probe25 T3-T6): MKDIR of an existing directory is no error; RMDIR of a full
+    // directory: 216, of a file: deletes it; CHDIR with "/" for the parent as in AmigaDOS
+    void mkdir(const std::string& name);
+    void rmdir(const std::string& name);
+    static void chdir(const std::string& name);
+    // FILES (full = true) / DIR: the lines of the listing (probe25 T4): FILES " name" or "*dir", the
+    // size right-aligned up to column 39, " hh:mm:ss dd.mm.yyyy"; DIR only the names of the files
+    static std::vector<std::string> listing(const std::string& path, bool full);
     // random access (probe16): FIELD binds string variables (set to spaces of the field length);
     // GET/PUT check that they still have that length (error 54), record numbers from 1 (55)
     void field(f64 channel, const std::vector<std::string*>& vars, const std::vector<f64>& lengths);

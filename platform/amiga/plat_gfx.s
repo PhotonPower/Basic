@@ -16,6 +16,7 @@
 
 plat_gfx__NWIN  EQU 16
 plat_gfx__NSCR  EQU 8
+plat_gfx__NVEC  EQU 132                 ; area vectors: POLYFILL with up to 128 points
 
 ; exec, intuition, graphics
 plat_gfx__OpenLibrary   EQU -552
@@ -35,6 +36,8 @@ plat_gfx__AreaEllipse   EQU -186
 plat_gfx__LoadRGB4      EQU -192
 plat_gfx__SetRast       EQU -234
 plat_gfx__Draw          EQU -246
+plat_gfx__AreaMove      EQU -252
+plat_gfx__AreaDraw      EQU -258
 plat_gfx__AreaEnd       EQU -264
 plat_gfx__InitArea      EQU -282
 plat_gfx__SetRGB4       EQU -288
@@ -109,6 +112,7 @@ plat_gfx__table:
         DC.W    plat_gfx__circle-plat_gfx__table, plat_gfx__pcircle-plat_gfx__table
         DC.W    plat_gfx__ellipse-plat_gfx__table, plat_gfx__pellipse-plat_gfx__table
         DC.W    plat_gfx__text-plat_gfx__table, plat_gfx__none-plat_gfx__table
+        DC.W    plat_gfx__polyline-plat_gfx__table, plat_gfx__polyfill-plat_gfx__table
 
 ; ---- helpers ----------------------------------------------------------------------------------------
 
@@ -166,7 +170,7 @@ plat_gfx__init:
         JSR     plat_gfx__InitTmpRas(A6)
         LEA     plat_gfx__area,A0
         LEA     plat_gfx__vbuf,A1
-        MOVEQ   #20,D0
+        MOVE.L  #plat_gfx__NVEC,D0
         JSR     plat_gfx__InitArea(A6)
         MOVEQ   #0,D0                   ; screen 0
         BSR     plat_gfx__openscreen
@@ -761,6 +765,49 @@ plat_gfx__radii:
         MOVEM.L (A2),D0-D3
         RTS
 
+; POLYLINE: the open line through the points (n-1 lines, probe25 T8); one point: PLOT
+plat_gfx__polyline:
+        CMP.L   #4,D5
+        BLT     .one
+        BSR     plat_gfx__rp
+        MOVEQ   #0,D3
+        BSR     plat_gfx__moveto
+        MOVEQ   #2,D3
+.l:     MOVE.L  D3,D0
+        ADDQ.L  #1,D0
+        CMP.L   D5,D0
+        BGE     .out
+        BSR     plat_gfx__drawto
+        ADDQ.L  #2,D3
+        BRA     .l
+.one:   CMP.L   #2,D5
+        BGE     plat_gfx__plot
+.out:   RTS
+
+; POLYFILL: AreaMove, AreaDraw, AreaEnd closes and fills (BOUNDARY: AREAOUTLINE)
+plat_gfx__polyfill:
+        CMP.L   #2,D5
+        BLT     .out
+        BSR     plat_gfx__rp
+        MOVEQ   #0,D3
+        MOVE.L  #plat_gfx__AreaMove,D2
+.l:     MOVE.L  D3,D0
+        ADDQ.L  #1,D0
+        CMP.L   D5,D0
+        BGE     .end
+        MOVE.L  D3,D0
+        LSL.L   #2,D0
+        MOVE.L  4(A2,D0.L),D1
+        MOVE.L  0(A2,D0.L),D0
+        MOVE.L  A1,-(SP)
+        JSR     0(A6,D2.L)
+        MOVE.L  (SP)+,A1
+        MOVE.L  #plat_gfx__AreaDraw,D2
+        ADDQ.L  #2,D3
+        BRA     .l
+.end:   JMP     plat_gfx__AreaEnd(A6)
+.out:   RTS
+
 ; TEXT x,y,s: Move to the base line, Text
 plat_gfx__text:
         BSR     plat_gfx__rp
@@ -838,7 +885,7 @@ plat_gfx__tmpras:
 plat_gfx__area:
         DS.W    12
 plat_gfx__vbuf:
-        DS.B    100
+        DS.B    5*plat_gfx__NVEC
 plat_gfx__quad:
         DS.L    10
 plat_gfx__buf:

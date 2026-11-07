@@ -20,7 +20,7 @@ inline constexpr const char* kGfxCommands[] = {
     "OPENS", "CLOSES",   "OPENW",     "CLOSEW",  "CLEARW",   "TITLEW",  "TITLES", "FRONTS", "BACKS",
     "FRONTW", "BACKW",   "COLOR",     "SETCOLOR", "GRAPHMODE", "DEFFILL", "BOUNDARY", "DEFLINE", "PLOT",
     "LINE",  "DRAW",     "BOX",       "PBOX",    "CIRCLE",   "PCIRCLE", "ELLIPSE", "PELLIPSE", "TEXT",
-    "CLS",
+    "CLS",    "POLYLINE", "POLYFILL",
 };
 inline constexpr int kGfxCommandCount = static_cast<int>(sizeof kGfxCommands / sizeof kGfxCommands[0]);
 inline int gfxCommandCode(const std::string& name) {
@@ -59,6 +59,12 @@ public:
     void ellipse(std::int32_t x, std::int32_t y, std::int32_t rx, std::int32_t ry, bool filled);
     void circle(std::int32_t x, std::int32_t y, std::int32_t r, bool filled);
     void text(std::int32_t x, std::int32_t y, const std::string& s);
+    // POLYLINE: the open line through the points (n-1 lines, probe25 T8); POLYFILL: closed and filled
+    // like the ellipses, BOUNDARY draws the outline in the outline pen. xy = x0,y0,x1,y1,...
+    void polyline(const std::vector<std::int32_t>& xy);
+    void polyfill(const std::vector<std::int32_t>& xy);
+    // an argument passed before the command (the points of POLYLINE/POLYFILL, HIR "GFX ARG")
+    void arg(std::int32_t v) { pending_.push_back(v); }
     std::int32_t point(std::int32_t x, std::int32_t y) const;  // -1 outside (probe22 T1)
 
     // A graphics command by name (HIR cmd): v = its numeric arguments from left to right, str = the
@@ -106,6 +112,7 @@ private:
     bool firstDot_ = true;   // FRST_DOT of graphics.library (probe23 T4)
     std::int32_t penX_ = 0, penY_ = 0;
     bool used_ = false;
+    std::vector<std::int32_t> pending_;
 
     Window& win();
     const Window& win() const;
@@ -113,6 +120,8 @@ private:
     void pixel(std::int32_t x, std::int32_t y, int color);          // JAM1/JAM2: set
     void patternPixel(std::int32_t x, std::int32_t y, bool bit);    // line pixel by mode and pattern bit
     void segment(std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2);
+    static std::vector<std::pair<std::int32_t, std::int32_t>> linePoints(std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2);
+    void fillOutline(const std::vector<std::pair<std::int32_t, std::int32_t>>& outline);
     void span(std::int32_t x1, std::int32_t x2, std::int32_t y, int color);
     static std::vector<std::pair<std::int32_t, std::int32_t>> ellipsePoints(std::int32_t rx, std::int32_t ry);
 };

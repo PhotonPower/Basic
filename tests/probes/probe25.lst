@@ -1,0 +1,167 @@
+' probe25 - FRE/RESERVE, Verzeichnisbefehle, FILES-Format, SOUND, POLYLINE/POLYFILL
+' (GFA-BASIC 3.5, Amiga). Ergebnisdatei DH0:probe25.txt; RESERVE loescht datei$, danach steht der
+' Name fest im Programm.
+'
+datei$="DH0:probe25.txt"
+OPEN "O",#1,datei$
+ON ERROR GOSUB fehler
+PRINT #1,"probe25"
+@flush
+' T1 FRE ohne und mit Argument, nach Strings und Feldern
+f1=FRE()
+f2=FRE(0)
+a$=SPACE$(1000)
+f3=FRE()
+f4=FRE(0)
+a$=""
+f5=FRE()
+f6=FRE(0)
+DIM t1(99)
+f7=FRE(0)
+DIM t2%(99)
+f8=FRE(0)
+PRINT #1,"T1 ";f1;" ";f2;" ";f3;" ";f4;" ";f5;" ";f6;" ";f7;" ";f8
+@flush
+' T2 RESERVE n loescht die Variablen: nach jedem RESERVE sofort schreiben
+PRINT #1,"T2 vor RESERVE"
+CLOSE #1
+RESERVE 100000
+@wieder
+PRINT #1,"T2 100000 ";FRE(0);" ";FRE()
+CLOSE #1
+RESERVE 200000
+@wieder
+PRINT #1,"T2 200000 ";FRE(0)
+CLOSE #1
+RESERVE 20000
+@wieder
+PRINT #1,"T2 20000 ";FRE(0)
+' RESERVE ohne Argument: Absturz des Originals ("Software error - task held", 1. Lauf)
+x=5
+CLOSE #1
+RESERVE 30000
+@wieder
+PRINT #1,"T2 x nach RESERVE ";x
+@flush
+' T3 Verzeichnisse auf DH0: (RAM: fehlt auf der GFA-Diskette: ERR -51, 2. Lauf)
+MKDIR "DH0:p25"
+OPEN "O",#2,"DH0:p25/a.txt"
+PRINT #2,"hallo"
+CLOSE #2
+MKDIR "DH0:p25/sub"
+PRINT #1,"T3 mkdir ok ";EXIST("DH0:p25/a.txt")
+@flush
+MKDIR "DH0:p25"
+PRINT #1,"T3 mkdir doppelt"
+@flush
+' T4 FILES und DIR in eine Datei, dann zeilenweise in die Ergebnisdatei
+FILES "DH0:p25" TO "DH0:p25files"
+DIR "DH0:p25" TO "DH0:p25dir"
+@kopie("T4 files","DH0:p25files")
+@kopie("T4 dir","DH0:p25dir")
+' T5 CHDIR, dann relative Namen
+CHDIR "DH0:p25"
+PRINT #1,"T5 chdir ";EXIST("a.txt");" ";EXIST("sub")
+CHDIR "/"
+PRINT #1,"T5 parent ";EXIST("p25/a.txt")
+@flush
+' T6 RMDIR: nicht leer, leer, Datei
+RMDIR "DH0:p25"
+PRINT #1,"T6 rmdir voll"
+@flush
+RMDIR "DH0:p25/sub"
+PRINT #1,"T6 rmdir leer ";EXIST("DH0:p25/sub")
+@flush
+RMDIR "DH0:p25/a.txt"
+PRINT #1,"T6 rmdir datei ";EXIST("DH0:p25/a.txt")
+@flush
+KILL "DH0:p25/a.txt"
+RMDIR "DH0:p25"
+KILL "DH0:p25files"
+KILL "DH0:p25dir"
+' T7 SOUND: wartet SOUND? (Zeit in 1/200 s)
+t0=TIMER
+SOUND 440,20
+t1=TIMER
+SOUND 880,200,100,1
+t2=TIMER
+PRINT #1,"T7 ";t1-t0;" ";t2-t1
+@flush
+' T8 POLYLINE und POLYFILL
+OPENW 0
+COLOR 1,0,2
+DEFFILL 3,1
+BOUNDARY 0
+DIM px%(4),py%(4)
+px%(0)=10
+py%(0)=10
+px%(1)=20
+py%(1)=12
+px%(2)=16
+py%(2)=20
+px%(3)=8
+py%(3)=17
+CLEARW 0
+POLYLINE 4,px%(),py%()
+@raster("T8 line",6,22,8,22)
+CLEARW 0
+POLYFILL 4,px%(),py%()
+@raster("T8 fill",6,22,8,22)
+CLEARW 0
+BOUNDARY 1
+POLYFILL 4,px%(),py%() OFFSET 1,0
+@raster("T8 fill b off",6,22,8,22)
+CLEARW 0
+BOUNDARY 0
+POLYLINE 2,px%(),py%()
+@raster("T8 line2",6,22,8,14)
+PRINT #1,"ende"
+CLOSE #1
+END
+PROCEDURE kopie(t$,f$)
+  LOCAL l$
+  IF NOT EXIST(f$)
+    PRINT #1,t$;" fehlt"
+    @flush
+  ELSE
+    @kopie2(t$,f$)
+  ENDIF
+RETURN
+PROCEDURE kopie2(t$,f$)
+  LOCAL l$,n%
+  OPEN "I",#3,f$
+  WHILE NOT EOF(#3) AND n%<40
+    INC n%
+    LINE INPUT #3,l$
+    PRINT #1,t$;" [";l$;"]"
+  WEND
+  CLOSE #3
+  @flush
+RETURN
+PROCEDURE raster(t$,x0%,x1%,y0%,y1%)
+  LOCAL x%,y%,s$
+  FOR y%=y0% TO y1%
+    s$=""
+    FOR x%=x0% TO x1%
+      s$=s$+STR$(POINT(x%,y%))
+    NEXT x%
+    PRINT #1,t$;" y";y%;" ";s$
+  NEXT y%
+  @flush
+RETURN
+PROCEDURE wieder
+  ON ERROR GOSUB fehler
+  OPEN "A",#1,"DH0:probe25.txt"
+RETURN
+PROCEDURE flush
+  CLOSE #1
+  OPEN "A",#1,"DH0:probe25.txt"
+RETURN
+PROCEDURE fehler
+  e%=ERR
+  CLOSE #1
+  OPEN "A",#1,"DH0:probe25.txt"
+  PRINT #1,"   -> ERR ";e%;" ";ERR$(e%)
+  ON ERROR GOSUB fehler
+  RESUME NEXT
+RETURN

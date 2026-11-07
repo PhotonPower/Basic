@@ -5,7 +5,7 @@
 ;! clobbers  D0-D3/A0-A1
 ;! doc       Graphics commands (D25): collects the arguments of a command, then the platform draws.
 
-rt_gfx__MAX EQU 64                      ; DRAW x1,y1 TO ... has the most arguments
+rt_gfx__MAX EQU 260                     ; POLYLINE/POLYFILL: up to 128 points (2 words each)
 
 ; D0 = next numeric argument (from left to right)
 rt_gfx_arg:

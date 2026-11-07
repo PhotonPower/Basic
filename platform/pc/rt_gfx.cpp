@@ -148,11 +148,11 @@ void Gfx::plot(std::int32_t x, std::int32_t y) {
 // A line as on the original (probe22 T2, probe23 T2): along the major axis, the minor offset is
 // i * d / n rounded to nearest, a tie towards the end point. The pattern starts with bit 15. In
 // COMPLEMENT mode the first point is left out unless the line follows GRAPHMODE (FRST_DOT).
-void Gfx::segment(std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2) {
+std::vector<std::pair<std::int32_t, std::int32_t>> Gfx::linePoints(std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2) {
+    std::vector<std::pair<std::int32_t, std::int32_t>> r;
     const std::int32_t dx = x2 - x1, dy = y2 - y1;
     const std::int32_t adx = std::abs(dx), ady = std::abs(dy);
     const std::int32_t n = std::max(adx, ady);
-    const bool skipFirst = (mode_ & 2) != 0 && !firstDot_;
     for (std::int32_t i = 0; i <= n; ++i) {
         std::int32_t x = x1, y = y1;
         if (n > 0) {
@@ -166,8 +166,17 @@ void Gfx::segment(std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_
                 x = x1 + (dx < 0 ? -off : off);
             }
         }
+        r.emplace_back(x, y);
+    }
+    return r;
+}
+
+void Gfx::segment(std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2) {
+    const bool skipFirst = (mode_ & 2) != 0 && !firstDot_;
+    const auto pts = linePoints(x1, y1, x2, y2);
+    for (std::size_t i = 0; i < pts.size(); ++i) {
         if (i == 0 && skipFirst) continue;
-        patternPixel(x, y, ((pattern_ >> (15 - (i & 15))) & 1) != 0);
+        patternPixel(pts[i].first, pts[i].second, ((pattern_ >> (15 - (i & 15))) & 1) != 0);
     }
     firstDot_ = false;
     penX_ = x2, penY_ = y2;
@@ -256,6 +265,20 @@ std::vector<std::pair<std::int32_t, std::int32_t>> Gfx::ellipsePoints(std::int32
     return q;
 }
 
+// spans between the outermost outline points of every row (probe24 T2, T3; probe25 T8), with
+// BOUNDARY the outline in the outline pen
+void Gfx::fillOutline(const std::vector<std::pair<std::int32_t, std::int32_t>>& outline) {
+    std::map<std::int32_t, std::pair<std::int32_t, std::int32_t>> rows;
+    for (const auto& [x, y] : outline) {
+        auto it = rows.find(y);
+        if (it == rows.end()) rows[y] = {x, x};
+        else it->second = {std::min(it->second.first, x), std::max(it->second.second, x)};
+    }
+    for (const auto& [y, r] : rows) span(r.first, r.second, y, apen_);
+    if (!boundary_) return;
+    for (const auto& [x, y] : outline) pixel(x, y, open_);
+}
+
 void Gfx::ellipse(std::int32_t cx, std::int32_t cy, std::int32_t rx, std::int32_t ry, bool filled) {
     used_ = true;
     const auto q = ellipsePoints(rx, ry);
@@ -263,19 +286,35 @@ void Gfx::ellipse(std::int32_t cx, std::int32_t cy, std::int32_t rx, std::int32_
     for (const auto& [x, y] : q)
         for (int sx : {1, -1})
             for (int sy : {1, -1}) outline.insert({cx + sx * x, cy + sy * y});
-    if (filled) {  // spans between the outermost outline points of every row (probe24 T2, T3)
-        std::map<std::int32_t, std::pair<std::int32_t, std::int32_t>> rows;
-        for (const auto& [x, y] : outline) {
-            auto it = rows.find(y);
-            if (it == rows.end()) rows[y] = {x, x};
-            else it->second = {std::min(it->second.first, x), std::max(it->second.second, x)};
-        }
-        for (const auto& [y, r] : rows) span(r.first, r.second, y, apen_);
-        if (!boundary_) return;
-        for (const auto& [x, y] : outline) pixel(x, y, open_);
+    if (filled) {
+        fillOutline({outline.begin(), outline.end()});
         return;
     }
     for (const auto& [x, y] : outline) pixel(x, y, apen_);
+}
+
+void Gfx::polyline(const std::vector<std::int32_t>& xy) {
+    used_ = true;
+    const std::size_t n = xy.size() / 2;
+    if (n == 0) return;
+    if (n == 1) {
+        plot(xy[0], xy[1]);
+        return;
+    }
+    for (std::size_t k = 0; k + 1 < n; ++k) segment(xy[2 * k], xy[2 * k + 1], xy[2 * k + 2], xy[2 * k + 3]);
+}
+
+void Gfx::polyfill(const std::vector<std::int32_t>& xy) {
+    used_ = true;
+    const std::size_t n = xy.size() / 2;
+    if (n == 0) return;
+    std::vector<std::pair<std::int32_t, std::int32_t>> outline;
+    for (std::size_t k = 0; k < n; ++k) {
+        const std::size_t j = (k + 1) % n;  // the last point back to the first
+        const auto pts = linePoints(xy[2 * k], xy[2 * k + 1], xy[2 * j], xy[2 * j + 1]);
+        outline.insert(outline.end(), pts.begin(), pts.end());
+    }
+    fillOutline(outline);
 }
 
 // CIRCLE: an ellipse with ry = 4r/9 (HiRes, probe23 T1: the height is exact for r = 1..40; some
@@ -295,8 +334,11 @@ std::int32_t Gfx::point(std::int32_t x, std::int32_t y) const {
 
 bool Gfx::isCommand(const std::string& n) { return n != "CLS" && gfxCommandCode(n) >= 0; }
 
-void Gfx::command(const std::string& n, const std::vector<std::int32_t>& v, const std::string& str, int mode) {
+void Gfx::command(const std::string& n, const std::vector<std::int32_t>& given, const std::string& str, int mode) {
     const auto present = static_cast<unsigned>(mode);
+    std::vector<std::int32_t> v;
+    v.swap(pending_);
+    v.insert(v.end(), given.begin(), given.end());
     if (n == "OPENS") openScreen(v[0], std::vector<std::int32_t>(v.begin() + 1, v.end()));
     else if (n == "CLOSES") closeScreen(v[0]);
     else if (n == "OPENW") openWindow(v[0], std::vector<std::int32_t>(v.begin() + 1, v.end()));
@@ -317,6 +359,8 @@ void Gfx::command(const std::string& n, const std::vector<std::int32_t>& v, cons
     else if (n == "ELLIPSE" || n == "PELLIPSE") ellipse(v[0], v[1], v[2], v[3], n == "PELLIPSE");
     else if (n == "TEXT") text(v[0], v[1], str);
     else if (n == "CLS") cls();
+    else if (n == "POLYLINE") polyline(v);
+    else if (n == "POLYFILL") polyfill(v);
     else if (n == "DRAW") {  // DRAW x,y = PLOT; DRAW TO x,y from the last point; x1,y1 TO x2,y2 ... lines
         std::size_t k = 0;
         if (mode != 1) {

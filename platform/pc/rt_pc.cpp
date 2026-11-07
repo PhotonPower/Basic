@@ -1,5 +1,8 @@
 #include "rt_pc.hpp"
 
+#include <filesystem>
+#include <sys/stat.h>
+
 #include <cctype>
 
 #include <algorithm>
@@ -1288,10 +1291,102 @@ std::int32_t Files::eof(f64 channel) {
 std::int32_t Files::lof(f64 channel) { return size(get(channel, true)); }
 
 std::int32_t Files::exist(const std::string& name) {
-    std::FILE* f = std::fopen(name.c_str(), "rb");
-    if (f == nullptr) return 0;
+    std::error_code ec;
+    return !name.empty() && std::filesystem::exists(name, ec) ? -1 : 0;  // directories too (probe25 T5)
+}
+
+void writeLines(const std::string& name, const std::vector<std::string>& lines) {
+    std::FILE* f = std::fopen(name.c_str(), "wb");
+    if (f == nullptr) throw Error{kErrObjectNotFound};
+    for (const std::string& l : lines) {
+        std::fwrite(l.data(), 1, l.size(), f);
+        std::fputc('\n', f);
+    }
     std::fclose(f);
-    return -1;
+}
+
+void Files::mkdir(const std::string& name) {
+    namespace fs = std::filesystem;
+    std::error_code ec;
+    if (fs::is_directory(name, ec)) return;
+    if (fs::exists(name, ec)) throw Error{kErrObjectExists};
+    if (!fs::create_directory(name, ec)) throw Error{kErrObjectNotFound};
+}
+
+void Files::rmdir(const std::string& name) {
+    namespace fs = std::filesystem;
+    std::error_code ec;
+    if (name.empty() || !fs::exists(name, ec)) throw Error{kErrObjectNotFound};
+    if (fs::is_directory(name, ec)) {
+        if (!fs::is_empty(name, ec)) throw Error{kErrDirNotEmpty};
+    } else if (inUse(name, nullptr)) {
+        throw Error{kErrObjectInUse};
+    }
+    fs::remove(name, ec);
+}
+
+namespace {
+// an AmigaDOS path for the host: leading "/" each go one directory up
+std::string hostPath(const std::string& p) {
+    std::size_t k = 0;
+    std::string r;
+    while (k < p.size() && p[k] == '/') {
+        r += "../";
+        ++k;
+    }
+    r += p.substr(k);
+    return r.empty() ? "." : r;
+}
+}  // namespace
+
+void Files::chdir(const std::string& name) {
+    namespace fs = std::filesystem;
+    std::error_code ec;
+    const std::string p = hostPath(name);
+    if (!fs::is_directory(p, ec)) throw Error{kErrObjectNotFound};
+    fs::current_path(p, ec);
+    if (ec) throw Error{kErrObjectNotFound};
+}
+
+std::vector<std::string> Files::listing(const std::string& path, bool full) {
+    namespace fs = std::filesystem;
+    std::error_code ec;
+    const std::string p = path.empty() ? std::string(".") : hostPath(path);
+    if (!fs::is_directory(p, ec)) throw Error{kErrObjectNotFound};
+    std::vector<fs::path> names;
+    for (const auto& e : fs::directory_iterator(p, ec)) names.push_back(e.path());
+    std::sort(names.begin(), names.end(), [](const fs::path& a, const fs::path& b) { return a.filename() < b.filename(); });
+    std::vector<std::string> lines;
+    for (const fs::path& e : names) {
+        const bool dir = fs::is_directory(e, ec);
+        const std::string n = e.filename().string();
+        if (!full) {
+            if (!dir) lines.push_back(n);
+            continue;
+        }
+        struct stat st {};
+        std::int64_t size = 0;
+        std::time_t t = 0;
+        if (::stat(e.string().c_str(), &st) == 0) {
+            size = dir ? 0 : static_cast<std::int64_t>(st.st_size);
+            t = st.st_mtime;
+        }
+        std::string l = (dir ? "*" : " ") + n;
+        const std::string sz = std::to_string(size);
+        if (l.size() + sz.size() < 39) l += std::string(39 - l.size() - sz.size(), ' ');
+        else l += ' ';
+        l += sz;
+        char buf[32];
+        std::tm tm{};
+#ifdef _WIN32
+        localtime_s(&tm, &t);
+#else
+        localtime_r(&t, &tm);
+#endif
+        std::strftime(buf, sizeof buf, " %H:%M:%S %d.%m.%Y", &tm);
+        lines.push_back(l + buf);
+    }
+    return lines;
 }
 
 void Files::kill(const std::string& name) {

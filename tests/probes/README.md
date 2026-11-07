@@ -23,6 +23,7 @@ Ausführen mit `tools/gfa/gfa_run.py`, Einrichtung und Regeln in [docs/gfa-origi
 | `probe22.lst` | Grafik: Rasterregeln über `POINT` (Linien, Rechtecke, Kreise, Ellipsen, XOR, Linienmuster, Clipping, `TEXT`-Grundlinie, `CLS`), Fenster 0 – ausgewertet (2026-11-07) |
 | `probe23.lst` | Grafik: Seitenverhältnis von `CIRCLE` (r = 1…40), Gleichstand bei `LINE`, Stiftmodell, erster Punkt bei XOR – ausgewertet (2026-11-07) |
 | `probe24.lst` | Grafik: Raster von `CIRCLE`, `PCIRCLE`/`PELLIPSE` mit und ohne `BOUNDARY`, `PBOX` mit Rand – ausgewertet (2026-11-07) |
+| `probe25.lst` | `FRE`/`RESERVE`, `MKDIR`/`RMDIR`/`CHDIR`, Format von `FILES`/`DIR`, wartet `SOUND`?, Raster von `POLYLINE`/`POLYFILL` – ausgewertet (2026-11-08); `RESERVE` ohne Argument stürzt ab, `RAM:` fehlt auf der GFA-Diskette |
 | `probe10.lst` | `VAR`-Parameter: Geltung für folgende Parameter, Referenz oder Kopie, unzulässige Argumente – ausgewertet (2026-11-07) |
 
 Ergebnisse: `results/<name>.txt` (erzeugt am Original).

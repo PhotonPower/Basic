@@ -31,7 +31,7 @@ const std::set<std::string, std::less<>> kGfxCommands = {
 
 const std::set<std::string, std::less<>> kCommands = {
     "INC",    "DEC",       "ADD",    "SUB",    "MUL",    "DIV",    "SWAP",   "CLR",     "ERASE",    "ABSOLUTE", "VSYNC",
-    "ALERT",  "FILESELECT", "MENU",  "SLEEP",
+    "ALERT",  "FILESELECT", "MENU",  "SLEEP",  "RESERVE", "MKDIR",  "RMDIR",  "CHDIR",   "WAVE",
     "DEFNUM", "MODE",      "RANDOMIZE", "ERROR", "QUIT", "SYSTEM", "STOP",   "END",     "EDIT",
     "CLEAR",  "LSET",      "RSET",   "DEFINT", "DEFFLT", "DEFSTR", "DEFBIT", "DEFBYT",  "DEFWRD",
     "DEFSNG", "DEFDBL",    "PAUSE",  "DELAY",  "CLS",    "NEW",    "ARRAYFILL", "INSERT", "DELETE",
@@ -731,6 +731,33 @@ private:
             s.name = "LINE INPUT";
             inputPrompt(s);
             exprList(s);
+            return s;
+        }
+        if ((word == "FILES" || word == "DIR") && !atPunct("=", 1)) {  // FILES [p$] [TO name$]
+            take();
+            Stmt s = stmt(StmtKind::Command, p);
+            s.name = word;
+            if (!at(Tok::End) && !atWord("TO")) s.args.push_back(expr());
+            if (acceptWord("TO")) {
+                s.variant = 1;
+                s.args.push_back(expr());
+            }
+            return s;
+        }
+        if ((word == "POLYLINE" || word == "POLYFILL") && !atPunct("=", 1)) {  // n,x(),y() [OFFSET dx,dy]
+            take();
+            Stmt s = stmt(StmtKind::Command, p);
+            s.name = word;
+            s.args.push_back(expr());
+            expectPunct(",");
+            s.args.push_back(expr());
+            expectPunct(",");
+            s.args.push_back(expr());
+            if (acceptWord("OFFSET")) {
+                s.args.push_back(expr());
+                expectPunct(",");
+                s.args.push_back(expr());
+            }
             return s;
         }
         if (kGfxCommands.count(word) != 0 && !(word == "LINE" && atWord("INPUT", 1)) && !atPunct("=", 1)) {

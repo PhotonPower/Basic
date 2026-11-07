@@ -44,7 +44,7 @@ hir::ExprPtr constFloat(f64 v) {
 }
 
 // Builtins the runtime does not provide yet (input, files ...).
-const std::set<std::string, std::less<>> kNotYet = { "LPOS", "FRE",
+const std::set<std::string, std::less<>> kNotYet = { "LPOS",
 };
 
 // Commands handled by the interpreter with their argument forms.
@@ -653,6 +653,46 @@ private:
     // ---- graphics and windows (chapters 8, 9; D25) ------------------------------------------------
     // HIR: cmd <name> with the arguments as Float (a string for TEXT/TITLEW/TITLES); a left out one
     // is 0 and its bit in mode is clear (bit k = argument k given). DRAW: mode 1 for "DRAW TO".
+    // POLYLINE/POLYFILL n,x(),y() [OFFSET dx,dy]: a loop passes the points x(k)+dx, y(k)+dy for
+    // k = 0 .. n-1 one by one ("GFX ARG"), then the command draws them (probe25 T8)
+    void polygon(const ast::Stmt& s, hir::Block& out) {
+        if (s.args.size() != 3 && s.args.size() != 5) fail(s.pos, s.name + " expects n,x(),y() [OFFSET dx,dy]");
+        for (std::size_t k = 1; k < 3; ++k) {
+            const ast::Expr& a = *s.args[k];
+            if (a.kind != ExprKind::Var || !a.wholeArray || !hir::isNumeric(typeOf(a.text))) fail(a.pos, s.name + " expects numeric arrays: x(),y()");
+        }
+        auto loop = make(SKind::For, s);
+        auto k = makeExpr(Op::Load, Type::Int);
+        k->var = varId("ZZ.POLY%", false);
+        loop->target = std::move(k);
+        loop->start = constInt(0);
+        auto end = makeExpr(Op::Sub, Type::Float);
+        end->args.push_back(toFloat(expr(*s.args[0]), s.args[0]->pos));
+        end->args.push_back(constFloat(F64_ONE));
+        loop->end = std::move(end);
+        loop->step = constFloat(F64_ONE);
+        for (std::size_t c = 1; c < 3; ++c) {
+            const ast::Expr& a = *s.args[c];
+            auto el = makeExpr(Op::LoadElem, typeOf(a.text));
+            el->var = varId(a.text, true);
+            auto idx = makeExpr(Op::Load, Type::Int);
+            idx->var = loop->target->var;
+            el->args.push_back(std::move(idx));
+            hir::ExprPtr v = toFloat(std::move(el), a.pos);
+            if (s.args.size() == 5) {
+                auto add = makeExpr(Op::Add, Type::Float);
+                add->args.push_back(std::move(v));
+                add->args.push_back(toFloat(expr(*s.args[c + 2]), s.args[c + 2]->pos));
+                v = std::move(add);
+            }
+            auto arg = make(SKind::Cmd, s);
+            arg->name = "GFX ARG";
+            arg->args.push_back(std::move(v));
+            loop->body.push_back(std::move(arg));
+        }
+        out.push_back(std::move(loop));
+    }
+
     bool gfxCommand(const ast::Stmt& s, hir::Stmt& h) {
         static const std::map<std::string, std::pair<int, int>, std::less<>> counts = {
             {"OPENS", {1, 7}},    {"CLOSES", {1, 1}},   {"OPENW", {1, 9}},    {"CLOSEW", {1, 1}},   {"CLEARW", {1, 1}},
@@ -809,6 +849,24 @@ private:
         };
         if (n.rfind("MAT ", 0) == 0) {
             matCommand(s, *h);
+        } else if (n == "RESERVE") {  // RESERVE [n]: the size of the memory, clears the variables (probe25 T2)
+            argc(0, 1);
+            for (const auto& a : s.args) h->args.push_back(convertTo(expr(*a), Type::Float, a->pos));
+        } else if (n == "MKDIR" || n == "RMDIR" || n == "CHDIR") {
+            argc(1, 1);
+            h->args.push_back(convertTo(expr(*s.args[0]), Type::Str, s.args[0]->pos));
+        } else if (n == "FILES" || n == "DIR") {  // args: path ("" if left out) [, file of TO]
+            h->mode = s.variant;
+            if (s.args.size() == static_cast<std::size_t>(s.variant)) h->args.push_back(makeExpr(Op::ConstStr, Type::Str));
+            for (const auto& a : s.args) h->args.push_back(convertTo(expr(*a), Type::Str, a->pos));
+        } else if (n == "SOUND") {  // no sound on a console; SOUND does not wait (probe25 T7)
+            argc(2, 4);
+            for (const auto& a : s.args) h->args.push_back(convertTo(expr(*a), Type::Float, a->pos));
+        } else if (n == "WAVE") {  // WAVE channel,wave() / sin(): only the channel is evaluated
+            argc(2, 2);
+            h->args.push_back(convertTo(expr(*s.args[0]), Type::Float, s.args[0]->pos));
+        } else if (n == "POLYLINE" || n == "POLYFILL") {
+            polygon(s, out);
         } else if (gfxCommand(s, *h)) {
         } else if (n == "INC" || n == "DEC") {
             argc(1, 1);

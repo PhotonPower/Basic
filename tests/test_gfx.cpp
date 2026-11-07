@@ -200,14 +200,41 @@ void probe24() {
     raster(g, "probe24", "T4", 0, 22, 39, 44);
 }
 
+// T8: POLYLINE (open), POLYFILL without and with BOUNDARY and OFFSET, POLYLINE with 2 points
+void probe25() {
+    brt::Gfx g;
+    g.openWindow(0, {});
+    g.color({1, 0, 2}, 7);
+    g.deffill({3, 1}, 3);
+    g.boundary(0);
+    const std::vector<std::int32_t> xy = {10, 10, 20, 12, 16, 20, 8, 17};
+    g.clearWindow(0);
+    g.command("POLYLINE", xy, "", 0);
+    raster(g, "probe25", "T8 line", 6, 22, 8, 22);
+    g.clearWindow(0);
+    g.command("POLYFILL", xy, "", 0);
+    raster(g, "probe25", "T8 fill", 6, 22, 8, 22);
+    g.clearWindow(0);
+    g.boundary(1);
+    for (std::size_t k = 0; k < xy.size(); ++k) g.arg(xy[k] + (k % 2 == 0 ? 1 : 0));  // OFFSET 1,0
+    g.command("POLYFILL", {}, "", 0);
+    raster(g, "probe25", "T8 fill b off", 6, 22, 8, 22);
+    g.clearWindow(0);
+    g.boundary(0);
+    g.command("POLYLINE", {10, 10, 20, 12}, "", 0);
+    raster(g, "probe25", "T8 line2", 6, 22, 8, 14);
+}
+
 }  // namespace
 
 int main() {
+    load("probe25");
     load("probe22");
     load("probe23");
     load("probe24");
     probe22();
     probe23();
     probe24();
+    probe25();
     return report("gfx");
 }

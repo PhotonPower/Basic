@@ -61,6 +61,7 @@ struct State {
     Gfx gfx;
     Gui gui;
     void (*menuProc)() = nullptr;  // ON MENU GOSUB
+    std::int32_t reserve = kReserveStart;  // RESERVE / FRE (D27)
     int err = 0;
     void (*onError)() = nullptr;
     int handlerDepth = 0;

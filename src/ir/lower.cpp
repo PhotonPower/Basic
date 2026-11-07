@@ -204,6 +204,24 @@ private:
         return rtcall("rt_arr_elem", args, VT::Addr);
     }
 
+    // CLEAR: all variables 0 or "", all arrays erased
+    void clearAll() {
+        for (std::size_t v = 0; v < p_.vars.size(); ++v) {
+            const hir::Var& x = p_.vars[v];
+            const int id = static_cast<int>(v);
+            if (x.array) {
+                rtcallVoid("rt_arr_erase", {addrOf(id), constI(x.type == Type::Str ? 1 : 0)});
+            } else if (x.type == Type::Str) {
+                Reg e = reg(VT::Str);
+                emit(Kind::ConstS).dst = e;
+                store(id, e);
+            } else {
+                store(id, x.type == Type::Float ? constF(0) : constI(0));
+            }
+            releaseTemps();
+        }
+    }
+
     Reg loadElem(const hir::Expr& e) { return loadAtAddr(elemAddr(e), var(e.var).type); }
 
     Reg loadAtAddr(Reg a, Type t) {
@@ -887,6 +905,15 @@ private:
             }
             return;
         }
+        if (n == "CLEAR" || n == "RESERVE") {  // RESERVE clears the variables too (probe25 T2)
+            if (n == "RESERVE" && !s.args.empty()) rtcallVoid("rt_reserve", {toI(expr(*s.args[0]))});
+            clearAll();
+            return;
+        }
+        if (n == "SOUND" || n == "WAVE") {  // no sound yet; SOUND does not wait (probe25 T7)
+            for (const auto& a : s.args) expr(*a);
+            return;
+        }
         if (n == "OPTION BASE") {
             rtcallVoid("rt_arr_set_base", {toI(expr(*s.args[0]))});
             return;
@@ -1072,6 +1099,10 @@ private:
         if (n == "CLS") {
             rtcallVoid("rt_print_cls", {});
             rtcallVoid("rt_gfx_cmd", {constI(brt::gfxCommandCode("CLS")), constI(0)});
+            return;
+        }
+        if (n == "GFX ARG") {
+            rtcallVoid("rt_gfx_arg", {toI(expr(*s.args[0]))});
             return;
         }
         if (brt::Gfx::isCommand(n)) {  // D25: the arguments first, then pass them on in order
@@ -1518,6 +1549,10 @@ private:
         if (n == "POS") {
             expr(*e.args[0]);
             return rtcall("rt_pos", {}, VT::I32);
+        }
+        if (n == "FRE") {
+            if (!e.args.empty()) expr(*e.args[0]);
+            return rtcall("rt_fre", {}, VT::I32);
         }
         if (n == "POINT") {
             Reg x = toI(arg(e, 0));

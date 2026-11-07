@@ -460,3 +460,19 @@ keine Fenster; dort werden sie Textdialoge auf demselben Eingabestrom wie `INPUT
 
 Stufe 2: auf dem Amiga echte Requester und Intuition-Menüs, die 68000-Ziele über `rt_gui`/`plat_gui`
 wie die Grafik.
+
+<a id="d27"></a>
+## D27 – `RESERVE` und `FRE` ohne Speicherbuchhaltung
+
+Das Original rechnet `FRE` aus seinem eigenen Speicher: `RESERVE n` setzt ihn auf n Byte,
+`FRE(0)` ist danach genau n, Strings und Felder ziehen ihre Größe ab (probe25 T1, T2). Unsere
+Ausführungen verwalten den Speicher anders (Interpreter und C++ auf dem Host, der 68000 mit eigener
+Halde). Eine Nachbildung der Belegung wäre ungenau und in jeder Ausführung anders. Deshalb gilt:
+
+- `FRE(x)` und `FRE()` liefern die mit `RESERVE` gesetzte Größe, vor dem ersten `RESERVE` 61440.
+- `RESERVE n` setzt die Größe und löscht alle Variablen und Felder wie `CLEAR` (T2). `RESERVE` ohne
+  Argument löscht nur (das Original stürzt ab).
+
+Programme benutzen `FRE` meist, um die Größe ihrer Felder zu wählen (`max=(FRE()-5000)/50`). Dafür
+genügt ein fester, plausibler Wert. Ob ein Programm wirklich mit dem Speicher auskommt, prüft man am
+Original.
