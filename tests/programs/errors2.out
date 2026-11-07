@@ -1,0 +1,31 @@
+Fehler 0
+tief 0: x=0 s$=
+tief 0: x=0 s$=
+tief 1: x=1 s$=*
+tief 2: x=2 s$=**
+tief 3: x=3 s$=***
+nach tief: x=5 s$=aussen
+i%=1 y=-10
+Fehler 0
+i%=2 y=-10
+i%=3 y=10
+Fehler 0
+nach WHILE
+rep 0
+z=25
+Fehler 0
+q=7 w=0
+doppelt 5
+Fehler 30
+doppelt weiter
+nach doppelt
+springe 3 t=60
+ziel: t=1
+Fehler 4
+ref weiter: p=3 r=3
+r=9
+Fehler 35
+n$=abc
+Fehler 10
+a$=[] 10 string too long|max. 32767 chars
+unknown error 200|unknown error 200|unknown error |

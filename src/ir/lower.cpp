@@ -29,7 +29,9 @@ public:
 
     lir::Program run() {
         strings_ = usesStrings();
+        scanErrors();
         lir::Program out;
+        out.onError = onError_;
         out.hir = &p_;
         out.indirect.assign(p_.vars.size(), false);
         for (const hir::Routine& r : p_.routines)
@@ -60,6 +62,9 @@ private:
     int exitLabel_ = -1;            // end of the routine
     Reg result_;                    // function result (numbers; strings go through rt_str_set_ret)
     bool strings_ = false;          // the program uses string values: release temporaries (D18)
+    bool onError_ = false;          // the program uses ON ERROR: statement records (docs/runtime.md)
+    std::vector<bool> resumeTarget_;  // per HIR label: target of a RESUME label
+    std::vector<std::pair<int, int>> stmtLabels_;  // (start, after) of the enclosing statements
     Reg base_;                      // number of string temporaries at the entry of the routine
 
     [[noreturn]] void unsupported(const std::string& what) { throw Unsupported{line_, what}; }
@@ -231,6 +236,32 @@ private:
         i.mem = ty;
     }
 
+    void scanErrors() {
+        resumeTarget_.assign(p_.labels.size(), false);
+        std::function<void(const hir::Block&)> blk = [&](const hir::Block& b) {
+            for (const auto& st : b) {
+                if (st->kind == SKind::OnError) onError_ = true;
+                if (st->kind == SKind::Resume && st->mode == 2) resumeTarget_[static_cast<std::size_t>(st->label)] = true;
+                for (const auto& br : st->branches) blk(br.body);
+                for (const auto& c : st->cases) blk(c.body);
+                blk(st->body);
+                blk(st->elseBody);
+            }
+        };
+        blk(p_.main);
+        for (const hir::Routine& r : p_.routines) blk(r.body);
+    }
+
+    // statement record again (with ON ERROR): the condition or the step of a loop belongs to the
+    // loop statement, not to the last statement of its body
+    void reenter() {
+        if (!onError_ || stmtLabels_.empty()) return;
+        Instr& i = emit(Kind::Line);
+        i.imm = line_;
+        i.label = stmtLabels_.back().first;
+        i.label2 = stmtLabels_.back().second;
+    }
+
     // Does the program compute with strings (beyond constants printed directly)?
     bool usesStrings() const {
         for (const hir::Var& v : p_.vars)
@@ -280,6 +311,7 @@ private:
         try {
             if (strings_) base_ = rtcall("rt_str_mark", {}, VT::I32);
             if (r != nullptr) {
+                f.deffn = r->kind == hir::Routine::DefFn;
                 f.result = vt(r->result);
                 f.returnsValue = r->kind != hir::Routine::Procedure && f.result != VT::Str;
                 if (f.returnsValue) result_ = reg(f.result);
@@ -370,8 +402,26 @@ private:
 
     void statement(const hir::Stmt& s) {
         line_ = s.line;
-        emit(Kind::Line).imm = s.line;
+        if (!onError_) {
+            emit(Kind::Line).imm = s.line;
+            releaseTemps();
+            statementBody(s);
+            return;
+        }
+        const int start = label(), after = label();
+        place(start);
+        Instr& i = emit(Kind::Line);
+        i.imm = s.line;
+        i.label = start;
+        i.label2 = after;
         releaseTemps();
+        stmtLabels_.emplace_back(start, after);
+        statementBody(s);
+        stmtLabels_.pop_back();
+        place(after);
+    }
+
+    void statementBody(const hir::Stmt& s) {
         switch (s.kind) {
             case SKind::Assign: {
                 Reg x = expr(*s.value);
@@ -396,6 +446,7 @@ private:
             case SKind::While: {
                 const int top = label(), end = label();
                 place(top);
+                reenter();
                 releaseTemps();
                 branchZ(truth(*s.cond), end);
                 exitLabels_.push_back(end);
@@ -411,6 +462,7 @@ private:
                 exitLabels_.push_back(end);
                 block(s.body);
                 exitLabels_.pop_back();
+                reenter();
                 releaseTemps();
                 branchZ(truth(*s.cond), top);
                 place(end);
@@ -419,12 +471,14 @@ private:
             case SKind::Do: {
                 const int top = label(), end = label();
                 place(top);
+                reenter();
                 releaseTemps();
                 if (s.pre == 1) branchZ(truth(*s.cond), end);
                 if (s.pre == 2) branchNZ(truth(*s.cond), end);
                 exitLabels_.push_back(end);
                 block(s.body);
                 exitLabels_.pop_back();
+                reenter();
                 releaseTemps();
                 if (s.post == 1) branchZ(truth(*s.cond2), end);
                 if (s.post == 2) branchNZ(truth(*s.cond2), end);
@@ -456,7 +510,10 @@ private:
                 }
                 return;
             case SKind::Goto: jump(gotoLabel(s.label)); return;
-            case SKind::Label: place(gotoLabel(s.label)); return;
+            case SKind::Label:
+                place(gotoLabel(s.label));
+                if (resumeTarget_[static_cast<std::size_t>(s.label)]) f_->resumeLabels.emplace_back(s.label, gotoLabel(s.label));
+                return;
             case SKind::Read:
                 for (const auto& t : s.targets) {
                     const Type ty = var(t->var).type;
@@ -467,8 +524,22 @@ private:
             case SKind::Restore:
                 rtcallVoid("rt_data_restore", {constI(s.label < 0 ? 0 : p_.labels[static_cast<std::size_t>(s.label)].data)});
                 return;
-            case SKind::OnError:
-            case SKind::Resume: unsupported("ON ERROR");
+            case SKind::OnError: {
+                Reg a = reg(VT::Addr);
+                if (s.proc >= 0) {
+                    Instr& i = emit(Kind::RoutineAddr);
+                    i.dst = a;
+                    i.routine = s.proc;
+                } else {
+                    Instr& i = emit(Kind::ConstI);
+                    i.dst = a;
+                }
+                rtcallVoid("rt_on_error", {a});
+                return;
+            }
+            case SKind::Resume:
+                rtcallVoid("rt_resume", {constI(s.mode), constI(s.mode == 2 ? s.label : 0)});
+                return;
             case SKind::Cmd: return command(s);
         }
     }
@@ -524,6 +595,7 @@ private:
         exitLabels_.push_back(exit);
         block(s.body);
         exitLabels_.pop_back();
+        reenter();
         Reg now = load(v);
         if (now.type == VT::I32) now = rtcall("fp_from_i32", {now}, VT::F64);
         Reg next = rtcall("fp_add", {now, step}, VT::F64);
@@ -884,6 +956,8 @@ private:
         const std::string& n = e.sval;
         const std::size_t argc = e.args.size();
         if (n == "MIN" || n == "MAX") return minMax(e, n == "MAX");
+        if (n == "ERR") return rtcall("rt_err_get", {}, VT::I32);
+        if (n == "ERR$") return rtcall("rt_err_text", {toI(arg(e, 0))}, VT::Str);
         if (n == "VAL") return rtcall("rt_str_val", {arg(e, 0)}, VT::F64);
         if (n == "VAL?") return rtcall("rt_str_valq", {arg(e, 0)}, VT::I32);
         if (n == "DIM?") return rtcall("rt_arr_count", {addrOf(e.args[0]->var)}, VT::I32);

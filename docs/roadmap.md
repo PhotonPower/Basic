@@ -45,7 +45,8 @@ Wurzel, Vergleiche, Konvertierungen, Rundungsfunktionen, Zufall), ✔ Zahlenausg
 ✔ Bit- und Ganzzahlfunktionen; `arith` läuft im Emulator.
 ✔ `VAR`, Arrays, `SWAP`, `CLR`, `ERASE`; `procs` läuft im Emulator.
 ✔ `VAL`, `DATA`/`READ`; `dataread` läuft im Emulator.
-Weiter: `ON ERROR`, `PRINT USING` (auch für `STR$(x,y,z)`), `MID$=`, `LSET`/`RSET`,
+✔ `ON ERROR`, `RESUME`, `ERR`, `ERR$`; `errors` läuft im Emulator.
+Weiter: `PRINT USING` (auch für `STR$(x,y,z)`), `MID$=`, `LSET`/`RSET`,
 dann das Amiga-Ziel.
 
 - Quelltext-Linker (`src/link`) mit Map-Datei und Label-Prüfung.
@@ -87,3 +88,7 @@ dann das Amiga-Ziel.
    folgt einer anderen Regel als in [numerics.md](numerics.md#ungefähre-gleichheit-) angenommen
    (probe1 T41, probe2 T34–T39). Dazu kommen Eigenheiten, bei denen fraglich ist, ob wir sie
    nachbilden wollen: die ungenaue Konstante `PI` und das fehlerhafte `MKS$`.
+7. **Am Original prüfen:** `tests/programs/arrays.lst` und `errors2.lst` stammen vom Interpreter.
+   Fraglich sind vor allem `@p(x)` mit `PROCEDURE p(VAR x)` (Bindung an die eigene Variable), ein
+   Fehler in `DEFFN` (gehört er zur aufrufenden Anweisung?) und `RESUME Marke` aus einer tieferen
+   Prozedur (werden deren `LOCAL`-Variablen zurückgesetzt?). `strheap.lst` ist unkritisch.

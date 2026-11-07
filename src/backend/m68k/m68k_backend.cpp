@@ -1,5 +1,6 @@
 #include "m68k_backend.hpp"
 
+#include <algorithm>
 #include <set>
 
 namespace basic {
@@ -32,6 +33,7 @@ public:
         for (const lir::Function& f : p_.functions) function(f);
         out_.provides.push_back("main");
         if (uses_.count("rt_data_str") + uses_.count("rt_data_num") + uses_.count("rt_data_restore") != 0) dataTable();
+        if (p_.onError) errorTables();
         out_.uses.assign(uses_.begin(), uses_.end());
         return out_;
     }
@@ -96,6 +98,28 @@ private:
     }
 
     int local_ = 0;  // numbering of local labels of the backend itself
+    std::set<int> savedVars_;  // variables with a Save (ON ERROR: descriptors for the save log)
+
+    // ---- ON ERROR (docs/runtime.md): statement record in the frame, save log -------------------
+    std::string rec(int off = 0) const { return std::to_string(-8 * f_->regs - 24 + off) + "(A6)"; }
+    bool hasRecord() const { return p_.onError && !f_->deffn; }
+
+    // descriptors of the saved variables for undoing (rt_onerr) and the addresses of RESUME labels
+    void errorTables() {
+        for (int v : savedVars_) {
+            const bool str = varType(v) == hir::Type::Str;
+            out_.data += "vd" + std::to_string(v) + ":\n        DC.L    " + varLabel(v) + "," + (indirect(v) ? ptrLabel(v) : std::string("0")) + "," +
+                         (str ? "rt_str_free,rt_str_relink" : "0,0") + "\n";
+            if (str) {
+                uses_.insert("rt_str_free");
+                uses_.insert("rt_str_relink");
+            }
+        }
+        if (uses_.count("rt_resume") != 0) {
+            out_.bss += "prg_rlab:\n        DS.L    " + std::to_string(2 * std::max<std::size_t>(1, p_.hir->labels.size())) + "\n";
+            out_.provides.push_back("prg_rlab");
+        }
+    }
 
     // DATA items for rt_data: descriptors (address, length, quoted) and their characters
     void dataTable() {
@@ -170,7 +194,26 @@ private:
         f_ = &f;
         const std::string name = fname(f.routine);
         out_.code += "; ---- " + (f.routine < 0 ? std::string("main program") : f.name) + "\n" + name + ":\n";
-        line("LINK    A6,#" + std::to_string(-8 * f.regs));
+        line("LINK    A6,#" + std::to_string(-8 * f.regs - (p_.onError ? 24 : 0)));
+        if (hasRecord()) {  // own statement record; until the first statement a copy of the caller's
+            uses_.insert("rt_err_ctx");
+            const std::string l = ".E" + std::to_string(local_++);
+            line("MOVE.L  rt_err_ctx,A0");
+            line("MOVE.L  A0," + rec());
+            line("BEQ     " + l);
+            for (int off = 4; off <= 16; off += 4) line("MOVE.L  " + std::to_string(off) + "(A0)," + rec(off));
+            out_.code += l + ":\n";
+            line("LEA     " + name + ",A0");
+            line("MOVE.L  A0," + rec(20));
+            line("LEA     " + rec() + ",A0");
+            line("MOVE.L  A0,rt_err_ctx");
+        }
+        for (const auto& [hirLabel, lirLabel] : f.resumeLabels) {  // addresses for RESUME label
+            line("LEA     .L" + std::to_string(lirLabel) + ",A0");
+            line("MOVE.L  A0,prg_rlab+" + std::to_string(8 * hirLabel));
+            line("LEA     " + name + ",A0");
+            line("MOVE.L  A0,prg_rlab+" + std::to_string(8 * hirLabel + 4));
+        }
         for (std::size_t k = 0; k < f.params.size(); ++k) {  // incoming arguments: 8 bytes each from 8(A6)
             const Reg& r = f.params[k];
             line("MOVE.L  " + std::to_string(8 + 8 * k) + "(A6)," + slot(r));
@@ -223,12 +266,13 @@ private:
                 line("MOVE.L  " + slot(i.a) + ",A1");
                 storeValue(i.mem, "(A1)", "4(A1)", i.b);
                 return;
-            case Kind::Bind: {  // after Save: flag at (SP), saved pointer at 4(SP)
+            case Kind::Bind: {  // after Save: flag at (SP), saved pointer at 4(SP) (8 more with the log)
                 const std::string l = ".B" + std::to_string(local_++);
+                const int o = p_.onError ? 8 : 0;
                 line("MOVE.L  " + slot(i.a) + ",D0");
-                line("CMP.L   4(SP),D0");
+                line("CMP.L   " + std::to_string(4 + o) + "(SP),D0");
                 line("BNE     " + l);
-                line("MOVE.L  #1,(SP)");  // already this storage: keep its value at the end (no restore)
+                line("MOVE.L  #1," + (o ? std::to_string(o) : std::string()) + "(SP)");  // already this storage: keep its value at the end (no restore)
                 if (varType(i.var) == hir::Type::Str) {
                     uses_.insert("rt_str_relink");
                     line("MOVE.L  D0,A0");
@@ -301,6 +345,7 @@ private:
                 return;
             case Kind::Label: out_.code += ".L" + std::to_string(i.label) + ":\n"; return;
             case Kind::Return:
+                if (hasRecord()) line("MOVE.L  " + rec() + ",rt_err_ctx");
                 if (i.a.id >= 0) {
                     line("MOVE.L  " + slot(i.a) + ",D0");
                     if (i.a.type == VT::F64) line("MOVE.L  " + slot(i.a, 4) + ",D1");
@@ -323,6 +368,13 @@ private:
                     line("CLR.L   -(SP)");
                     line("MOVE.L  #" + v + "," + ptrLabel(i.var));
                 }
+                if (p_.onError) {  // save log entry: descriptor, next entry
+                    savedVars_.insert(i.var);
+                    uses_.insert("rt_err_log");
+                    line("MOVE.L  rt_err_log,-(SP)");
+                    line("PEA     vd" + std::to_string(i.var));
+                    line("MOVE.L  SP,rt_err_log");
+                }
                 return;
             }
             case Kind::Clear:
@@ -333,6 +385,10 @@ private:
                 const std::string v = varLabel(i.var);
                 const bool str = varType(i.var) == hir::Type::Str;
                 std::string done;
+                if (p_.onError) {
+                    line("ADDQ.L  #4,SP");
+                    line("MOVE.L  (SP)+,rt_err_log");
+                }
                 if (indirect(i.var)) {
                     const std::string keep = ".R" + std::to_string(local_++);
                     done = ".R" + std::to_string(local_++);
@@ -368,7 +424,21 @@ private:
                 line("JSR     rt_print_str");
                 return;
             }
-            case Kind::Line: line("; line " + std::to_string(i.imm)); return;
+            case Kind::Line:
+                line("; line " + std::to_string(i.imm));
+                if (i.label >= 0 && hasRecord()) {
+                    line("LEA     .L" + std::to_string(i.label) + ",A0");
+                    line("MOVE.L  A0," + rec(4));
+                    line("LEA     .L" + std::to_string(i.label2) + ",A0");
+                    line("MOVE.L  A0," + rec(8));
+                    line("MOVE.L  SP," + rec(12));
+                    line("MOVE.L  A6," + rec(16));
+                }
+                return;
+            case Kind::RoutineAddr:
+                line("LEA     " + fname(i.routine) + ",A0");
+                line("MOVE.L  A0," + slot(i.dst));
+                return;
         }
     }
 };

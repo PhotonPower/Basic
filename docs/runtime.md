@@ -133,6 +133,16 @@ und Parameter sichern Wert, Zeiger und ein Merkzeichen, das die Bindung an die e
 Array-Bereich: Anzahl der Dimensionen, Elementgröße (Float und String 8, Int 4, Word 2, Byte und
 Bool 1), Obergrenzen, Elemente. String-Elemente sind Deskriptoren nach D18.
 
+Fehlerbehandlung (nur in Programmen mit `ON ERROR`): Jede Routine außer `DEFFN` hat im Rahmen einen
+Satz „laufende Anweisung“ (24 Bytes: Satz des Aufrufers, Adresse der Anweisung, Adresse danach, SP,
+A6, Adresse der Routine); `rt_err_ctx` zeigt auf den aktuellen Satz. Jede Anweisung trägt sich zu
+Beginn ein, Schleifen vor Bedingung und Schritt erneut (die gehören zur Schleife). Jedes Sichern
+einer Variablen (`LOCAL`, Parameter) kommt zusätzlich in eine Kette auf dem Stapel (`rt_err_log`).
+`rt_error` ruft die Fehlerroutine auf; `RESUME`, `RESUME NEXT` und das Ende der Fehlerroutine holen
+alle Variablen zurück, die nach Beginn der Zielanweisung gesichert wurden, und setzen SP und A6 des
+Satzes. `RESUME Marke` sucht in der Kette der Aufrufer den Rahmen der Routine mit der Marke.
+Ohne Fehlerroutine endet das Programm über `plat_error` der Plattform.
+
 **Z80:** 16-Bit-Werte in HL (und DE als zweites Argument), 8-Bit-Werte in A, 32-Bit-Werte als
 Zeiger auf vier Bytes. Fließkomma-Routinen arbeiten auf Speicher: HL = Ziel, DE = erster Operand,
 BC = zweiter Operand (Zeiger auf je 8 Bytes, Ziel darf gleich einem Operanden sein). IX ist der

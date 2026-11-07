@@ -31,6 +31,7 @@ Für die Grundoperationen genügt es, das **exakte** Ergebnis und ein korrektes 
 | `rt_arr` | Arrays: `DIM` (bis 3 Dimensionen), Elementadresse mit Prüfung (Fehler 14–18), `DIM?`, `ERASE`, `OPTION BASE`, `SWAP` ganzer Arrays |
 | `rt_val`, `rt_strval` | `VAL`/`VAL?` korrekt gerundet (bis 800 Ziffern, Bignum-Länge nach Bedarf), Präfixe `&H $ &O &X %` |
 | `rt_data` | `DATA`/`READ`/`RESTORE` über die Tabelle `prg_data` des Programms (Fehler 34, 35) |
+| `rt_err`, `rt_onerr`, `rt_resume`, `rt_errtext` | Laufzeitfehler, `ON ERROR GOSUB`, `RESUME` (auch `NEXT`, Marke), `ERR`, `ERR$` |
 | `rt_bits` | `BTST`/`BCLR`/`BSET`/`BCHG`, `SHL`/`SHR`/`ROL`/`ROR` (8/16/32 Bit), `SWAP`, `WORD`, `CARD`, `BYTE` |
 | `rt_print`, `rt_int`, `rt_for`, `rt_power`, `rt_end` | Ausgabe, Ganzzahlhilfen, `FOR`, Potenz, Programmende |
 

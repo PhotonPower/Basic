@@ -26,6 +26,10 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
   (auch ganze Arrays), `SWAP`, `CLR`; `procs` läuft im Emulator. Neues Testprogramm `arrays`.
 - MC68000: `VAL`/`VAL?` bitgenau (Konformanztest mit exakten Mittelpunkten und über 800 Ziffern),
   `DATA`/`READ`/`RESTORE`; `dataread` läuft im Emulator.
+- MC68000: `ON ERROR GOSUB`, `RESUME` (wiederholen, `NEXT`, Marke), `ERR`, `ERR$`; Sätze der
+  laufenden Anweisung und eine Kette der gesicherten Variablen, nur in Programmen mit `ON ERROR`.
+  Die Plattform stellt jetzt `plat_error` statt `rt_error`. `errors` läuft im Emulator; neues
+  Testprogramm `errors2` für Grenzfälle.
 - Testprogramm `strheap` für den String-Heap; dabei behoben: `rt_str_set_ret` erwartete den
   Deskriptor in A1 statt A0, das Ergebnis von String-Funktionen ging verloren (Fehler 8).
 - MC68000, erster Teil: Quelltext-Linker `src/link` (Modulköpfe, Hülle über `requires`,

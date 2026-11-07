@@ -6,6 +6,7 @@
 
 #include <cstdint>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "hir.hpp"
@@ -39,11 +40,13 @@ enum class Kind : std::uint8_t {
     Clear,    // var = 0 (after Save: LOCAL)
     Restore,  // pop the value of var
     PrintStr, // print the string constant `text`
-    Line,     // BASIC source line (statement boundary)
+    Line,     // BASIC source line (statement boundary); with ON ERROR: label = start of the
+              // statement (RESUME), label2 = after it (RESUME NEXT)
     Addr,     // dst = address of the storage of var (scalar, or the slot of an array)
     LoadAt,   // dst = memory at address a, element type `mem` (widened like Load)
     StoreAt,  // memory at address a = b, element type `mem`
     Bind,     // var refers to the storage at address a (VAR parameter; right after its Save)
+    RoutineAddr,  // dst = address of routine (ON ERROR GOSUB)
 };
 
 struct Instr {
@@ -53,6 +56,7 @@ struct Instr {
     std::uint64_t fimm = 0;
     int var = -1;
     int label = -1;
+    int label2 = -1;
     int routine = -1;
     hir::Type mem = hir::Type::Int;  // LoadAt, StoreAt
     std::string op;      // Op, Cmp: "add", "eq", ...; RtCall: runtime symbol
@@ -70,12 +74,15 @@ struct Function {
     int labels = 0;
     bool returnsValue = false;
     VT result = VT::F64;
+    bool deffn = false;        // DEFFN: no statement record of its own (errors belong to the caller)
+    std::vector<std::pair<int, int>> resumeLabels;  // (HIR label, LIR label) targets of RESUME label
 };
 
 struct Program {
     std::vector<Function> functions;  // main first
     const hir::Program* hir = nullptr;
     std::vector<bool> indirect;  // per variable: accessed through a pointer (VAR parameters)
+    bool onError = false;        // the program uses ON ERROR: statement records, save log
 };
 
 std::string dump(const Program& p);

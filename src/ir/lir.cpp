@@ -51,10 +51,13 @@ std::string dump(const Program& p) {
                 case Kind::Clear: o += "  clear " + var(i.var) + "\n"; break;
                 case Kind::Restore: o += "  restore " + var(i.var) + "\n"; break;
                 case Kind::PrintStr: o += "  print \"" + i.text + "\"\n"; break;
-                case Kind::Line: o += "  stmt " + std::to_string(i.imm) + "\n"; break;
+                case Kind::Line:
+                    o += "  stmt " + std::to_string(i.imm) + (i.label >= 0 ? " (L" + std::to_string(i.label) + ", L" + std::to_string(i.label2) + ")" : std::string()) + "\n";
+                    break;
                 case Kind::Addr: o += "  " + reg(i.dst) + " = addr " + var(i.var) + "\n"; break;
                 case Kind::LoadAt: o += "  " + reg(i.dst) + " = ld." + hir::typeName(i.mem) + " [" + reg(i.a) + "]\n"; break;
                 case Kind::StoreAt: o += "  st." + std::string(hir::typeName(i.mem)) + " [" + reg(i.a) + "], " + reg(i.b) + "\n"; break;
+                case Kind::RoutineAddr: o += "  " + reg(i.dst) + " = addr " + p.hir->routines[static_cast<std::size_t>(i.routine)].name + "\n"; break;
                 case Kind::Bind: o += "  bind " + var(i.var) + ", " + reg(i.a) + "\n"; break;
             }
         }

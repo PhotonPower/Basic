@@ -1,0 +1,113 @@
+' test: groups core string print
+' Fehlerbehandlung, Grenzfaelle: LOCAL und VAR beim Ruecksprung, Fehler in Prozeduren, Schleifen,
+' DEFFN und in der Fehlerroutine selbst, RESUME aus einer tieferen Prozedur, READ nach Fehler 35
+ON ERROR GOSUB nxt
+x=5
+s$="aussen"
+@tief(3)
+PRINT "nach tief: x=";x;" s$=";s$
+' Fehler im Rumpf einer Schleife: weiter mit der naechsten Anweisung im Rumpf
+FOR i%=1 TO 3
+  ON ERROR GOSUB nxt
+  y=10/(i%-2)
+  PRINT "i%=";i%;" y=";y
+NEXT i%
+' Fehler in der Bedingung: die ganze Schleife wird uebersprungen
+k%=0
+ON ERROR GOSUB nxt
+WHILE 1/k%>0
+  PRINT "nie"
+WEND
+PRINT "nach WHILE"
+' RESUME wiederholt: die Fehlerroutine repariert den Divisor
+ON ERROR GOSUB rep
+d%=0
+z=100/d%
+PRINT "z=";z
+' Fehler in DEFFN: gehoert zur aufrufenden Anweisung, der Parameter ist danach wieder da
+DEFFN kehr(q)=1/q
+q=7
+ON ERROR GOSUB nxt
+w=FN kehr(0)
+PRINT "q=";q;" w=";w
+' Fehler in der Fehlerroutine mit neuem ON ERROR
+ON ERROR GOSUB doppelt
+v=SQR(-4)
+PRINT "nach doppelt"
+' RESUME Marke aus einer Prozedur, die die Fehlerroutine aufruft; LOCAL dort wird zurueckgesetzt
+t=1
+ON ERROR GOSUB weit
+@lokal
+PRINT "nicht erreicht"
+ziel:
+PRINT "ziel: t=";t
+' VAR-Bindung und Fehler
+r=2
+ON ERROR GOSUB nxt
+@ref(r)
+PRINT "r=";r
+' READ: nicht numerisch, RESUME NEXT, das Element bleibt das naechste
+ON ERROR GOSUB nxt
+READ n
+READ n$
+PRINT "n$=";n$
+ON ERROR GOSUB nxt
+a$=STRING$(-1,"x")
+PRINT "a$=[";a$;"] ";ERR;" ";ERR$(10)
+PRINT ERR$(200);"|";ERR$(-56);"|";ERR$(7);"|"
+END
+DATA abc,7
+PROCEDURE nxt
+  PRINT "Fehler ";ERR
+  RESUME NEXT
+RETURN
+PROCEDURE rep
+  PRINT "rep ";ERR
+  d%=4
+  RESUME
+RETURN
+PROCEDURE tief(n%)
+  LOCAL x,s$
+  x=n%
+  s$=STRING$(n%,"*")
+  IF n%>0
+    @tief(n%-1)
+  ELSE
+    ON ERROR GOSUB nxt
+    x=1/0
+    PRINT "tief 0: x=";x;" s$=";s$
+  ENDIF
+  PRINT "tief ";n%;": x=";x;" s$=";s$
+RETURN
+PROCEDURE doppelt
+  PRINT "doppelt ";ERR
+  ON ERROR GOSUB nxt
+  ERROR 30
+  PRINT "doppelt weiter"
+  RESUME NEXT
+RETURN
+PROCEDURE lokal
+  LOCAL t
+  t=99
+  ERROR 3
+  PRINT "nicht erreicht"
+RETURN
+PROCEDURE weit
+  LOCAL t
+  t=50
+  @springe
+RETURN
+PROCEDURE springe
+  LOCAL t
+  t=60
+  PRINT "springe ";ERR;" t=";t
+  RESUME ziel
+RETURN
+PROCEDURE ref(VAR p)
+  LOCAL u$
+  u$="lokal"
+  p=3
+  ERROR 4
+  PRINT "ref weiter: p=";p;" r=";r
+  p=p*3
+RETURN

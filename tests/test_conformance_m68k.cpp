@@ -55,11 +55,14 @@ public:
         Diagnostics d;
         // all runtime routines; the platform modules resolve plat_putc/plat_exit, the stub replaces
         // the platform's rt_error (records the error number and returns)
-        std::vector<link::Module> mods = link::loadModules(std::string(BASIC_SOURCE_DIR) + "/runtime/m68k", d);
+        // (error handling with ON ERROR is left out: the stub replaces rt_error; tested by programs)
+        std::vector<link::Module> mods;
+        for (link::Module& m : link::loadModules(std::string(BASIC_SOURCE_DIR) + "/runtime/m68k", d))
+            if (m.name != "rt_err" && m.name != "rt_onerr" && m.name != "rt_resume") mods.push_back(std::move(m));
         std::vector<std::string> all;
         for (const link::Module& m : mods) all.insert(all.end(), m.provides.begin(), m.provides.end());
         for (link::Module& m : link::loadModules(std::string(BASIC_SOURCE_DIR) + "/platform/m68k-test", d))
-            if (m.name != "rt_error" && m.name != "plat_start") mods.push_back(std::move(m));
+            if (m.name != "plat_error" && m.name != "plat_start") mods.push_back(std::move(m));
         std::vector<link::Module> stub = link::loadModules(std::string(BASIC_SOURCE_DIR) + "/tests/conformance/m68k", d);
         mods.insert(mods.end(), stub.begin(), stub.end());
         for (const link::Module& m : mods) link::checkLabels(m, d);
