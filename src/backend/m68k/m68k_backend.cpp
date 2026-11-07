@@ -104,7 +104,7 @@ private:
     std::set<int> savedVars_;  // variables with a Save (ON ERROR: descriptors for the save log)
 
     // ---- ON ERROR (docs/runtime.md): statement record in the frame, save log -------------------
-    std::string rec(int off = 0) const { return std::to_string(-8 * f_->regs - 24 + off) + "(A6)"; }
+    std::string rec(int off = 0) const { return std::to_string(-8 * slots_ - 24 + off) + "(A6)"; }
     bool hasRecord() const { return p_.onError && !f_->deffn; }
 
     // descriptors of the saved variables for undoing (rt_onerr) and the addresses of RESUME labels
@@ -155,7 +155,93 @@ private:
     }
 
     // slot of a virtual register in the frame
-    static std::string slot(const Reg& r, int offset = 0) { return std::to_string(-8 * (r.id + 1) + offset) + "(A6)"; }
+    // frame slot of a virtual register (shared by registers whose lifetimes do not overlap)
+    std::string slot(const Reg& r, int offset = 0) const {
+        return std::to_string(-8 * (slotOf_[static_cast<std::size_t>(r.id)] + 1) + offset) + "(A6)";
+    }
+
+    std::vector<int> slotOf_;  // virtual register -> slot
+    int slots_ = 0;
+
+    // Lifetimes in code order: from the first to the last appearance of a register. A register that
+    // lives into a loop (a backward jump to a label inside its lifetime, or used before and after
+    // it) lives to the end of the loop. Then a linear scan gives each register a free slot.
+    void assignSlots(const lir::Function& f) {
+        const std::size_t n = static_cast<std::size_t>(f.regs);
+        std::vector<long> first(n, 0), last(n, 0);
+        std::vector<bool> seen(n, false);
+        auto touch = [&](const Reg& r, long pos) {
+            if (r.id < 0) return;
+            const auto k = static_cast<std::size_t>(r.id);
+            if (!seen[k] || pos < first[k]) first[k] = pos;
+            if (!seen[k] || pos > last[k]) last[k] = pos;
+            seen[k] = true;
+        };
+        for (const Reg& r : f.params) touch(r, -1);
+        std::vector<long> labelPos(static_cast<std::size_t>(f.labels), -1);
+        for (std::size_t i = 0; i < f.code.size(); ++i) {
+            const Instr& in = f.code[i];
+            const long pos = static_cast<long>(i);
+            touch(in.dst, pos);
+            touch(in.a, pos);
+            touch(in.b, pos);
+            for (const Reg& r : in.args) touch(r, pos);
+            if (in.kind == Kind::Label) labelPos[static_cast<std::size_t>(in.label)] = pos;
+        }
+        // backward jumps (loops, GOTO); with ON ERROR also the jumps of the runtime: RESUME repeats a
+        // statement (or a header line), RESUME label may come from anywhere after the label
+        std::vector<std::pair<long, long>> loops;
+        const long end = static_cast<long>(f.code.size());
+        for (std::size_t i = 0; i < f.code.size(); ++i) {
+            const Instr& in = f.code[i];
+            if ((in.kind == Kind::Jump || in.kind == Kind::BranchZ || in.kind == Kind::BranchNZ) && in.label >= 0) {
+                const long target = labelPos[static_cast<std::size_t>(in.label)];
+                if (target >= 0 && target <= static_cast<long>(i)) loops.emplace_back(target, static_cast<long>(i));
+            }
+            if (in.kind == Kind::Line && in.label >= 0 && in.label2 >= 0) {
+                const long from = labelPos[static_cast<std::size_t>(in.label)];
+                const long to = labelPos[static_cast<std::size_t>(in.label2)];
+                if (from >= 0) loops.emplace_back(from, to >= from ? to : end);
+            }
+        }
+        for (const auto& rl : f.resumeLabels) {
+            const long target = labelPos[static_cast<std::size_t>(rl.second)];
+            if (target >= 0) loops.emplace_back(target, end);
+        }
+        for (bool grown = true; grown;) {
+            grown = false;
+            for (const auto& [from, to] : loops)
+                for (std::size_t k = 0; k < n; ++k) {
+                    if (!seen[k] || last[k] < from || first[k] > to) continue;  // no overlap
+                    if (first[k] >= from && last[k] <= to) continue;               // inside one pass
+                    if (first[k] > from) first[k] = from, grown = true;
+                    if (last[k] < to) last[k] = to, grown = true;
+                }
+        }
+        // linear scan
+        std::vector<std::size_t> order;
+        for (std::size_t k = 0; k < n; ++k)
+            if (seen[k]) order.push_back(k);
+        std::sort(order.begin(), order.end(), [&](std::size_t a, std::size_t b) { return first[a] < first[b]; });
+        slotOf_.assign(n, 0);
+        slots_ = 0;
+        std::vector<long> slotEnd;  // last position that uses the slot
+        for (std::size_t k : order) {
+            int chosen = -1;
+            for (std::size_t sl = 0; sl < slotEnd.size(); ++sl)
+                if (slotEnd[sl] < first[k]) {
+                    chosen = static_cast<int>(sl);
+                    break;
+                }
+            if (chosen < 0) {
+                chosen = static_cast<int>(slotEnd.size());
+                slotEnd.push_back(0);
+            }
+            slotEnd[static_cast<std::size_t>(chosen)] = last[k];
+            slotOf_[k] = chosen;
+        }
+        slots_ = static_cast<int>(slotEnd.size());
+    }
 
     void addrTo(int v, const std::string& areg) {
         if (indirect(v)) line("MOVE.L  " + ptrLabel(v) + "," + areg);
@@ -197,7 +283,8 @@ private:
         f_ = &f;
         const std::string name = fname(f.routine);
         out_.code += "; ---- " + (f.routine < 0 ? std::string("main program") : f.name) + "\n" + name + ":\n";
-        line("LINK    A6,#" + std::to_string(-8 * f.regs - (p_.onError ? 24 : 0)));
+        assignSlots(f);
+        line("LINK    A6,#" + std::to_string(-8 * slots_ - (p_.onError ? 24 : 0)));
         if (hasRecord()) {  // own statement record; until the first statement a copy of the caller's
             uses_.insert("rt_err_ctx");
             const std::string l = ".E" + std::to_string(local_++);

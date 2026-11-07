@@ -1,8 +1,9 @@
 #pragma once
 
 // MC68000 backend: LIR -> Motorola assembler source for the assembler of PhotonPower/MC68000.
-// First version: every virtual register lives in an 8-byte slot of the stack frame (LINK A6);
-// operations go through D0-D3. Register allocation is a later optimisation.
+// Every virtual register lives in an 8-byte slot of the stack frame (LINK A6); registers whose
+// lifetimes do not overlap share a slot. Operations go through D0-D3. Keeping values in the
+// processor's registers is a later optimisation.
 
 #include <string>
 #include <vector>
