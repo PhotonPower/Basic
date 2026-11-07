@@ -52,8 +52,15 @@ int main() {
         opt.input = &input;
         opt.maxSteps = 10'000'000;
         const RunResult r = interpret(h, opt);
-        if (!r.ok) std::cerr << name << ":" << r.line << ": " << r.message << "\n";
-        CHECK(r.ok);
+        const fs::path errPath = fs::path(entry.path()).replace_extension(".err");  // expected unhandled error
+        if (fs::exists(errPath)) {
+            const int code = std::stoi(read(errPath));
+            if (r.ok || r.error != code) std::cerr << name << ": expected the end with runtime error " << code << ", got " << (r.ok ? "none" : r.message) << "\n";
+            CHECK(!r.ok && r.error == code);
+        } else {
+            if (!r.ok) std::cerr << name << ":" << r.line << ": " << r.message << "\n";
+            CHECK(r.ok);
+        }
         const std::string expected = read(expectedPath);
         if (r.output != expected) {
             ++g_failures;

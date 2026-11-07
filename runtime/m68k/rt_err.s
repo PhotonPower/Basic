@@ -6,8 +6,8 @@
 ;! doc       Runtime errors: without ON ERROR GOSUB to the platform (plat_error), else to the error routine.
 
 ; D0 = error number. With an error routine (rt_err_handler, set by rt_on_error): ERR = D0, the
-; routine is called (it has to set ON ERROR GOSUB again); if it returns without RESUME, the program
-; goes on after the failing statement (rt_err_fin, see rt_onerr).
+; routine is called (it has to set ON ERROR GOSUB again); if it returns without RESUME, the error
+; counts as unhandled and the program ends with it (plat_error; probe12 T2).
 ;
 ; Every routine of a program with ON ERROR has a record of its running statement (24 bytes in its
 ; frame): +0 record of the caller, +4 address to repeat the statement, +8 address after it,
@@ -33,9 +33,8 @@ rt_error:
         MOVE.L  rt_err_handler,A0
         CLR.L   rt_err_handler
         JSR     (A0)
-        MOVEQ   #1,D1                   ; ended without RESUME: after the statement
-        MOVE.L  rt_err_fin,A0
-        JMP     (A0)
+        MOVE.L  rt_err_code,D0          ; ended without RESUME: unhandled, the program ends
+        JMP     plat_error
 
 ; -> D0 = ERR (the error number as a signed byte, probe9 T6)
 rt_err_get:

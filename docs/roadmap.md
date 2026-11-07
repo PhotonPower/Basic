@@ -109,6 +109,6 @@ Weiter: `ABSOLUTE` mit dem vollen Speicherabbild nach D6; weitere Optimierungen 
    (probe1 T41, probe2 T34–T39). Dazu kommen Eigenheiten, bei denen fraglich ist, ob wir sie
    nachbilden wollen: die ungenaue Konstante `PI` und das fehlerhafte `MKS$`.
 7. **Am Original prüfen:** ~~`arrays.lst`~~ ist gleich (auch die `VAR`-Grenzfälle), ~~`resume.lst`~~
-   ebenso. ~~`errors2.lst`~~ ebenso, seit `RESUME` `ERR` löscht (probe12 T1). Offen: probe12 ab T2
-   (Fehlerroutine ohne `RESUME`), das Programm blieb nach T1 stehen. Fehler in `DEFFN` und verschachtelte Fehler
+   ebenso. ~~`errors2.lst`~~ ebenso, seit `RESUME` `ERR` löscht (probe12 T1). ~~probe12 ab T2~~ geklärt:
+   Eine Fehlerroutine, die ohne `RESUME` endet, lässt den Fehler unbehandelt (Meldung, Programmende). Fehler in `DEFFN` und verschachtelte Fehler
    siehe [D19](decisions.md#d19). `strheap.lst` ist unkritisch.

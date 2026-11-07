@@ -25,6 +25,12 @@ struct Error {
     int code;
 };
 
+// An error whose ON ERROR routine ended without RESUME: it counts as unhandled, the program ends
+// with its message (probe12 T2). A separate type, so that no statement passes it to a routine again.
+struct Unhandled {
+    int code;
+};
+
 // Raises the error recorded by runtime/ref (rt_error), if any.
 void check();
 

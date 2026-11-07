@@ -40,6 +40,10 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 - `RESUME` setzt `ERR` auf 0 (probe12 T1); damit ist `errors2` am Original gleich.
 - `gfa_run.py`: Startmenü der Diskette nach einem Kaltstart (`boot` in `keys.json`), längere
   Wartezeiten für den Merge-Dialog und das Einlesen.
+- Behoben (probe12 T2 am Original): Eine Fehlerroutine, die ohne `RESUME` endet, setzte das Programm
+  nach der Anweisung fort; jetzt endet es mit der Fehlermeldung, in allen Ausführungen. Die
+  Testtreiber kennen dafür `<name>.err` (erwarteter Fehler am Ende); Testprogramm `errret`.
+- probe15 am Original: `INPUT`-Verhalten aus D20 bestätigt.
 - Textausgabe nach probe20/probe21 (D24): `POS`, `CRSCOL`, `CRSLIN`, `PRINT AT`, `LOCATE`, `HTAB`, `VTAB`,
   `CLS` (ANSI-Folgen), `TIMER` (Amiga über `DateStamp`, unter Kickstart 1.2 geprüft), `RINSTR` in allen
   Ausführungen. Behoben: Das Komma in `PRINT` zählt seine Zonen ab dem Anfang der Anweisung, nicht ab

@@ -55,7 +55,10 @@ int main() {
         if (entry.path().extension() != ".lst") continue;
         if (const char* only = std::getenv("BASIC_M68K_PROGRAM"); only && entry.path().filename() != only) continue;
         const std::string name = entry.path().stem().string();
-        const std::string expected = read(fs::path(entry.path()).replace_extension(".out"));
+        std::string expected = read(fs::path(entry.path()).replace_extension(".out"));
+        // a program that ends with an unhandled error: plat_error prints "\nruntime error <n>\n"
+        if (const fs::path e = fs::path(entry.path()).replace_extension(".err"); fs::exists(e))
+            expected += "\nruntime error " + std::to_string(std::stoi(read(e))) + "\n";
         for (const M68kTarget target : {M68kTarget::Test, M68kTarget::Amiga}) {
             const bool amiga = target == M68kTarget::Amiga;
             const std::string label = name + (amiga ? " (amiga)" : " (m68k-test)");

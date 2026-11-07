@@ -178,6 +178,9 @@ Diese Punkte sind aus dem Handbuch nicht sicher zu entnehmen und werden am Origi
   `OUT #n,b,...` lesen/schreiben Bytes. `NAME a$ AS b$` auf ein vorhandenes Ziel: −53 „object
   already exists“ (203). `ERR$(50)` ist im Original verstümmelt („file isn4fields greater than
   record“); wir liefern „fields greater than record“.
+- **Fehlerroutine ohne `RESUME`** (probe12 T2): Endet die Routine von `ON ERROR GOSUB` mit `RETURN`
+  ohne `RESUME`, gilt der Fehler als nicht abgefangen; das Original zeigt die Meldung und hält an. Wir
+  beenden das Programm mit der Fehlermeldung. `RESUME` löscht `ERR` (probe12 T1, T3, T4).
 - **Textausgabe** (`POS`, `CRSCOL`, `CRSLIN`, `PRINT AT`, `LOCATE`, `HTAB`, `VTAB`, `CLS`, Komma-Zonen,
   `TIMER`, `RINSTR`): am Original (probe20, probe21), siehe [D24](decisions.md#d24). `LPOS` und
   `LPRINT` (Drucker) werden abgelehnt.

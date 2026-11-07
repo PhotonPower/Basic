@@ -1,0 +1,11 @@
+' test: groups core print errors
+' Eine Fehlerroutine, die ohne RESUME endet: Der Fehler gilt als nicht abgefangen, das Programm
+' endet mit seiner Meldung (probe12 T2: "no negative squareroot", das Original haelt an).
+ON ERROR GOSUB h
+PRINT "a"
+x=SQR(-1)
+PRINT "b"
+END
+PROCEDURE h
+  PRINT "in h ";ERR
+RETURN

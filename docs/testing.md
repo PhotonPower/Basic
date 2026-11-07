@@ -47,7 +47,10 @@ Jedes Programm unter `tests/programs/` wird übersetzt und ausgeführt auf:
 
 Alle Ausgaben müssen Byte für Byte gleich sein und gleich der Datei `.out`. Programme, die eine
 Gruppe benutzen, die ein Ziel nicht hat, werden dort übersprungen (die Gruppen stehen in einer
-Kopfzeile des Testprogramms). Zufallszahlen laufen mit festem Startwert.
+Kopfzeile des Testprogramms). Zufallszahlen laufen mit festem Startwert. Eine Datei `<name>.in` liefert die
+Tastatureingabe. Endet ein Programm absichtlich mit einem nicht abgefangenen Fehler, steht dessen
+Nummer in `<name>.err`: Die Ausgabe muss dann `.out` sein, und das Programm muss mit genau diesem
+Fehler enden (auf den 68000-Zielen folgt in der Konsole `runtime error <n>`).
 
 Erwartete Ausgaben, die das Verhalten des Originals festhalten, werden am echten GFA-BASIC 3.5 (im
 Amiga-Emulator FS-UAE, [gfa-original.md](gfa-original.md)) erzeugt und mit dem Vermerk `; source: GFA-BASIC 3.5` gekennzeichnet; so sind sie von

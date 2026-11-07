@@ -358,7 +358,7 @@ inline int handle(const Error& e) {
         throw;
     }
     --rt.handlerDepth;
-    return 1;  // routine ended without RESUME: continue after the statement
+    throw Unhandled{e.code};  // the routine ended without RESUME: unhandled (probe12 T2)
 }
 
 // Condition of a header line (WHILE, IF, ELSE IF, DO WHILE/UNTIL) in a program with ON ERROR:
@@ -407,6 +407,8 @@ inline int run(const char* name, void (*program)(), const std::pair<const char*,
         std::snprintf(buf, sizeof buf, "runtime error: memory access outside the BASIC data at $%08X", m.address);
         message = buf;
     } catch (const Error& e) {
+        message = "runtime error " + std::to_string(e.code) + ": " + errorText(e.code);
+    } catch (const Unhandled& e) {
         message = "runtime error " + std::to_string(e.code) + ": " + errorText(e.code);
     } catch (const Fatal& f) {
         message = "runtime error: " + f.message;

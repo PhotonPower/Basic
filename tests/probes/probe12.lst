@@ -14,13 +14,6 @@ CLOSE #1
 OPEN "A",#1,datei$
 PRINT #1,"T1 RESUME NEXT: in der Routine ";e%;", danach ";f%;", nach OPEN ";ERR
 '
-ON ERROR GOSUB ohne
-y=SQR(-1)
-f%=ERR
-CLOSE #1
-OPEN "A",#1,datei$
-PRINT #1,"T2 ohne RESUME: in der Routine ";e%;", danach ";f%;", nach OPEN ";ERR
-'
 ON ERROR GOSUB still
 ERROR 7
 g%=1
@@ -37,6 +30,18 @@ CLOSE #1
 OPEN "A",#1,datei$
 PRINT #1,"T4 RESUME: in der Routine ";e%;", danach ";f%;" z=";z
 '
+' T2 zuletzt: haelt das Original hier an, zeigt das Bildschirmfoto die Meldung
+CLOSE #1
+OPEN "A",#1,datei$
+PRINT #1,"> T2"
+CLOSE #1
+OPEN "A",#1,datei$
+ON ERROR GOSUB ohne
+y=SQR(-1)
+f%=ERR
+CLOSE #1
+OPEN "A",#1,datei$
+PRINT #1,"T2 ohne RESUME: in der Routine ";e%;", danach ";f%;", nach OPEN ";ERR
 PRINT #1,"ende"
 CLOSE #1
 END

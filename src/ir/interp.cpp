@@ -119,6 +119,11 @@ public:
             r.error = e.code;
             r.line = line_;
             r.message = errorText(e.code);
+        } catch (const brt::Unhandled& e) {
+            r.ok = false;
+            r.error = e.code;
+            r.line = line_;
+            r.message = errorText(e.code);
         } catch (const brt::MemoryFault& m) {
             r.ok = false;
             r.line = line_;
@@ -677,7 +682,9 @@ private:
             throw;
         }
         --handlerDepth_;
-        return 1;  // routine ended without RESUME: continue after the statement
+        // the routine ended without RESUME: the error counts as unhandled, the program ends with
+        // its message (probe12 T2)
+        throw brt::Unhandled{code};
     }
 
     void step(const hir::Stmt& s) {
