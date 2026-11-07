@@ -1,18 +1,23 @@
 ;! module    rt_file
-;! provides  rt_file_open rt_file_close rt_file_close_all rt_file_select rt_file_deselect rt_file_line rt_file_item rt_file_num rt_file_chars rt_file_eof rt_file_lof rt_file_exist rt_file_kill rt_write_str
-;! requires  rt_error rt_err_hook plat_exit_hook rt_print_out rt_print_col rt_print_str rt_print_sdesc rt_str_newtemp rt_val plat_alloc plat_fopen plat_fread plat_fwrite plat_fclose plat_fsize plat_fdelete plat_fexists
+;! provides  rt_file_open rt_file_close rt_file_close_all rt_file_select rt_file_deselect rt_file_line rt_file_item rt_file_num rt_file_chars rt_file_eof rt_file_lof rt_file_exist rt_file_kill rt_write_str rt_file_name rt_file_field_begin rt_file_field_add rt_file_field_end rt_file_get rt_file_put rt_file_record rt_file_seek rt_file_relseek rt_file_loc rt_file_inp rt_file_out
+;! requires  rt_error rt_err_hook plat_exit_hook rt_print_out rt_print_col rt_print_str rt_print_sdesc rt_str_newtemp rt_str_assign rt_val plat_alloc plat_fopen plat_fread plat_fwrite plat_fclose plat_fsize plat_fdelete plat_fexists plat_fseek plat_ftell plat_frename
 ;! group     file-seq
 ;! clobbers  D0-D3/A0-A1
-;! doc       Sequential files (probe14): channels 0-99, buffered, PRINT # through the output vector of rt_print.
+;! doc       Files (probe14, probe16): channels 0-99, buffered, PRINT # through the output vector of rt_print; random access.
 
 ; Channels are numbers (D0) after the conversion to an integer; strings are descriptors (A0, A1).
-; Channel record (16 bytes): +0 handle of the platform (0: closed), +4 buffer (512 bytes), +8 flags
-; (bit 0: input), +10 column (PRINT #), +12 read position, +14 bytes in the buffer.
+; Channel record (32 bytes): +0 handle of the platform (0: closed), +4 buffer (512 bytes), +8 flags
+; (bit 0 readable, bit 1 writable, bit 2 the buffer holds bytes to write), +10 column (PRINT #),
+; +12 read position in the buffer, +14 bytes in the buffer, +16 record length (mode R, else 0),
+; +20 next record (0-based), +24 field table (32 entries: descriptor, length), +28 number of fields.
+; The buffer holds either bytes read ahead or bytes still to write; changing the direction writes
+; them or goes back to the logical position (modes U, R).
 ; The platform (plat_f*) opens, reads, writes, closes, deletes; errors are AmigaDOS codes
 ; (205 object not found, 202 object in use; ERR shows them as -51, -54).
 
 rt_file__BUF  EQU 512
 rt_file__BUFS EQU 16                    ; open files at the same time
+rt_file__FLDS EQU 32                    ; FIELD entries per channel
 rt_file__MAXS EQU 32767                 ; longest string read
 
 ; ---- channels ---------------------------------------------------------------------------------------
@@ -21,7 +26,7 @@ rt_file__MAXS EQU 32767                 ; longest string read
 rt_file__chan:
         CMP.L   #99,D0
         BHI     .bad
-        LSL.L   #4,D0
+        LSL.L   #5,D0
         LEA     rt_file__ch,A2
         ADD.L   D0,A2
         ANDI    #$FE,CCR
@@ -47,15 +52,53 @@ rt_file__in:
         BSR     rt_file__open
         BCS     .out
         BTST    #0,9(A2)
-        BNE     .out
-        MOVEQ   #24,D0
+        BEQ     .no
+        BSR     rt_file__toread
+        ANDI    #$FE,CCR
+.out:   RTS
+.no:    MOVEQ   #24,D0
         JSR     rt_error
         ORI     #$01,CCR
+        RTS
+
+; A2 = record: bytes still to write go out first (before reading or positioning)
+rt_file__toread:
+        BTST    #2,9(A2)
+        BEQ     .out
+        BRA     rt_file__flush
 .out:   RTS
 
-; A0 = mode descriptor, D0 = channel, A1 = name descriptor: OPEN
+; A2 = record: before writing, bytes read ahead are given back (back to the logical position)
+rt_file__towrite:
+        BTST    #2,9(A2)
+        BNE     .out
+        MOVEQ   #0,D1
+        MOVE.W  14(A2),D1
+        SUB.W   12(A2),D1               ; unread bytes in the buffer
+        CLR.L   12(A2)                  ; position and count 0
+        TST.L   D1
+        BEQ     .out
+        MOVE.L  D1,-(SP)
+        MOVE.L  (A2),D0
+        JSR     plat_ftell
+        SUB.L   (SP)+,D0
+        MOVE.L  D0,D1
+        MOVE.L  (A2),D0
+        JSR     plat_fseek
+.out:   RTS
+
+; A2 = record: buffer empty, the platform at the logical position (keeps D2-D3)
+rt_file__drop:
+        MOVEM.L D2-D3,-(SP)
+        BSR     rt_file__toread
+        BSR     rt_file__towrite
+        MOVEM.L (SP)+,D2-D3
+        RTS
+
+; A0 = mode descriptor, D0 = channel, A1 = name descriptor, D1 = record length (mode R; <= 0: 128)
 rt_file_open:
-        MOVEM.L D2-D4/A2-A4,-(SP)
+        MOVEM.L D2-D5/A2-A4,-(SP)
+        MOVE.L  D1,D5
         MOVE.L  A0,A3
         MOVE.L  A1,A4
         BSR     rt_file__chan
@@ -75,7 +118,18 @@ rt_file_open:
         MOVEQ   #2,D4
         CMP.B   #'A',D3
         BEQ     .m
-.badm:  MOVEQ   #21,D0                  ; open allows i o r a u (r and u: not yet)
+        MOVEQ   #3,D4                   ; U, R: read and write, a missing file is created (probe16)
+        CMP.B   #'U',D3
+        BEQ     .u
+        CMP.B   #'R',D3
+        BNE     .badm
+        TST.L   D5
+        BGT     .m
+        MOVE.L  #128,D5                 ; R without a length: 128 (probe16 T8)
+        BRA     .m
+.u:     MOVEQ   #0,D5
+        BRA     .m
+.badm:  MOVEQ   #21,D0                  ; open allows i o r a u
         JSR     rt_error
         BRA     .out
 .m:     TST.L   (A2)
@@ -114,12 +168,28 @@ rt_file_open:
 .ok:    MOVE.L  D0,(A2)
         CLR.L   8(A2)                   ; flags, column
         CLR.L   12(A2)                  ; position, count
+        CLR.L   20(A2)                  ; next record
+        CLR.W   28(A2)                  ; no fields
+        CMP.L   #3,D4
+        BEQ     .rw
+        MOVEQ   #0,D5                   ; record length only for R
         TST.L   D4
-        BNE     .hooks
-        BSET    #0,9(A2)
+        BNE     .wr
+        BSET    #0,9(A2)                ; I: readable
+        BRA     .rl
+.wr:    BSET    #1,9(A2)                ; O, A: writable
+        BRA     .rl
+.rw:    BSET    #0,9(A2)                ; U, R: both
+        BSET    #1,9(A2)
+.rl:    MOVE.L  D5,16(A2)
+        MOVE.L  4(A2),D0                ; field table of the buffer slot
+        SUB.L   #rt_file__bufs,D0
+        LSR.L   #1,D0                   ; slot * 256 = (buffer offset / 512) * 256
+        ADD.L   #rt_file__fields,D0
+        MOVE.L  D0,24(A2)
 .hooks: MOVE.L  #rt_file_close_all,plat_exit_hook
         MOVE.L  #rt_file_deselect,rt_err_hook
-.out:   MOVEM.L (SP)+,D2-D4/A2-A4
+.out:   MOVEM.L (SP)+,D2-D5/A2-A4
         RTS
 
 ; A2 = record: its buffer is free again
@@ -134,10 +204,11 @@ rt_file__freebuf:
 
 ; A2 = output record: write the buffer
 rt_file__flush:
+        BCLR    #2,9(A2)
         MOVEQ   #0,D1
         MOVE.W  14(A2),D1
         BEQ     .out
-        CLR.W   14(A2)
+        CLR.L   12(A2)
         MOVE.L  D1,-(SP)
         MOVE.L  (A2),D0
         MOVE.L  4(A2),A0
@@ -158,10 +229,8 @@ rt_file_close:
         CMP.L   rt_file__cur,A2         ; still the output of a PRINT #?
         BNE     .ns
         BSR     rt_file_deselect
-.ns:    BTST    #0,9(A2)
-        BNE     .in
-        BSR     rt_file__flush
-.in:    MOVE.L  (A2),D0
+.ns:    BSR     rt_file__toread         ; bytes still to write
+        MOVE.L  (A2),D0
         JSR     plat_fclose
         BSR     rt_file__freebuf
         CLR.L   (A2)
@@ -187,12 +256,13 @@ rt_file_select:
         MOVE.L  A2,-(SP)
         BSR     rt_file__open
         BCS     .out
-        BTST    #0,9(A2)
-        BEQ     .ok
+        BTST    #1,9(A2)
+        BNE     .ok
         MOVEQ   #24,D0                  ; an input file: file not open (for output)
         JSR     rt_error
         BRA     .out
 .ok:    BSR     rt_file_deselect        ; (an interrupted PRINT # before)
+        BSR     rt_file__towrite
         MOVE.L  rt_print_out,rt_file__saveout
         MOVE.W  rt_print_col,rt_file__savecol
         MOVE.L  A2,rt_file__cur
@@ -219,6 +289,7 @@ rt_file_deselect:
 rt_file__putc:
         MOVEM.L D0-D3/A0-A2,-(SP)
         MOVE.L  rt_file__cur,A2
+        BSET    #2,9(A2)
         MOVE.L  4(A2),A0
         MOVE.W  14(A2),D1
         MOVE.B  D0,0(A0,D1.W)
@@ -474,6 +545,7 @@ rt_file_eof:
         BCS     .no
         BTST    #0,9(A2)
         BEQ     .yes
+        BSR     rt_file__toread
         BSR     rt_file__peek
         TST.L   D0
         BMI     .yes
@@ -488,10 +560,8 @@ rt_file_lof:
         MOVE.L  A2,-(SP)
         BSR     rt_file__open
         BCS     .zero
-        BTST    #0,9(A2)
-        BNE     .size
-        BSR     rt_file__flush
-.size:  MOVE.L  (A2),D0
+        BSR     rt_file__toread
+        MOVE.L  (A2),D0
         JSR     plat_fsize
         BRA     .out
 .zero:  MOVEQ   #0,D0
@@ -516,6 +586,378 @@ rt_file_kill:
         JSR     rt_error
 .out:   RTS
 
+; A0 = old name, A1 = new name (descriptors): NAME old$ AS new$
+rt_file_name:
+        MOVEQ   #0,D0
+        MOVE.W  4(A0),D0
+        MOVE.L  (A0),A0
+        MOVEQ   #0,D1
+        MOVE.W  4(A1),D1
+        MOVE.L  (A1),A1
+        JSR     plat_frename
+        TST.L   D0
+        BEQ     .out
+        JSR     rt_error
+.out:   RTS
+
+; ---- random access (probe16) -------------------------------------------------------------------------
+
+; D0 = channel: FIELD starts (the following rt_file_field_add calls bind the strings)
+rt_file_field_begin:
+        MOVE.L  A2,-(SP)
+        CLR.L   rt_file__fch
+        BSR     rt_file__open
+        BCS     .out
+        MOVE.L  A2,rt_file__fch
+        CLR.W   28(A2)
+.out:   MOVE.L  (SP)+,A2
+        RTS
+
+; A0 = descriptor of the string variable, D0 = field length
+rt_file_field_add:
+        MOVE.L  rt_file__fch,D1
+        BEQ     .out
+        MOVE.L  A2,-(SP)
+        MOVE.L  D1,A2
+        MOVEQ   #0,D1
+        MOVE.W  28(A2),D1
+        CMP.L   #rt_file__FLDS,D1
+        BCC     .full
+        ADDQ.W  #1,28(A2)
+        LSL.L   #3,D1
+        MOVE.L  24(A2),A1
+        ADD.L   D1,A1
+        MOVE.L  A0,(A1)+
+        MOVE.L  D0,(A1)
+.full:  MOVE.L  (SP)+,A2
+.out:   RTS
+
+; end of FIELD: the sum must fit the record (else error 50); the strings become spaces
+rt_file_field_end:
+        MOVEM.L D3-D4/A2-A4,-(SP)
+        MOVE.L  rt_file__fch,D0
+        BEQ     .out
+        MOVE.L  D0,A2
+        MOVE.L  24(A2),A3               ; A3 = field table, D3 = count, D4 = sum
+        MOVEQ   #0,D3
+        MOVE.W  28(A2),D3
+        MOVEQ   #0,D4
+        MOVE.L  A3,A0
+        MOVE.L  D3,D1
+        BRA     .sn
+.s:     ADD.L   4(A0),D4
+        ADDQ.L  #8,A0
+.sn:    SUBQ.L  #1,D1
+        BPL     .s
+        CMP.L   16(A2),D4
+        BLE     .fit
+        CLR.W   28(A2)
+        MOVEQ   #50,D0                  ; fields greater than record
+        JSR     rt_error
+        BRA     .out
+.fit:   MOVE.L  D3,D4                   ; D4 = count (kept by the string routines)
+        BRA     .vn
+.v:     MOVE.L  4(A3),D0                ; spaces of the field length
+        BSR     rt_file__spaces
+        MOVE.L  A0,A1
+        MOVE.L  (A3),A0
+        JSR     rt_str_assign
+        ADDQ.L  #8,A3
+.vn:    SUBQ.L  #1,D4
+        BPL     .v
+.out:   MOVEM.L (SP)+,D3-D4/A2-A4
+        RTS
+
+; D0 = count -> A0 = temporary string of D0 spaces
+rt_file__spaces:
+        MOVE.L  D0,-(SP)
+        JSR     rt_str_newtemp
+        MOVE.L  (SP)+,D0
+        BRA     .n
+.c:     MOVE.B  #' ',(A0)+
+.n:     SUBQ.L  #1,D0
+        BPL     .c
+        MOVE.L  A1,A0
+        RTS
+
+; A2 = record, D1 = record (1-based), D2 = 0: the next one -> D3 = index (0-based); carry set after
+; error 50 (not a random file) or 55 (record < 1)
+rt_file__index:
+        TST.L   16(A2)
+        BNE     .r
+        MOVEQ   #50,D0
+        BRA     .err
+.r:     MOVE.L  20(A2),D3
+        TST.L   D2
+        BEQ     .ok
+        MOVE.L  D1,D3
+        SUBQ.L  #1,D3
+        BPL     .ok
+        MOVEQ   #55,D0                  ; get/put: illegal recordnumber
+.err:   JSR     rt_error
+        ORI     #$01,CCR
+        RTS
+.ok:    ANDI    #$FE,CCR
+        RTS
+
+; A2 = record: the bound strings must still have their field lengths; carry set after error 54
+rt_file__lens:
+        MOVE.L  24(A2),A0
+        MOVEQ   #0,D1
+        MOVE.W  28(A2),D1
+        BRA     .n
+.l:     MOVE.L  (A0)+,A1
+        MOVEQ   #0,D0
+        MOVE.W  4(A1),D0
+        CMP.L   (A0)+,D0
+        BNE     .bad
+.n:     SUBQ.L  #1,D1
+        BPL     .l
+        ANDI    #$FE,CCR
+        RTS
+.bad:   MOVEQ   #54,D0                  ; get/put field string len changed
+        JSR     rt_error
+        ORI     #$01,CCR
+        RTS
+
+; A2 = record, D3 = index -> D0 = byte offset index * record length
+rt_file__offset:
+        MOVE.L  D3,D0
+        MOVE.L  16(A2),D1
+        MULU    D1,D0                   ; (index < 65536, length < 65536)
+        RTS
+
+; D0 = channel, D1 = record, D2 = 1 if numbered: GET #n[,record]
+rt_file_get:
+        MOVEM.L D3-D5/A2-A4,-(SP)
+        BSR     rt_file__open
+        BCS     .out
+        BSR     rt_file__index
+        BCS     .out
+        BSR     rt_file__drop
+        MOVE.L  D3,-(SP)                ; (index + 1) * length > size: end of file
+        MOVE.L  (A2),D0
+        JSR     plat_fsize
+        MOVE.L  (SP)+,D3
+        MOVE.L  D0,D4
+        BSR     rt_file__offset
+        ADD.L   16(A2),D0
+        CMP.L   D4,D0
+        BLS     .in
+        MOVEQ   #26,D0
+        JSR     rt_error
+        BRA     .out
+.in:    BSR     rt_file__lens
+        BCS     .out
+        MOVE.L  D3,D5                   ; D5 = index (the platform may change D2-D3)
+        BSR     rt_file__offset
+        MOVE.L  D0,D1
+        MOVE.L  (A2),D0
+        JSR     plat_fseek
+        BSR     rt_file__scratch        ; A3 = scratch
+        MOVE.L  (A2),D0
+        MOVE.L  A3,A0
+        MOVE.L  16(A2),D1
+        JSR     plat_fread
+        ADDQ.L  #1,D5
+        MOVE.L  D5,20(A2)               ; next record
+        MOVE.L  24(A2),A4               ; the fields: substrings into the bound strings
+        MOVEQ   #0,D4
+        MOVE.W  28(A2),D4
+        BRA     .fn
+.f:     MOVE.L  4(A4),D3
+        BSR     rt_file__temp           ; D3 characters from A3
+        MOVE.L  A0,A1
+        MOVE.L  (A4),A0
+        JSR     rt_str_assign
+        ADD.L   4(A4),A3
+        ADDQ.L  #8,A4
+.fn:    SUBQ.L  #1,D4
+        BPL     .f
+.out:   MOVEM.L (SP)+,D3-D5/A2-A4
+        RTS
+
+; D0 = channel, D1 = record, D2 = 1 if numbered: PUT #n[,record] (at most one record beyond the end)
+rt_file_put:
+        MOVEM.L D3-D5/A2-A4,-(SP)
+        BSR     rt_file__open
+        BCS     .out
+        BSR     rt_file__index
+        BCS     .out
+        BSR     rt_file__drop
+        MOVE.L  D3,-(SP)
+        MOVE.L  (A2),D0
+        JSR     plat_fsize
+        MOVE.L  (SP)+,D3
+        MOVE.L  D0,D4
+        BSR     rt_file__offset
+        CMP.L   D4,D0
+        BLS     .in
+        MOVEQ   #55,D0                  ; get/put: illegal recordnumber
+        JSR     rt_error
+        BRA     .out
+.in:    BSR     rt_file__lens
+        BCS     .out
+        BSR     rt_file__scratch        ; the record in the scratch: fields, then spaces
+        MOVE.L  A3,A1
+        MOVE.L  24(A2),A4
+        MOVEQ   #0,D4
+        MOVE.W  28(A2),D4
+        MOVEQ   #0,D5                   ; D5 = bytes so far
+        BRA     .fn
+.f:     MOVE.L  (A4),A0
+        MOVE.L  4(A4),D1
+        ADD.L   D1,D5
+        MOVE.L  (A0),A0
+        BRA     .cn
+.c:     MOVE.B  (A0)+,(A1)+
+.cn:    SUBQ.L  #1,D1
+        BPL     .c
+        ADDQ.L  #8,A4
+.fn:    SUBQ.L  #1,D4
+        BPL     .f
+.pad:   CMP.L   16(A2),D5
+        BGE     .wr
+        MOVE.B  #' ',(A1)+
+        ADDQ.L  #1,D5
+        BRA     .pad
+.wr:    ADDQ.L  #1,D3                   ; next record (D3 may change in the platform)
+        MOVE.L  D3,20(A2)
+        SUBQ.L  #1,D3
+        BSR     rt_file__offset
+        MOVE.L  D0,D1
+        MOVE.L  (A2),D0
+        JSR     plat_fseek
+        MOVE.L  (A2),D0
+        MOVE.L  A3,A0
+        MOVE.L  16(A2),D1
+        JSR     plat_fwrite
+.out:   MOVEM.L (SP)+,D3-D5/A2-A4
+        RTS
+
+; D0 = channel, D1 = k: RECORD #n,k (the next GET/PUT takes record k+1)
+rt_file_record:
+        MOVE.L  A2,-(SP)
+        MOVE.L  D1,-(SP)
+        BSR     rt_file__open
+        MOVE.L  (SP)+,D1
+        BCS     .out
+        MOVE.L  D1,20(A2)
+.out:   MOVE.L  (SP)+,A2
+        RTS
+
+; A2 = record -> D0 = logical position (the platform's, corrected by the buffer)
+rt_file__pos:
+        MOVE.L  (A2),D0
+        JSR     plat_ftell
+        MOVEQ   #0,D1
+        MOVE.W  14(A2),D1
+        BTST    #2,9(A2)
+        BNE     .w
+        SUB.W   12(A2),D1               ; read ahead: back by the unread bytes
+        SUB.L   D1,D0
+        RTS
+.w:     ADD.L   D1,D0                   ; to write: on by the bytes in the buffer
+        RTS
+
+; A2 = record, D1 = position: SEEK (beyond the end or negative: error 219, position at the end)
+rt_file__seek:
+        MOVE.L  D4,-(SP)
+        MOVE.L  D1,D4
+        BSR     rt_file__drop
+        MOVE.L  (A2),D0
+        JSR     plat_fsize
+        TST.L   D4
+        BMI     .bad
+        CMP.L   D0,D4
+        BHI     .bad
+        MOVE.L  D4,D1
+        MOVE.L  (A2),D0
+        JSR     plat_fseek
+        BRA     .out
+.bad:   MOVE.L  D0,D1
+        MOVE.L  (A2),D0
+        JSR     plat_fseek
+        MOVE.L  #219,D0                 ; seek error
+        JSR     rt_error
+.out:   MOVE.L  (SP)+,D4
+        RTS
+
+; D0 = channel, D1 = position: SEEK #n,pos
+rt_file_seek:
+        MOVE.L  A2,-(SP)
+        MOVE.L  D1,-(SP)
+        BSR     rt_file__open
+        MOVE.L  (SP)+,D1
+        BCS     .out
+        BSR     rt_file__seek
+.out:   MOVE.L  (SP)+,A2
+        RTS
+
+; D0 = channel, D1 = distance: RELSEEK #n,d
+rt_file_relseek:
+        MOVE.L  A2,-(SP)
+        MOVE.L  D1,-(SP)
+        BSR     rt_file__open
+        BCS     .bad
+        BSR     rt_file__pos
+        ADD.L   (SP)+,D0
+        MOVE.L  D0,D1
+        BSR     rt_file__seek
+        BRA     .out
+.bad:   ADDQ.L  #4,SP
+.out:   MOVE.L  (SP)+,A2
+        RTS
+
+; D0 = channel -> D0 = LOC(#n): byte position (0 for random files, probe16)
+rt_file_loc:
+        MOVE.L  A2,-(SP)
+        BSR     rt_file__open
+        BCS     .zero
+        TST.L   16(A2)
+        BNE     .zero
+        BSR     rt_file__pos
+        BRA     .out
+.zero:  MOVEQ   #0,D0
+.out:   MOVE.L  (SP)+,A2
+        RTS
+
+; D0 = channel -> D0 = INP(#n): the next byte (error 26 at the end)
+rt_file_inp:
+        MOVE.L  A2,-(SP)
+        BSR     rt_file__in
+        BCS     .zero
+        BSR     rt_file__getb
+        TST.L   D0
+        BPL     .out
+        MOVEQ   #26,D0
+        JSR     rt_error
+.zero:  MOVEQ   #0,D0
+.out:   MOVE.L  (SP)+,A2
+        RTS
+
+; D0 = channel, D1 = byte: OUT #n,b
+rt_file_out:
+        MOVE.L  A2,-(SP)
+        MOVE.L  D1,-(SP)
+        BSR     rt_file__open
+        MOVE.L  (SP)+,D1
+        BCS     .out
+        BTST    #1,9(A2)
+        BNE     .w
+        MOVEQ   #24,D0
+        JSR     rt_error
+        BRA     .out
+.w:     MOVE.L  D1,-(SP)
+        BSR     rt_file__towrite
+        MOVE.L  (SP)+,D0
+        MOVE.L  rt_file__cur,-(SP)      ; through the buffer like PRINT #
+        MOVE.L  A2,rt_file__cur
+        BSR     rt_file__putc
+        MOVE.L  (SP)+,rt_file__cur
+.out:   MOVE.L  (SP)+,A2
+        RTS
+
 ;! section data
 rt_file__cur:
         DC.L    0
@@ -526,6 +968,8 @@ rt_file__quote:
         EVEN
 
 ;! section bss
+rt_file__fch:
+        DS.L    1
 rt_file__saveout:
         DS.L    1
 rt_file__savecol:
@@ -533,6 +977,8 @@ rt_file__savecol:
 rt_file__busy:
         DS.B    rt_file__BUFS
 rt_file__ch:
-        DS.B    16*100
+        DS.B    32*100
+rt_file__fields:
+        DS.B    8*rt_file__FLDS*rt_file__BUFS
 rt_file__bufs:
         DS.B    rt_file__BUF*rt_file__BUFS

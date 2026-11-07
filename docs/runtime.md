@@ -126,6 +126,11 @@ Deskriptoren, Variablen, Array-Elemente) der Reihe nach in A0, A1; ein `f64` bel
 D0:D1 bzw. D2:D3 (höherwertiger Teil vorn). Ergebnis in D0 (D0:D1 bei `f64`, A0 bei Adressen). D0–D3,
 A0, A1 sind frei verwendbar, alle anderen Register bleiben erhalten (der Konformanztest prüft das).
 
+Die Plattform `m68k-test` hinterlässt in ihren Routinen (`plat_f*`, `plat_alloc`, `plat_getc`)
+absichtlich Müll in den Registern, die sie laut Konvention verändern darf. So fallen Aufrufer auf,
+die sich auf diese Register verlassen; AmigaDOS tut das auch (gefunden so: der Satzindex von `GET`
+in D3, den `Seek` auf dem Amiga überschrieb).
+
 Speicherform der erzeugten Programme auf dem 68000: Jede Variable hat einen 8-Byte-Platz. Variablen,
 die irgendwo `VAR`-Parameter sind, werden über einen Zeiger angesprochen (wie `brt::Var`); `LOCAL`
 und Parameter sichern Wert, Zeiger und ein Merkzeichen, das die Bindung an die eigene Variable

@@ -35,7 +35,7 @@ Für die Grundoperationen genügt es, das **exakte** Ergebnis und ein korrektes 
 | `rt_using`, `rt_strfmt` | `PRINT USING` (Nachbau von `rt_using.c`, Zustand auf einem kleinen Stapel), `MODE`, `STR$(x,n)`, `STR$(x,y,z)` |
 | (Plattform) | `plat_putc`, `plat_exit`, `plat_error`, `plat_alloc` (Speicher für String-Heap und Array-Bereich beim ersten Gebrauch) aus `platform/m68k-test` bzw. `platform/amiga` |
 | `rt_math` | `EXP`, `LOG`, `LOG10`, `SIN`, `COS`, `TAN`, `ATN`, `ASIN`, `ACOS`, `DEG`, `RAD`, `x^y` mit gebrochenem Exponenten; **erzeugt** von `tools/gen/gen_rt_math.py` aus `runtime/ref/rt_math.c` |
-| `rt_file` | Sequentielle Dateien: Kanäle 0–99 mit Puffern, `OPEN`/`CLOSE`, `PRINT #`/`WRITE #` (über die Ausgabeadresse `rt_print_out`), `INPUT #`, `LINE INPUT #`, `INPUT$`, `EOF`, `LOF`, `EXIST`, `KILL`; nutzt `plat_f*` der Plattform |
+| `rt_file` | Dateien: Kanäle 0–99 mit Puffern, `OPEN` (`I O A U R`)/`CLOSE`, `PRINT #`/`WRITE #` (über die Ausgabeadresse `rt_print_out`), `INPUT #`, `LINE INPUT #`, `INPUT$`, `EOF`, `LOF`, `EXIST`, `KILL`, `NAME`; wahlfrei `FIELD`, `GET`, `PUT`, `RECORD`, `SEEK`, `RELSEEK`, `LOC`, `INP`, `OUT`; nutzt `plat_f*` der Plattform |
 | `rt_kbd` | Tastatur: `INPUT`, `LINE INPUT`, `INKEY$`, `INPUT$(n)` über `plat_getc` (D20) |
 | `rt_bits` | `BTST`/`BCLR`/`BSET`/`BCHG`, `SHL`/`SHR`/`ROL`/`ROR` (8/16/32 Bit), `SWAP`, `WORD`, `CARD`, `BYTE` |
 | `rt_print`, `rt_int`, `rt_for`, `rt_power`, `rt_end` | Ausgabe, Ganzzahlhilfen, `FOR`, Potenz, Programmende |

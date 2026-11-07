@@ -41,8 +41,11 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 - `gfa_run.py`: Startmenü der Diskette nach einem Kaltstart (`boot` in `keys.json`), längere
   Wartezeiten für den Merge-Dialog und das Einlesen.
 - Wahlfreie Dateien nach dem Original (probe16): `OPEN "R"`/`"U"`, `FIELD … AS`, `GET #`, `PUT #`,
-  `RECORD`, `SEEK`, `RELSEEK`, `LOC`, `INP(#n)`, `OUT #n`, `NAME … AS`; Interpreter und C++-Ziel.
-  Testprogramm `random`.
+  `RECORD`, `SEEK`, `RELSEEK`, `LOC`, `INP(#n)`, `OUT #n`, `NAME … AS`; Interpreter, C++-Ziel und
+  68000 (Kanäle lesen und schreiben, Plattform: Positionieren, Umbenennen); unter Kickstart 1.2 im
+  FS-UAE mit der erwarteten Ausgabe. Testprogramm `random`. Die Plattform `m68k-test` zerstört jetzt
+  absichtlich die Register, die ihre Routinen verändern dürfen (fand einen Fehler, der nur auf dem
+  Amiga auftrat).
 - Tastatureingabe `INPUT`, `LINE INPUT` (mit Aufforderung `"text";`/`"text",`), `INKEY$`,
   `INPUT$(n)` und `WRITE ...;` in Interpreter, C++-Ziel und 68000 (`rt_kbd`; Plattform: Eingabeport
   bei `m68k-test`, `Read(Input())` beim Amiga); Semantik nach der Befehlsreferenz (D20).

@@ -1,14 +1,18 @@
 ;! module    plat_file
-;! provides  plat_fopen plat_fread plat_fwrite plat_fclose plat_fsize plat_fdelete plat_fexists
+;! provides  plat_fopen plat_fread plat_fwrite plat_fclose plat_fsize plat_fdelete plat_fexists plat_fseek plat_ftell plat_frename
 ;! requires  plat_alloc
 ;! group     file-seq
 ;! clobbers  D0-D3/A0-A1
 ;! doc       m68k-test: a RAM disk for the file routines (16 files of up to 16 KiB, names up to 32 characters).
 
+; Every routine leaves garbage in D2, D3 and A1 (the convention allows it, AmigaDOS does it): so the
+; tests find callers that rely on them.
+
 ; Errors as AmigaDOS: 205 object not found, 202 object in use (a file open for writing is exclusive,
 ; reading is shared), 221 disk full. Names are compared without regard to case.
 ; Entry (64 bytes): +0 used, +2 name length, +4 name (32), +36 data, +40 size, +44 readers, +46 writer.
-; Handle (12 bytes): +0 entry (0: free), +4 position, +8 mode (0 read, 1 write, 2 append).
+; Handle (12 bytes): +0 entry (0: free), +4 position, +8 mode (0 read, 1 write, 2 append, 3 read and
+; write: an existing file is kept, a missing one created).
 
 plat_file__FILES EQU 16
 plat_file__CAP   EQU 16384
@@ -54,7 +58,7 @@ plat_file__upper:
 .out:   RTS
 
 ; A0 = name, D0 = length, D1 = mode -> D0 = handle, or 0 with D1 = error
-plat_fopen:
+plat_file__fopen:
         MOVEM.L D4/A2-A3,-(SP)
         MOVE.L  D1,D4
         BSR     plat_file__find
@@ -118,6 +122,8 @@ plat_fopen:
 .w2:    MOVE.W  #1,46(A2)
         CMP.L   #2,D4
         BEQ     .app
+        CMP.L   #1,D4
+        BNE     .ok
         CLR.L   40(A2)                  ; write: empty
         BRA     .ok
 .app:   MOVE.L  40(A2),4(A3)            ; append: at the end
@@ -133,7 +139,7 @@ plat_fopen:
         RTS
 
 ; D0 = handle, A0 = buffer, D1 = count -> D0 = bytes read (0 at the end)
-plat_fread:
+plat_file__fread:
         MOVE.L  A2,-(SP)
         MOVE.L  D0,A2                   ; A2 = handle, A1 = entry
         MOVE.L  (A2),A1
@@ -154,7 +160,7 @@ plat_fread:
         RTS
 
 ; D0 = handle, A0 = buffer, D1 = count -> D0 = bytes written (fewer: the file is full)
-plat_fwrite:
+plat_file__fwrite:
         MOVE.L  A2,-(SP)
         MOVE.L  D0,A2                   ; A2 = handle, A1 = entry
         MOVE.L  (A2),A1
@@ -181,7 +187,7 @@ plat_fwrite:
         RTS
 
 ; D0 = handle
-plat_fclose:
+plat_file__fclose:
         MOVE.L  D0,A0
         MOVE.L  (A0),A1
         TST.W   8(A0)
@@ -193,14 +199,62 @@ plat_fclose:
         RTS
 
 ; D0 = handle -> D0 = length of the file
-plat_fsize:
+plat_file__fsize:
         MOVE.L  D0,A0
         MOVE.L  (A0),A0
         MOVE.L  40(A0),D0
         RTS
 
+; D0 = handle, D1 = position (within the file)
+plat_file__fseek:
+        MOVE.L  D0,A0
+        MOVE.L  D1,4(A0)
+        MOVEQ   #0,D0
+        RTS
+
+; D0 = handle -> D0 = position
+plat_file__ftell:
+        MOVE.L  D0,A0
+        MOVE.L  4(A0),D0
+        RTS
+
+; A0 = old name, D0 = length, A1 = new name, D1 = length -> D0 = 0, or the error (205, 203, 202)
+plat_file__frename:
+        MOVEM.L D4-D5/A2-A3,-(SP)
+        MOVE.L  A1,A3                   ; A3/D5 = new name
+        MOVE.L  D1,D5
+        BSR     plat_file__find
+        MOVE.L  A1,A2                   ; A2 = entry of the old name
+        MOVE.L  A2,D4
+        BEQ     .nf
+        MOVE.L  A3,A0
+        MOVE.L  D5,D0
+        BSR     plat_file__find
+        MOVE.L  A1,D4
+        BNE     .ex
+        TST.L   44(A2)
+        BNE     .use
+        CMP.L   #32,D5
+        BLS     .nl
+        MOVEQ   #32,D5
+.nl:    MOVE.W  D5,2(A2)
+        LEA     4(A2),A1
+        BRA     .cn
+.cc:    MOVE.B  (A3)+,(A1)+
+.cn:    SUBQ.L  #1,D5
+        BPL     .cc
+        MOVEQ   #0,D0
+        BRA     .out
+.nf:    MOVE.L  #205,D0                 ; object not found
+        BRA     .out
+.ex:    MOVE.L  #203,D0                 ; object already exists
+        BRA     .out
+.use:   MOVE.L  #202,D0                 ; object in use
+.out:   MOVEM.L (SP)+,D4-D5/A2-A3
+        RTS
+
 ; A0 = name, D0 = length -> D0 = 0, or the error (205, 202)
-plat_fdelete:
+plat_file__fdelete:
         BSR     plat_file__find
         MOVE.L  A1,D1
         BEQ     .nf
@@ -215,12 +269,50 @@ plat_fdelete:
         RTS
 
 ; A0 = name, D0 = length -> D0 = -1 if the file exists, else 0
-plat_fexists:
+plat_file__fexists:
         BSR     plat_file__find
         MOVE.L  A1,D0
         BEQ     .out
         MOVEQ   #-1,D0
 .out:   RTS
+
+
+; ---- entry points: the work, then garbage in D2, D3, A1 ------------------------------------------
+plat_fopen:
+        BSR     plat_file__fopen
+        BRA     plat_file__trash
+plat_fread:
+        BSR     plat_file__fread
+        BRA     plat_file__trash
+plat_fwrite:
+        BSR     plat_file__fwrite
+        BRA     plat_file__trash
+plat_fclose:
+        BSR     plat_file__fclose
+        BRA     plat_file__trash
+plat_fsize:
+        BSR     plat_file__fsize
+        BRA     plat_file__trash
+plat_fdelete:
+        BSR     plat_file__fdelete
+        BRA     plat_file__trash
+plat_fexists:
+        BSR     plat_file__fexists
+        BRA     plat_file__trash
+plat_fseek:
+        BSR     plat_file__fseek
+        BRA     plat_file__trash
+plat_ftell:
+        BSR     plat_file__ftell
+        BRA     plat_file__trash
+plat_frename:
+        BSR     plat_file__frename
+        BRA     plat_file__trash
+plat_file__trash:
+        MOVE.L  #$DEADBEEF,D2
+        MOVE.L  D2,D3
+        MOVE.L  D2,A1
+        RTS
 
 ;! section bss
 plat_file__dir:

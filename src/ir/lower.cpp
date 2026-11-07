@@ -805,7 +805,8 @@ private:
             Reg mode = expr(*s.args[0]);
             Reg ch = toI(expr(*s.args[1]));
             Reg name = expr(*s.args[2]);
-            rtcallVoid("rt_file_open", {mode, ch, name});
+            Reg len = s.args.size() > 3 ? toI(expr(*s.args[3])) : constI(0);
+            rtcallVoid("rt_file_open", {mode, ch, name, len});
             return;
         }
         if (n == "CLOSE") {
@@ -815,6 +816,38 @@ private:
         }
         if (n == "KILL") {
             rtcallVoid("rt_file_kill", {expr(*s.args[0])});
+            return;
+        }
+        if (n == "NAME") {
+            Reg from = expr(*s.args[0]);
+            rtcallVoid("rt_file_name", {from, expr(*s.args[1])});
+            return;
+        }
+        if (n == "FIELD") {  // binds the descriptors of the string variables to the record (probe16)
+            rtcallVoid("rt_file_field_begin", {toI(expr(*s.args[0]))});
+            for (std::size_t k = 0; k < s.targets.size(); ++k) {
+                Reg len = toI(expr(*s.args[k + 1]));
+                rtcallVoid("rt_file_field_add", {load(s.targets[k]->var), len});
+            }
+            rtcallVoid("rt_file_field_end", {});
+            return;
+        }
+        if (n == "GET#" || n == "PUT#") {
+            Reg ch = toI(expr(*s.args[0]));
+            const bool numbered = s.args.size() > 1;
+            Reg rec = numbered ? toI(expr(*s.args[1])) : constI(0);
+            rtcallVoid(n == "GET#" ? "rt_file_get" : "rt_file_put", {ch, rec, constI(numbered ? 1 : 0)});
+            return;
+        }
+        if (n == "RECORD" || n == "SEEK" || n == "RELSEEK") {
+            Reg ch = toI(expr(*s.args[0]));
+            Reg v = toI(expr(*s.args[1]));
+            rtcallVoid(n == "RECORD" ? "rt_file_record" : n == "SEEK" ? "rt_file_seek" : "rt_file_relseek", {ch, v});
+            return;
+        }
+        if (n == "OUT") {
+            Reg ch = toI(expr(*s.args[0]));
+            for (std::size_t k = 1; k < s.args.size(); ++k) rtcallVoid("rt_file_out", {ch, toI(expr(*s.args[k]))});
             return;
         }
         if (n == "INPUT" || n == "LINE INPUT") {  // from the keyboard (rt_kbd)
@@ -1099,6 +1132,8 @@ private:
         if (n == "EOF") return rtcall("rt_file_eof", {toI(arg(e, 0))}, VT::I32);
         if (n == "LOF") return rtcall("rt_file_lof", {toI(arg(e, 0))}, VT::I32);
         if (n == "EXIST") return rtcall("rt_file_exist", {arg(e, 0)}, VT::I32);
+        if (n == "LOC") return rtcall("rt_file_loc", {toI(arg(e, 0))}, VT::I32);
+        if (n == "INP") return rtcall("rt_file_inp", {toI(arg(e, 0))}, VT::I32);
         if (n == "INKEY$") return rtcall("rt_kbd_inkey", {}, VT::Str);
         if (n == "INPUT$" && e.args.size() == 1) return rtcall("rt_kbd_chars", {toI(arg(e, 0))}, VT::Str);
         if (n == "INPUT$") {

@@ -20,8 +20,10 @@ plat_alloc:
 .n:     SUBQ.L  #1,D0
         BPL     .cl
         MOVE.L  (SP)+,A0
-        RTS
+        BRA     .trash
 .no:    SUB.L   A0,A0
+.trash: MOVE.L  #$DEADBEEF,D1           ; garbage where the convention allows it (finds careless callers)
+        MOVE.L  D1,A1
         RTS
 
 ;! section data

@@ -79,6 +79,16 @@ rt_errtext__more:
         DC.L    rt_errtext__t202
         DC.W    205
         DC.L    rt_errtext__t205
+        DC.W    50
+        DC.L    rt_errtext__t50
+        DC.W    54
+        DC.L    rt_errtext__t54
+        DC.W    55
+        DC.L    rt_errtext__t55
+        DC.W    203
+        DC.L    rt_errtext__t203
+        DC.W    219
+        DC.L    rt_errtext__t219
         DC.W    -1
 rt_errtext__t45:
         DC.B    19,'too many parameters'
@@ -86,6 +96,16 @@ rt_errtext__t67:
         DC.B    15,'asin/acos error'
 rt_errtext__t68:
         DC.B    17,'var-type mismatch'
+rt_errtext__t50:
+        DC.B    26,102,105,101,108,100,115,32,103,114,101,97,116,101,114,32,116,104,97,110,32,114,101,99,111,114,100
+rt_errtext__t54:
+        DC.B    32,103,101,116,47,112,117,116,32,102,105,101,108,100,32,115,116,114,105,110,103,124,108,101,110,32,99,104,97,110,103,101,100
+rt_errtext__t55:
+        DC.B    29,103,101,116,47,112,117,116,58,32,105,108,108,101,103,97,108,32,114,101,99,111,114,100,110,117,109,98,101,114
+rt_errtext__t203:
+        DC.B    21,111,98,106,101,99,116,32,97,108,114,101,97,100,121,32,101,120,105,115,116,115
+rt_errtext__t219:
+        DC.B    10,115,101,101,107,32,101,114,114,111,114
 rt_errtext__t202:
         DC.B    13,'object in use'
 rt_errtext__t205:

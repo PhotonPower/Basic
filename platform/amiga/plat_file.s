@@ -1,12 +1,12 @@
 ;! module    plat_file
-;! provides  plat_fopen plat_fread plat_fwrite plat_fclose plat_fsize plat_fdelete plat_fexists
+;! provides  plat_fopen plat_fread plat_fwrite plat_fclose plat_fsize plat_fdelete plat_fexists plat_fseek plat_ftell plat_frename
 ;! requires  plat_dosbase
 ;! group     file-seq
 ;! clobbers  D0-D3/A0-A1
 ;! doc       amiga: files through dos.library (Open, Read, Write, Seek, Close, DeleteFile, Lock); errors from IoErr().
 
 ; dos.library: Open -30, Close -36, Read -42, Write -48, Seek -66, DeleteFile -72, Lock -84,
-; UnLock -90, IoErr -132. Errors are the AmigaDOS codes (205 object not found, 202 object in use ...).
+; UnLock -90, IoErr -132, Rename -78. Errors are the AmigaDOS codes (205 object not found, 202 object in use ...).
 
 ; A0 = name, D0 = length -> D1 = the name as a C string (at most 255 characters)
 plat_file__cname:
@@ -22,7 +22,8 @@ plat_file__cname:
         CLR.B   (A1)
         RTS
 
-; A0 = name, D0 = length, D1 = mode (0 read, 1 write, 2 append) -> D0 = handle, or 0 with D1 = error
+; A0 = name, D0 = length, D1 = mode (0 read, 1 write, 2 append, 3 read and write) -> D0 = handle, or
+; 0 with D1 = error. Modes 2 and 3 open an existing file (MODE_OLDFILE) or create it.
 plat_fopen:
         MOVEM.L D4/A6,-(SP)
         MOVE.L  D1,D4
@@ -35,8 +36,8 @@ plat_fopen:
 .open:  JSR     -30(A6)
         TST.L   D0
         BNE     .opened
-        CMP.L   #2,D4                   ; append to a file that does not exist: create it
-        BNE     .err
+        CMP.L   #2,D4                   ; append, read/write: a file that does not exist is created
+        BCS     .err
         JSR     -132(A6)
         CMP.L   #205,D0
         BNE     .err0
@@ -115,6 +116,58 @@ plat_fsize:
         MOVEM.L (SP)+,D4/A6
         RTS
 
+; D0 = handle, D1 = position (within the file)
+plat_fseek:
+        MOVE.L  A6,-(SP)
+        MOVE.L  D1,D2
+        MOVE.L  D0,D1
+        MOVEQ   #-1,D3                  ; OFFSET_BEGINNING
+        MOVE.L  plat_dosbase,A6
+        JSR     -66(A6)
+        MOVEQ   #0,D0
+        MOVE.L  (SP)+,A6
+        RTS
+
+; D0 = handle -> D0 = position
+plat_ftell:
+        MOVE.L  A6,-(SP)
+        MOVE.L  D0,D1
+        MOVEQ   #0,D2
+        MOVEQ   #0,D3                   ; OFFSET_CURRENT: returns the position
+        MOVE.L  plat_dosbase,A6
+        JSR     -66(A6)
+        MOVE.L  (SP)+,A6
+        RTS
+
+; A0 = old name, D0 = length, A1 = new name, D1 = length -> D0 = 0, or the error
+plat_frename:
+        MOVEM.L D4/A6,-(SP)
+        MOVE.L  A1,-(SP)
+        MOVE.L  D1,-(SP)
+        BSR     plat_file__cname        ; old name into plat_file__nb
+        MOVE.L  (SP)+,D0
+        MOVE.L  (SP)+,A0
+        LEA     plat_file__nb2,A1       ; new name into plat_file__nb2
+        CMP.L   #255,D0
+        BLS     .n
+        MOVE.L  #255,D0
+.n:     MOVE.L  A1,D2
+        BRA     .cn
+.c:     MOVE.B  (A0)+,(A1)+
+.cn:    SUBQ.L  #1,D0
+        BPL     .c
+        CLR.B   (A1)
+        MOVE.L  #plat_file__nb,D1
+        MOVE.L  plat_dosbase,A6
+        JSR     -78(A6)                 ; Rename
+        TST.L   D0
+        BEQ     .err
+        MOVEQ   #0,D0
+        BRA     .out
+.err:   JSR     -132(A6)
+.out:   MOVEM.L (SP)+,D4/A6
+        RTS
+
 ; A0 = name, D0 = length -> D0 = 0, or the error
 plat_fdelete:
         MOVE.L  A6,-(SP)
@@ -146,4 +199,6 @@ plat_fexists:
 
 ;! section bss
 plat_file__nb:
+        DS.B    256
+plat_file__nb2:
         DS.B    256
