@@ -62,6 +62,9 @@ constexpr std::array kBuiltins = {
     Builtin{"EOF", 'i', 1, 1, "c"},       Builtin{"LOF", 'i', 1, 1, "c"},
     Builtin{"EXIST", 'i', 1, 1, "s"},     Builtin{"INPUT$", 's', 1, 2, "nc"},
     Builtin{"LOC", 'i', 1, 1, "c"},       Builtin{"INP", 'i', 1, 1, "c"},
+    Builtin{"VARPTR", 'i', 1, 1, "v"},    Builtin{"PEEK", 'i', 1, 1, "n"},
+    Builtin{"DPEEK", 'i', 1, 1, "n"},     Builtin{"LPEEK", 'i', 1, 1, "n"},
+    Builtin{"MALLOC", 'i', 1, 2, "nn"},   Builtin{"MFREE", 'i', 2, 2, "nn"},
 };
 
 }  // namespace

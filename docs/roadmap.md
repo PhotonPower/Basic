@@ -58,8 +58,9 @@ laufen in der OS-Emulation (`test_m68k_programs`) und unter Kickstart 1.2 im FS-
 ✔ Wahlfreie Dateien (probe16) in allen Ausführungen; auf dem Amiga im FS-UAE geprüft.
 ✔ Ganzzahl-Abkürzungen im Lowering (D16, Nachtrag).
 ✔ `MKx$`/`CVx` (ohne Speicherzugriff).
-Weiter: Gruppe `memory` (`PEEK`/`POKE`, `VARPTR`, `BYTE{}` …, `MALLOC`, `BMOVE`; D6: Speicherabbild
-im Interpreter/C++-Ziel), Werte in Prozessorregistern, Gruppe `matrix`.
+✔ Gruppe `memory`, Stufe 1 (D21): `VARPTR`/`V:`, `PEEK`/`POKE` (8/16/32 Bit), `MALLOC`/`MFREE`, `BMOVE`.
+Weiter: `memory` Stufe 2 (`BYTE{}` …, `*x`, voller Umbau nach D6), Werte in Prozessorregistern,
+Gruppe `matrix`.
 
 - Quelltext-Linker (`src/link`) mit Map-Datei und Label-Prüfung.
 - LIR → 68000-Assembler, `runtime/m68k` (Integer, Strings, Ausgabe, Fließkomma-Kern), `platform/amiga`

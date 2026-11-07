@@ -229,6 +229,14 @@ private:
             e->args.push_back(expr());
             return e;
         }
+        if (atWord("V") && atPunct(":", 1)) {  // V:x = VARPTR(x)
+            take();
+            take();
+            auto e = make(ExprKind::Call, p, "VARPTR");
+            e->parens = true;
+            e->args.push_back(primary());
+            return e;
+        }
         if (acceptPunct("@") || acceptWord("FN")) {
             auto e = make(ExprKind::Call, p, expectIdent("function name"));
             e->user = true;

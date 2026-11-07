@@ -202,7 +202,8 @@ private:
     static bool impure(const hir::Expr& e) {
         if (e.op == Op::CallFunc) return true;
         if (e.op == Op::Builtin && (e.sval == "RND" || e.sval == "RANDOM" || e.sval == "RAND" || e.sval == "INPUT$" || e.sval == "INKEY$" ||
-                                    e.sval == "EOF" || e.sval == "LOF" || e.sval == "LOC" || e.sval == "INP"))
+                                    e.sval == "EOF" || e.sval == "LOF" || e.sval == "LOC" || e.sval == "INP" ||
+                                    e.sval == "PEEK" || e.sval == "DPEEK" || e.sval == "LPEEK" || e.sval == "MALLOC" || e.sval == "MFREE"))
             return true;  // order matters: random numbers, reading files
         for (const auto& a : e.args)
             if (impure(*a)) return true;
@@ -340,6 +341,23 @@ private:
             {"CVS", "brt::cvs"},       {"CVD", "brt::cvd"},
         };
         if (const auto it = simple.find(n); it != simple.end()) return call(it->second, e);
+        if (n == "VARPTR") {  // a window of the emulated memory onto the variable (stage 1 of D6)
+            const hir::Expr& t = *e.args[0];
+            const Type ty = p_.vars[static_cast<std::size_t>(t.var)].type;
+            const std::string w = std::to_string(ty == Type::Word ? 2 : (ty == Type::Byte || ty == Type::Bool) ? 1 : 4);
+            const std::string lv = lvalue(t);
+            if (t.op == Op::Load || ty == Type::Str) {
+                if (ty == Type::Str || ty == Type::Float) return "static_cast<std::int32_t>(brt::rt.mem.of(" + lv + "))";
+                return "static_cast<std::int32_t>(brt::rt.mem.of(" + lv + ", " + w + "))";
+            }
+            const std::string data = vars_[static_cast<std::size_t>(t.var)] + "().data";
+            if (ty == Type::Float) return "static_cast<std::int32_t>(brt::rt.mem.of(" + data + ", " + lv + "))";
+            return "static_cast<std::int32_t>(brt::rt.mem.of(" + data + ", " + lv + ", " + w + "))";
+        }
+        if (n == "PEEK" || n == "DPEEK" || n == "LPEEK")
+            return "brt::rt.mem.peek(" + a(0) + ", " + (n == "PEEK" ? "1" : n == "DPEEK" ? "2" : "4") + ")";
+        if (n == "MALLOC") return argc > 1 ? call("brt::rt.mem.malloc", e) : "brt::rt.mem.malloc(" + a(0) + ", 0)";
+        if (n == "MFREE") return call("brt::rt.mem.mfree", e);
         if (n == "EOF") return "brt::rt.files.eof(" + a(0) + ")";
         if (n == "LOF") return "brt::rt.files.lof(" + a(0) + ")";
         if (n == "EXIST") return "brt::Files::exist(" + a(0) + ")";
@@ -826,6 +844,21 @@ private:
             line(in, "{");
             line(in + 1, "const f64 ch_ = " + arg(0) + ";");
             line(in + 1, "brt::rt.files." + std::string(n == "RECORD" ? "record" : n == "SEEK" ? "seek" : "relseek") + "(ch_, " + arg(1) + ");");
+            line(in, "}");
+            return;
+        }
+        if (n == "POKE" || n == "DPOKE" || n == "LPOKE") {
+            line(in, "{");
+            line(in + 1, "const f64 a_ = " + arg(0) + ";");
+            line(in + 1, "brt::rt.mem.poke(a_, " + std::string(n == "POKE" ? "1" : n == "DPOKE" ? "2" : "4") + ", " + arg(1) + ");");
+            line(in, "}");
+            return;
+        }
+        if (n == "BMOVE") {
+            line(in, "{");
+            line(in + 1, "const f64 f_ = " + arg(0) + ";");
+            line(in + 1, "const f64 t_ = " + arg(1) + ";");
+            line(in + 1, "brt::rt.mem.bmove(f_, t_, " + arg(2) + ");");
             line(in, "}");
             return;
         }

@@ -12,6 +12,8 @@
 #include <istream>
 #include <functional>
 #include <cstdio>
+#include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -174,6 +176,49 @@ struct Output {
     void newline() { put("\n"); }
     void tab(f64 n);
     void spc(f64 n);
+};
+
+// ---- memory (group memory, stage 1 of D6) --------------------------------------------------------
+// There is no Amiga memory here: VARPTR/V: give every variable, string and array a window in an
+// emulated address space; PEEK/POKE on it read and write the bytes of the value in the Amiga layout
+// (big-endian, IEEE). MALLOC blocks are real bytes in that space. The addresses themselves differ
+// from the Amiga (no program may rely on them), the bytes do not. An address outside every window:
+// MemoryFault (not a GFA error: on the Amiga that is a crash).
+struct MemoryFault {
+    std::uint32_t address;
+};
+
+class Memory {
+public:
+    using Read = std::function<std::uint8_t(std::uint32_t)>;
+    using Write = std::function<void(std::uint32_t, std::uint8_t)>;
+
+    std::uint32_t of(std::int32_t& v, int width);   // %: 4, &: 2, | and !: 1 bytes
+    std::uint32_t of(f64& v);
+    std::uint32_t of(std::string& s);               // the characters (up to 32767)
+    std::uint32_t of(std::vector<std::int32_t>& data, const std::int32_t& element, int width);  // array element
+    std::uint32_t of(std::vector<f64>& data, const f64& element);
+
+    std::int32_t peek(f64 address, int width);      // PEEK 0..255, DPEEK 0..65535, LPEEK signed
+    void poke(f64 address, int width, f64 value);   // the lower 8/16/32 bits
+    std::int32_t malloc(f64 size, f64 flags);       // MALLOC: cleared bytes, 0 if size <= 0
+    std::int32_t mfree(f64 address, f64 size);     // 0, or -1 if it is no MALLOC block
+    void bmove(f64 from, f64 to, f64 count);        // overlapping allowed
+
+private:
+    struct Window {
+        std::uint32_t size;
+        Read read;
+        Write write;
+    };
+    std::map<std::uint32_t, Window> windows_;       // by base address
+    std::map<const void*, std::uint32_t> keys_;
+    std::map<std::uint32_t, std::unique_ptr<std::vector<std::uint8_t>>> blocks_;
+    std::uint32_t next_ = 0x00400000;
+    std::uint32_t window(const void* key, std::uint32_t size, Read read, Write write);
+    Window& at(std::uint32_t address, std::uint32_t& offset);
+    std::uint8_t get(std::uint32_t address);
+    void set(std::uint32_t address, std::uint8_t b);
 };
 
 // ---- files (probe14) -----------------------------------------------------------------------------

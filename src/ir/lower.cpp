@@ -875,6 +875,17 @@ private:
             rtcallVoid(n == "RECORD" ? "rt_file_record" : n == "SEEK" ? "rt_file_seek" : "rt_file_relseek", {ch, v});
             return;
         }
+        if (n == "POKE" || n == "DPOKE" || n == "LPOKE") {
+            Reg a = toI(expr(*s.args[0]));
+            rtcallVoid(n == "POKE" ? "rt_poke" : n == "DPOKE" ? "rt_dpoke" : "rt_lpoke", {a, toI(expr(*s.args[1]))});
+            return;
+        }
+        if (n == "BMOVE") {
+            Reg from = toI(expr(*s.args[0]));
+            Reg to = toI(expr(*s.args[1]));
+            rtcallVoid("rt_bmove", {from, to, toI(expr(*s.args[2]))});
+            return;
+        }
         if (n == "OUT") {
             Reg ch = toI(expr(*s.args[0]));
             for (std::size_t k = 1; k < s.args.size(); ++k) rtcallVoid("rt_file_out", {ch, toI(expr(*s.args[k]))});
@@ -1215,6 +1226,24 @@ private:
         if (n == "LOF") return rtcall("rt_file_lof", {toI(arg(e, 0))}, VT::I32);
         if (n == "EXIST") return rtcall("rt_file_exist", {arg(e, 0)}, VT::I32);
         if (n == "LOC") return rtcall("rt_file_loc", {toI(arg(e, 0))}, VT::I32);
+        if (n == "VARPTR") {  // the address of the storage; strings: of their characters
+            const hir::Expr& t = *e.args[0];
+            Reg a = t.op == Op::Load ? addrOf(t.var) : elemAddr(t);
+            if (var(t.var).type == Type::Str) return rtcall("rt_mem_chars", {a}, VT::I32);
+            Reg r = reg(VT::I32);
+            copyTo(r, a);
+            return r;
+        }
+        if (n == "PEEK" || n == "DPEEK" || n == "LPEEK")
+            return rtcall(n == "PEEK" ? "rt_peek" : n == "DPEEK" ? "rt_dpeek" : "rt_lpeek", {toI(arg(e, 0))}, VT::I32);
+        if (n == "MALLOC") {
+            Reg size = toI(arg(e, 0));
+            return rtcall("rt_malloc", {size, e.args.size() > 1 ? toI(arg(e, 1)) : constI(0)}, VT::I32);
+        }
+        if (n == "MFREE") {
+            Reg a = toI(arg(e, 0));
+            return rtcall("rt_mfree", {a, toI(arg(e, 1))}, VT::I32);
+        }
         if (n == "MKI$" || n == "MKL$") return rtcall(n == "MKI$" ? "rt_mki" : "rt_mkl", {toI(arg(e, 0))}, VT::Str);
         if (n == "MKS$" || n == "MKD$") return rtcall(n == "MKS$" ? "rt_mks" : "rt_mkd", {arg(e, 0)}, VT::Str);
         if (n == "CVI" || n == "CVL") return rtcall(n == "CVI" ? "rt_cvi" : "rt_cvl", {arg(e, 0)}, VT::I32);

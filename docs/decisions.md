@@ -242,3 +242,25 @@ trotzdem ein Verhalten festlegen müssen (probe4, probe5):
 
 `z80-test` und `m68k-test` sind nackte Prozessoren mit minimaler Ein-/Ausgabe. Sie dienen den
 automatischen Tests und sind die Vorlage für Plattformen auf FPGA-Boards.
+
+<a id="d21"></a>
+## D21 – Gruppe `memory`, Stufe 1: Fenster statt Speicherabbild
+
+Der volle Umbau nach [D6](#d6) (alle BASIC-Daten im Interpreter und C++-Ziel in einem Byte-Array) ist
+groß. Als erste Stufe bekommt jede Variable, jeder String und jedes Array bei `VARPTR`/`V:` ein
+**Fenster** in einem nachgebildeten Adressraum (`brt::Memory`): `PEEK`/`POKE`/`DPEEK`/`DPOKE`/
+`LPEEK`/`LPOKE` und `BMOVE` darauf lesen und schreiben die Bytes des Werts im Amiga-Layout
+(höchstwertiges Byte zuerst, IEEE binary64 für Fließkommazahlen, `%` 4, `&` 2, `|` und `!` 1 Byte).
+`MALLOC`-Blöcke sind echte, gelöschte Bytes in diesem Raum; `MFREE` liefert 0, für eine Adresse, die
+kein `MALLOC`-Block ist, -1. Auf den 68000-Zielen ist es echter Speicher (Amiga: `AllocMem`/
+`FreeMem` mit `MEMF_CLEAR`).
+
+- Die Adressen sind in den Ausführungen verschieden; Programme dürfen sich nur auf die Bytes und auf
+  Abstände innerhalb eines Arrays verlassen.
+- `V:a$` zeigt auf die Zeichen; hinter dem Stringende liest der Interpreter 0, der Amiga, was dort steht.
+- Ein Zugriff außerhalb aller Fenster bricht Interpreter und C++-Ziel mit einer Meldung ab (auf dem
+  Amiga wäre es ein Absturz oder liest Fremdes); `DPEEK`/`LPEEK` auf ungeraden Adressen ist auf dem
+  68000 ein Adressfehler und bleibt unbestimmt.
+
+Offen für die nächste Stufe: `BYTE{}`/`WORD{}`/`LONG{}`/`FLOAT{}`, `*x`, `ABSOLUTE`, `VARPTR` auf
+den Descriptor statt die Zeichen, Adressen, die über Bereiche hinweg gelten.

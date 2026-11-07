@@ -40,6 +40,9 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 - `RESUME` setzt `ERR` auf 0 (probe12 T1); damit ist `errors2` am Original gleich.
 - `gfa_run.py`: Startmenü der Diskette nach einem Kaltstart (`boot` in `keys.json`), längere
   Wartezeiten für den Merge-Dialog und das Einlesen.
+- Gruppe `memory`, Stufe 1 (D21): `VARPTR`/`V:`, `PEEK`/`DPEEK`/`LPEEK`, `POKE`/`DPOKE`/`LPOKE`,
+  `MALLOC`/`MFREE`, `BMOVE` in allen Ausführungen; Interpreter und C++-Ziel mit Fenstern in einem
+  nachgebildeten Adressraum (Amiga-Layout), 68000 auf echtem Speicher. Testprogramm `memory`.
 - `MKI$`, `MKL$`, `MKS$`, `MKD$`, `CVI`, `CVL`, `CVS`, `CVD` (`runtime/ref/rt_mk.c`, GFA-8-Byte-Format
   mit den Bytes des Originals, IEEE single nach D11) in allen Ausführungen; 68000 im Konformanztest
   bitgleich. Testprogramm `binary`.

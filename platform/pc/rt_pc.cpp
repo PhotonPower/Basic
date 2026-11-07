@@ -514,6 +514,141 @@ void Output::spc(f64 nf) {
     if (n > 0) put(std::string(static_cast<std::size_t>(n), ' '));
 }
 
+// ---- memory --------------------------------------------------------------------------------------
+std::uint32_t Memory::window(const void* key, std::uint32_t size, Read read, Write write) {
+    const auto it = keys_.find(key);
+    if (it != keys_.end() && windows_.at(it->second).size >= size) return it->second;
+    const std::uint32_t base = next_;
+    next_ += ((std::max<std::uint32_t>(size, 1) + 15) & ~15u) + 16;  // a gap between windows
+    windows_[base] = Window{size, std::move(read), std::move(write)};
+    keys_[key] = base;
+    return base;
+}
+
+namespace {
+
+// byte k of the big-endian representation of v in `width` bytes
+std::uint8_t byteOfValue(std::int32_t v, int width, std::uint32_t k) {
+    return static_cast<std::uint8_t>(static_cast<std::uint32_t>(v) >> (8 * (static_cast<std::uint32_t>(width) - 1 - k)));
+}
+
+std::int32_t withByte(std::int32_t v, int width, std::uint32_t k, std::uint8_t b) {
+    std::uint32_t u = static_cast<std::uint32_t>(v);
+    const std::uint32_t shift = 8 * (static_cast<std::uint32_t>(width) - 1 - k);
+    u = (u & ~(0xFFu << shift)) | (static_cast<std::uint32_t>(b) << shift);
+    if (width == 2) return static_cast<std::int16_t>(static_cast<std::uint16_t>(u));
+    if (width == 1) return static_cast<std::int32_t>(u & 0xFF);
+    return static_cast<std::int32_t>(u);
+}
+
+}  // namespace
+
+std::uint32_t Memory::of(std::int32_t& v, int width) {
+    return window(&v, static_cast<std::uint32_t>(width), [&v, width](std::uint32_t k) { return byteOfValue(v, width, k); },
+                  [&v, width](std::uint32_t k, std::uint8_t b) { v = withByte(v, width, k, b); });
+}
+
+std::uint32_t Memory::of(f64& v) {
+    return window(&v, 8, [&v](std::uint32_t k) { return static_cast<std::uint8_t>(v >> (56 - 8 * k)); },
+                  [&v](std::uint32_t k, std::uint8_t b) {
+                      const unsigned shift = 56 - 8 * k;
+                      v = (v & ~(f64{0xFF} << shift)) | (f64{b} << shift);
+                  });
+}
+
+std::uint32_t Memory::of(std::string& s) {
+    return window(&s, 32768, [&s](std::uint32_t k) { return k < s.size() ? static_cast<std::uint8_t>(s[k]) : std::uint8_t{0}; },
+                  [&s](std::uint32_t k, std::uint8_t b) {
+                      if (k < s.size()) s[k] = static_cast<char>(b);
+                  });
+}
+
+std::uint32_t Memory::of(std::vector<std::int32_t>& data, const std::int32_t& element, int width) {
+    const auto w = static_cast<std::uint32_t>(width);
+    const std::uint32_t base = window(&data, static_cast<std::uint32_t>(data.size()) * w,
+                                      [&data, width, w](std::uint32_t k) { return byteOfValue(data[k / w], width, k % w); },
+                                      [&data, width, w](std::uint32_t k, std::uint8_t b) { data[k / w] = withByte(data[k / w], width, k % w, b); });
+    return base + static_cast<std::uint32_t>(&element - data.data()) * w;
+}
+
+std::uint32_t Memory::of(std::vector<f64>& data, const f64& element) {
+    const std::uint32_t base = window(&data, static_cast<std::uint32_t>(data.size()) * 8,
+                                      [&data](std::uint32_t k) { return static_cast<std::uint8_t>(data[k / 8] >> (56 - 8 * (k % 8))); },
+                                      [&data](std::uint32_t k, std::uint8_t b) {
+                                          const unsigned shift = 56 - 8 * (k % 8);
+                                          data[k / 8] = (data[k / 8] & ~(f64{0xFF} << shift)) | (f64{b} << shift);
+                                      });
+    return base + static_cast<std::uint32_t>(&element - data.data()) * 8;
+}
+
+Memory::Window& Memory::at(std::uint32_t address, std::uint32_t& offset) {
+    auto it = windows_.upper_bound(address);
+    if (it != windows_.begin()) {
+        --it;
+        if (address - it->first < it->second.size) {
+            offset = address - it->first;
+            return it->second;
+        }
+    }
+    throw MemoryFault{address};
+}
+
+std::uint8_t Memory::get(std::uint32_t address) {
+    std::uint32_t k = 0;
+    Window& w = at(address, k);
+    return w.read(k);
+}
+
+void Memory::set(std::uint32_t address, std::uint8_t b) {
+    std::uint32_t k = 0;
+    Window& w = at(address, k);
+    w.write(k, b);
+}
+
+std::int32_t Memory::peek(f64 af, int width) {
+    const auto a = static_cast<std::uint32_t>(toInt(af));
+    std::uint32_t v = 0;
+    for (int k = 0; k < width; ++k) v = (v << 8) | get(a + static_cast<std::uint32_t>(k));
+    return static_cast<std::int32_t>(v);
+}
+
+void Memory::poke(f64 af, int width, f64 value) {
+    const auto a = static_cast<std::uint32_t>(toInt(af));
+    const auto v = static_cast<std::uint32_t>(toInt(value));
+    for (int k = 0; k < width; ++k) set(a + static_cast<std::uint32_t>(k), static_cast<std::uint8_t>(v >> (8 * (width - 1 - k))));
+}
+
+std::int32_t Memory::malloc(f64 sizef, f64) {
+    const std::int32_t size = toInt(sizef);
+    if (size <= 0) return 0;
+    auto block = std::make_unique<std::vector<std::uint8_t>>(static_cast<std::size_t>(size), 0);
+    std::vector<std::uint8_t>* b = block.get();
+    const std::uint32_t base = window(b, static_cast<std::uint32_t>(size), [b](std::uint32_t k) { return (*b)[k]; },
+                                      [b](std::uint32_t k, std::uint8_t v) { (*b)[k] = v; });
+    blocks_[base] = std::move(block);
+    return static_cast<std::int32_t>(base);
+}
+
+std::int32_t Memory::mfree(f64 af, f64) {
+    const auto a = static_cast<std::uint32_t>(toInt(af));
+    const auto it = blocks_.find(a);
+    if (it == blocks_.end()) return -1;
+    keys_.erase(it->second.get());
+    windows_.erase(a);
+    blocks_.erase(it);
+    return 0;
+}
+
+void Memory::bmove(f64 from, f64 to, f64 countf) {
+    const auto f = static_cast<std::uint32_t>(toInt(from));
+    const auto t = static_cast<std::uint32_t>(toInt(to));
+    const std::int32_t n = toInt(countf);
+    if (n <= 0) return;
+    std::vector<std::uint8_t> tmp(static_cast<std::size_t>(n));
+    for (std::int32_t k = 0; k < n; ++k) tmp[static_cast<std::size_t>(k)] = get(f + static_cast<std::uint32_t>(k));
+    for (std::int32_t k = 0; k < n; ++k) set(t + static_cast<std::uint32_t>(k), tmp[static_cast<std::size_t>(k)]);
+}
+
 // ---- binary strings ------------------------------------------------------------------------------
 namespace {
 

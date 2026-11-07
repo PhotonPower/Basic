@@ -743,6 +743,9 @@ private:
             argc(2, 256);
             h->args.push_back(channel(*s.args[0]));
             for (std::size_t k = 1; k < s.args.size(); ++k) h->args.push_back(convertTo(expr(*s.args[k]), Type::Float, s.args[k]->pos));
+        } else if (n == "POKE" || n == "DPOKE" || n == "LPOKE" || n == "BMOVE") {  // address, value / from, to, count
+            argc(n == "BMOVE" ? 3 : 2, n == "BMOVE" ? 3 : 2);
+            for (const auto& x : s.args) h->args.push_back(convertTo(expr(*x), Type::Float, x->pos));
         } else if (n == "NAME" || n == "RENAME") {  // NAME old$ AS new$
             argc(2, 2);
             h->name = "NAME";
@@ -985,6 +988,11 @@ private:
                 auto v = makeExpr(Op::Load, typeOf(a.text));
                 v->var = varId(a.text, true);
                 c->args.push_back(std::move(v));
+                continue;
+            }
+            if (kind == 'v') {  // a variable or an array element (VARPTR, V:)
+                if (a.kind != ExprKind::Var || a.wholeArray) fail(a.pos, e.text + " expects a variable or an array element");
+                c->args.push_back(lvalue(a));
                 continue;
             }
             if (kind == 'c') {  // file channel #n

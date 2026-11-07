@@ -53,6 +53,7 @@ struct State {
     Output out;
     Files files;
     Keyboard kbd;
+    Memory mem;
     int err = 0;
     void (*onError)() = nullptr;
     int handlerDepth = 0;
@@ -293,6 +294,10 @@ inline int run(const char* name, void (*program)(), const std::pair<const char*,
     try {
         program();
     } catch (const EndProgram&) {
+    } catch (const MemoryFault& m) {
+        char buf[80];
+        std::snprintf(buf, sizeof buf, "runtime error: memory access outside the BASIC data at $%08X", m.address);
+        message = buf;
     } catch (const Error& e) {
         message = "runtime error " + std::to_string(e.code) + ": " + errorText(e.code);
     } catch (const Fatal& f) {

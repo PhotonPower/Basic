@@ -119,6 +119,12 @@ public:
             r.error = e.code;
             r.line = line_;
             r.message = errorText(e.code);
+        } catch (const brt::MemoryFault& m) {
+            r.ok = false;
+            r.line = line_;
+            char buf[64];
+            std::snprintf(buf, sizeof buf, "memory access outside the BASIC data at $%08X", m.address);
+            r.message = buf;
         } catch (const StepLimit&) {
             r.ok = false;
             r.line = line_;
@@ -151,6 +157,7 @@ private:
     brt::Output out_;
     brt::Files files_;
     brt::Keyboard kbd_;
+    brt::Memory mem_;
     int line_ = 0;
     std::uint64_t steps_ = 0;
     int err_ = 0;
@@ -354,8 +361,27 @@ private:
 
     // ---- built-in functions ---------------------------------------------------------------------
     // The arguments are evaluated from left to right first, then platform/pc does the work.
+    // bytes of a value of this type in memory (VARPTR): %, & , |/! and float
+    static int widthOf(Type t) { return t == Type::Word ? 2 : (t == Type::Byte || t == Type::Bool) ? 1 : 4; }
+
+    std::int32_t varptr(const hir::Expr& t) {
+        const Type ty = var(t.var).type;
+        if (t.op == Op::Load) {
+            Slot& sl = slot(t.var);
+            if (ty == Type::Str) return static_cast<std::int32_t>(mem_.of(sl.s));
+            if (ty == Type::Float) return static_cast<std::int32_t>(mem_.of(sl.f));
+            return static_cast<std::int32_t>(mem_.of(sl.i, widthOf(ty)));
+        }
+        const std::size_t ix = elemIndex(t);
+        Array& a = array(t.var);
+        if (ty == Type::Str) return static_cast<std::int32_t>(mem_.of(a.strs[ix]));
+        if (ty == Type::Float) return static_cast<std::int32_t>(mem_.of(a.floats, a.floats[ix]));
+        return static_cast<std::int32_t>(mem_.of(a.ints, a.ints[ix], widthOf(ty)));
+    }
+
     Value builtin(const hir::Expr& e) {
         const std::string& n = e.sval;
+        if (n == "VARPTR") return Value::ofInt(varptr(*e.args[0]));
         if (n == "DIM?") {
             const Array& arr = array(e.args[0]->var, false);
             if (!arr.dimmed) return Value::ofInt(0);
@@ -440,6 +466,11 @@ private:
         if (n == "LOF") return I(files_.lof(f(0)));
         if (n == "EXIST") return I(brt::Files::exist(s(0)));
         if (n == "LOC") return I(files_.loc(f(0)));
+        if (n == "PEEK") return I(mem_.peek(f(0), 1));
+        if (n == "DPEEK") return I(mem_.peek(f(0), 2));
+        if (n == "LPEEK") return I(mem_.peek(f(0), 4));
+        if (n == "MALLOC") return I(mem_.malloc(f(0), argc > 1 ? f(1) : 0));
+        if (n == "MFREE") return I(mem_.mfree(f(0), f(1)));
         if (n == "MKI$") return S(brt::mki(f(0)));
         if (n == "MKL$") return S(brt::mkl(f(0)));
         if (n == "MKS$") return S(brt::mks(f(0)));
@@ -960,6 +991,17 @@ private:
             if (n == "RECORD") files_.record(ch, v);
             else if (n == "SEEK") files_.seek(ch, v);
             else files_.relseek(ch, v);
+            return;
+        }
+        if (n == "POKE" || n == "DPOKE" || n == "LPOKE") {
+            const f64 a = eval(*s.args[0]).f;
+            mem_.poke(a, n == "POKE" ? 1 : n == "DPOKE" ? 2 : 4, eval(*s.args[1]).f);
+            return;
+        }
+        if (n == "BMOVE") {
+            const f64 from = eval(*s.args[0]).f;
+            const f64 to = eval(*s.args[1]).f;
+            mem_.bmove(from, to, eval(*s.args[2]).f);
             return;
         }
         if (n == "OUT") {
