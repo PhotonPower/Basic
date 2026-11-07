@@ -202,7 +202,7 @@ private:
     static bool impure(const hir::Expr& e) {
         if (e.op == Op::CallFunc) return true;
         if (e.op == Op::Builtin && (e.sval == "RND" || e.sval == "RANDOM" || e.sval == "RAND" || e.sval == "INPUT$" || e.sval == "INKEY$" ||
-                                    e.sval == "EOF" || e.sval == "LOF"))
+                                    e.sval == "EOF" || e.sval == "LOF" || e.sval == "LOC" || e.sval == "INP"))
             return true;  // order matters: random numbers, reading files
         for (const auto& a : e.args)
             if (impure(*a)) return true;
@@ -341,6 +341,8 @@ private:
         if (n == "EOF") return "brt::rt.files.eof(" + a(0) + ")";
         if (n == "LOF") return "brt::rt.files.lof(" + a(0) + ")";
         if (n == "EXIST") return "brt::Files::exist(" + a(0) + ")";
+        if (n == "LOC") return "brt::rt.files.loc(" + a(0) + ")";
+        if (n == "INP") return "brt::rt.files.inp(" + a(0) + ")";
         if (n == "INPUT$") return argc == 1 ? "brt::rt.kbd.chars(" + a(0) + ")" : call("brt::rt.files.inputChars", e);
         if (n == "INKEY$") return "brt::rt.kbd.inkey()";
         if (n == "CFLOAT") return a(0);
@@ -772,7 +774,12 @@ private:
             line(in, "{");
             line(in + 1, "const std::string m_ = " + arg(0) + ";");
             line(in + 1, "const f64 c_ = " + arg(1) + ";");
-            line(in + 1, "brt::rt.files.open(m_, c_, " + arg(2) + ");");
+            if (s.args.size() > 3) {
+                line(in + 1, "const std::string n_ = " + arg(2) + ";");
+                line(in + 1, "brt::rt.files.open(m_, c_, n_, " + arg(3) + ");");
+            } else {
+                line(in + 1, "brt::rt.files.open(m_, c_, " + arg(2) + ");");
+            }
             line(in, "}");
             return;
         }
@@ -782,6 +789,49 @@ private:
         }
         if (n == "KILL") {
             line(in, "brt::rt.files.kill(" + arg(0) + ");");
+            return;
+        }
+        if (n == "NAME") {
+            line(in, "{");
+            line(in + 1, "const std::string f_ = " + arg(0) + ";");
+            line(in + 1, "brt::rt.files.name(f_, " + arg(1) + ");");
+            line(in, "}");
+            return;
+        }
+        if (n == "FIELD") {  // binds the string variables to the record (probe16)
+            line(in, "{");
+            line(in + 1, "const f64 ch_ = " + arg(0) + ";");
+            std::string lens, vars;
+            for (std::size_t k = 1; k < s.args.size(); ++k) {
+                line(in + 1, "const f64 l" + std::to_string(k) + "_ = " + arg(k) + ";");
+                lens += (k > 1 ? ", l" : "l") + std::to_string(k) + "_";
+            }
+            for (std::size_t k = 0; k < s.targets.size(); ++k) vars += (k ? ", &" : "&") + lvalue(*s.targets[k]);
+            line(in + 1, "brt::rt.files.field(ch_, {" + vars + "}, {" + lens + "});");
+            line(in, "}");
+            return;
+        }
+        if (n == "GET#" || n == "PUT#") {
+            line(in, "{");
+            line(in + 1, "const f64 ch_ = " + arg(0) + ";");
+            const std::string fn = n == "GET#" ? "get" : "put";
+            if (s.args.size() > 1) line(in + 1, "brt::rt.files." + fn + "(ch_, true, " + arg(1) + ");");
+            else line(in + 1, "brt::rt.files." + fn + "(ch_, false, 0);");
+            line(in, "}");
+            return;
+        }
+        if (n == "RECORD" || n == "SEEK" || n == "RELSEEK") {
+            line(in, "{");
+            line(in + 1, "const f64 ch_ = " + arg(0) + ";");
+            line(in + 1, "brt::rt.files." + std::string(n == "RECORD" ? "record" : n == "SEEK" ? "seek" : "relseek") + "(ch_, " + arg(1) + ");");
+            line(in, "}");
+            return;
+        }
+        if (n == "OUT") {
+            line(in, "{");
+            line(in + 1, "const f64 ch_ = " + arg(0) + ";");
+            for (std::size_t k = 1; k < s.args.size(); ++k) line(in + 1, "brt::rt.files.out(ch_, " + arg(k) + ");");
+            line(in, "}");
             return;
         }
         if (n == "INPUT" || n == "LINE INPUT") {  // from the keyboard

@@ -13,6 +13,7 @@
 #include <functional>
 #include <cstdio>
 #include <string>
+#include <vector>
 
 #include "rt_ref.h"
 
@@ -169,6 +170,8 @@ struct Output {
 // system are AmigaDOS codes as on the original: 205 "object not found", 202 "object in use" (ERR
 // shows them as signed bytes, -51 and -54).
 constexpr int kErrObjectInUse = 202;
+constexpr int kErrObjectExists = 203;
+constexpr int kErrSeek = 219;
 constexpr int kErrObjectNotFound = 205;
 
 class Files {
@@ -178,7 +181,7 @@ public:
     Files& operator=(const Files&) = delete;
     ~Files() { closeAll(); }
 
-    void open(const std::string& mode, f64 channel, const std::string& name);
+    void open(const std::string& mode, f64 channel, const std::string& name, f64 recordLength = 0);
     void close(f64 channel);
     void closeAll();
     // PRINT #, WRITE #: the text goes to the channel's Output (own column); flush() writes it
@@ -192,14 +195,36 @@ public:
     std::int32_t lof(f64 channel);                    // length of the file
     static std::int32_t exist(const std::string& name);
     void kill(const std::string& name);
+    void name(const std::string& from, const std::string& to);  // NAME a$ AS b$
+    // random access (probe16): FIELD binds string variables (set to spaces of the field length);
+    // GET/PUT check that they still have that length (error 54), record numbers from 1 (55)
+    void field(f64 channel, const std::vector<std::string*>& vars, const std::vector<f64>& lengths);
+    void get(f64 channel, bool numbered, f64 record);
+    void put(f64 channel, bool numbered, f64 record);
+    void record(f64 channel, f64 n);                  // RECORD #n,k: the next GET/PUT takes record k+1
+    void seek(f64 channel, f64 pos);                  // beyond the end: error 219, position at the end
+    void relseek(f64 channel, f64 n);
+    std::int32_t loc(f64 channel);                    // byte position (0 for random files, probe16)
+    std::int32_t inp(f64 channel);                    // INP(#n): one byte
+    void out(f64 channel, f64 byte);                  // OUT #n,b
 
 private:
     struct Channel {
         std::FILE* f = nullptr;
-        bool input = false;
+        bool input = false;     // readable
+        bool output = false;    // writable
+        bool writing = false;   // last access was a write (stdio needs a seek before a read)
+        std::int32_t reclen = 0;  // record length of a random file (mode R), else 0
+        std::int32_t next = 0;    // next record (0-based)
+        std::vector<std::string*> fields;
+        std::vector<std::int32_t> lengths;
         std::string name;
         Output out;
     };
+    void toRead(Channel& c);
+    void toWrite(Channel& c);
+    std::int32_t size(Channel& c);
+    std::size_t recordIndex(Channel& c, bool numbered, f64 record);
     Channel ch_[100];
     Channel& get(f64 channel, bool open);
     bool inUse(const std::string& name, const Channel* except) const;

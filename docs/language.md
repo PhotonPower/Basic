@@ -164,7 +164,20 @@ Diese Punkte sind aus dem Handbuch nicht sicher zu entnehmen und werden am Origi
   0–99 (sonst Fehler 23); Modus außer `I O A R U` Fehler 21, Kanal schon offen 22, nicht offen 24.
   Fehler des Dateisystems sind AmigaDOS-Codes als vorzeichenbehaftetes Byte: −51 „object not
   found“ (205), −54 „object in use“ (202, z. B. eine Datei zweimal zum Schreiben). `""` in einem
-  String ist ein Anführungszeichen. Noch nicht umgesetzt: die Modi `R` (wahlfrei) und `U`.
+  String ist ein Anführungszeichen.
+- ~~**Wahlfreie Dateien**~~ (probe16): `OPEN "R",#n,name$[,länge]` (ohne Länge 128) und `"U"` lesen
+  und schreiben, eine fehlende Datei wird angelegt. `FIELD #n,l AS a$,...` bindet Stringvariablen an
+  den Satz (Summe größer als die Satzlänge: Fehler 50, auch bei anderen Modi); wir setzen sie auf
+  Leerzeichen (das Original zeigt den alten Pufferinhalt). `GET`/`PUT #n[,satz]` zählen ab 1; ohne
+  Nummer der nächste Satz. Geprüft wird in dieser Reihenfolge: Satznummer (unter 1 oder mehr als
+  einen Satz hinter dem Ende: 55), bei `GET` das Dateiende (26), dann die Längen der Feldvariablen
+  (eine geänderte Länge, etwa nach `a$="zz"`: 54 „get/put field string len changed“). `GET` auf eine
+  sequentielle Datei: 50. `RECORD #n,k`: das nächste `GET`/`PUT` nimmt Satz k+1. Die Sätze stehen ohne
+  Trenner in der Datei. `LOC` ist bei R-Dateien 0, sonst die Byteposition. `SEEK #n,pos`/`RELSEEK`
+  hinter das Ende: Fehler −37 „seek error“ (219), die Position steht dann am Ende. `INP(#n)`,
+  `OUT #n,b,...` lesen/schreiben Bytes. `NAME a$ AS b$` auf ein vorhandenes Ziel: −53 „object
+  already exists“ (203). `ERR$(50)` ist im Original verstümmelt („file isn4fields greater than
+  record“); wir liefern „fields greater than record“.
 - **Tastatureingabe** (`INPUT`, `LINE INPUT`, `INKEY$`, `INPUT$(n)`): nach der Befehlsreferenz und
   [D20](decisions.md#d20). Offen am Original: Anzeige und Verhalten bei einer ungültigen Zahl, bei
   zu wenigen und zu vielen Werten in einer Zeile (probe15 braucht einen Weg, Tasten an das

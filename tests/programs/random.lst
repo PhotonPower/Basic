@@ -1,0 +1,103 @@
+' test: groups core print file-seq file-random
+' Wahlfreie Dateien (aus probe16): R, U, FIELD, GET, PUT, RECORD, SEEK, RELSEEK, LOC, INP, OUT, NAME.
+' Die Ausgabe ist die des Originals bis auf zwei Zeilen: FIELD zeigt Leerzeichen (das Original zeigt
+' beim zweiten Lauf Reste des letzten Laufs) und ERR$(50) ohne den verstuemmelten Anfang.
+ON ERROR GOSUB fehler
+PRINT "probe16"
+'
+' T1 zwei Saetze schreiben, Laenge
+OPEN "R",#2,"p16.dat",16
+FIELD #2,4 AS a$,12 AS b$
+PRINT "T1 nach FIELD: [";a$;"][";b$;"] ";LEN(a$);" ";LEN(b$)
+LSET a$="ab"
+RSET b$="xyz"
+PUT #2
+LSET a$="cd"
+LSET b$="hello"
+PUT #2
+PRINT "T1 LOF=";LOF(#2);" LOC=";LOC(#2)
+' T2 lesen
+GET #2,1
+PRINT "T2 Satz 1: [";a$;"][";b$;"] LOC=";LOC(#2)
+GET #2
+PRINT "T2 naechster: [";a$;"][";b$;"]"
+RECORD #2,1
+GET #2
+PRINT "T2 RECORD 1: [";a$;"][";b$;"]"
+' T3 normale Zuweisung an eine FIELD-Variable, dann PUT
+a$="zz"
+PUT #2,1
+GET #2,1
+PRINT "T3 nach a$=zz und PUT: [";a$;"][";b$;"] ";LEN(a$)
+' T4 Fehler: Satz weit hinter dem Ende, GET hinter dem Ende
+PRINT "T4 PUT #2,5"
+PUT #2,5
+PRINT "T4 GET #2,3"
+GET #2,3
+PRINT "T4 GET #2,0"
+GET #2,0
+CLOSE #2
+' T5 Inhalt der Datei Byte fuer Byte
+OPEN "I",#2,"p16.dat"
+s$=INPUT$(LOF(#2),#2)
+CLOSE #2
+PRINT "T5";
+FOR i%=1 TO LEN(s$)
+  PRINT " ";ASC(MID$(s$,i%,1));
+NEXT i%
+PRINT
+' T6 FIELD mit falscher Summe, GET auf eine sequentielle Datei
+OPEN "R",#2,"p16.dat",16
+PRINT "T6 FIELD 4+8"
+FIELD #2,4 AS a$,8 AS b$
+CLOSE #2
+OPEN "I",#2,"p16.dat"
+PRINT "T6 GET auf I-Datei"
+GET #2,1
+CLOSE #2
+' T7 U: SEEK, RELSEEK, LOC, INP, OUT
+OPEN "U",#2,"p16.dat"
+SEEK #2,4
+PRINT "T7 LOC nach SEEK 4: ";LOC(#2);" INP: ";INP(#2);" LOC: ";LOC(#2)
+RELSEEK #2,-2
+PRINT "T7 LOC nach RELSEEK -2: ";LOC(#2);" INP: ";INP(#2)
+SEEK #2,0
+OUT #2,65,66
+PRINT #2,"C";
+PRINT "T7 LOC nach OUT und PRINT: ";LOC(#2);" LOF: ";LOF(#2)
+SEEK #2,0
+s$=INPUT$(6,#2)
+PRINT "T7 Anfang: [";s$;"]"
+SEEK #2,40
+PRINT "T7 SEEK hinter das Ende: LOC=";LOC(#2)
+CLOSE #2
+PRINT "T7 U auf fehlende Datei"
+OPEN "U",#2,"p16u.dat"
+CLOSE #2
+PRINT "T7 angelegt: ";EXIST("p16u.dat")
+KILL "p16u.dat"
+' T8 Satzlaenge 0 / ohne Laenge
+PRINT "T8 OPEN R ohne Laenge"
+OPEN "R",#2,"p16c.dat"
+FIELD #2,128 AS c$
+PRINT "T8 LEN(c$)=";LEN(c$)
+CLOSE #2
+' T9 NAME
+NAME "p16.dat" AS "p16b.dat"
+PRINT "T9 EXIST: ";EXIST("p16.dat");" ";EXIST("p16b.dat")
+PRINT "T9 NAME auf vorhandenes Ziel"
+OPEN "O",#2,"p16d.dat"
+CLOSE #2
+NAME "p16b.dat" AS "p16d.dat"
+KILL "p16b.dat"
+KILL "p16c.dat"
+KILL "p16d.dat"
+PRINT "ende"
+END
+'
+PROCEDURE fehler
+  e%=ERR
+  PRINT "   -> ERR ";e%;" ";ERR$(e%)
+  ON ERROR GOSUB fehler
+  RESUME NEXT
+RETURN

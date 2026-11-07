@@ -1,0 +1,33 @@
+probe16
+T1 nach FIELD: [    ][            ] 4 12
+T1 LOF=32 LOC=0
+T2 Satz 1: [ab  ][         xyz] LOC=0
+T2 naechster: [cd  ][hello       ]
+T2 RECORD 1: [cd  ][hello       ]
+   -> ERR 54 get/put field string|len changed
+   -> ERR 54 get/put field string|len changed
+T3 nach a$=zz und PUT: [zz][hello       ] 2
+T4 PUT #2,5
+   -> ERR 55 get/put: illegal recordnumber
+T4 GET #2,3
+   -> ERR 26 end of file
+T4 GET #2,0
+   -> ERR 55 get/put: illegal recordnumber
+T5 97 98 32 32 32 32 32 32 32 32 32 32 32 120 121 122 99 100 32 32 104 101 108 108 111 32 32 32 32 32 32 32
+T6 FIELD 4+8
+T6 GET auf I-Datei
+   -> ERR 50 fields greater than record
+T7 LOC nach SEEK 4: 4 INP: 32 LOC: 5
+T7 LOC nach RELSEEK -2: 3 INP: 32
+T7 LOC nach OUT und PRINT: 3 LOF: 32
+T7 Anfang: [ABC   ]
+   -> ERR -37 seek error
+T7 SEEK hinter das Ende: LOC=32
+T7 U auf fehlende Datei
+T7 angelegt: -1
+T8 OPEN R ohne Laenge
+T8 LEN(c$)=128
+T9 EXIST: 0 -1
+T9 NAME auf vorhandenes Ziel
+   -> ERR -53 object already exists
+ende

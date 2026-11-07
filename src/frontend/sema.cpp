@@ -705,18 +705,49 @@ private:
                     fail(s.args[k]->pos, "ON GOSUB needs procedures without parameters");
                 h->vars.push_back(id);
             }
-        } else if (n == "OPEN") {  // OPEN mode$,#n,name$ (probe14)
-            argc(3, 3);
+        } else if (n == "OPEN") {  // OPEN mode$,#n,name$[,record length] (probe14, probe16)
+            argc(3, 4);
             if (!isChannel(*s.args[1])) fail(s.args[1]->pos, "OPEN expects a file channel: #n");
             h->args.push_back(convertTo(expr(*s.args[0]), Type::Str, s.args[0]->pos));
             h->args.push_back(channel(*s.args[1]));
             h->args.push_back(convertTo(expr(*s.args[2]), Type::Str, s.args[2]->pos));
+            if (s.args.size() == 4) h->args.push_back(convertTo(expr(*s.args[3]), Type::Float, s.args[3]->pos));
         } else if (n == "CLOSE") {
             argc(0, 1);
             if (!s.args.empty()) {
                 if (!isChannel(*s.args[0])) fail(s.args[0]->pos, "CLOSE expects a file channel: #n");
                 h->args.push_back(channel(*s.args[0]));
             }
+        } else if (n == "FIELD") {  // FIELD #n,len AS a$[,len AS b$...]: args #n, len, len...; targets
+            if (s.args.size() < 3 || !isChannel(*s.args[0]) || s.args.size() % 2 == 0)
+                fail(s.pos, "FIELD expects #n,length AS a$[,...] (AT is not supported yet)");
+            h->args.push_back(channel(*s.args[0]));
+            for (std::size_t k = 1; k + 1 < s.args.size(); k += 2) {
+                h->args.push_back(convertTo(expr(*s.args[k]), Type::Float, s.args[k]->pos));
+                const ast::Expr& v = *s.args[k + 1];
+                if (v.kind != ExprKind::Var || !v.args.empty()) fail(v.pos, "FIELD needs string variables");
+                h->targets.push_back(lvalue(v));
+                if (h->targets.back()->type != Type::Str) fail(v.pos, "FIELD needs string variables");
+            }
+        } else if ((n == "GET" || n == "PUT") && !s.args.empty() && isChannel(*s.args[0])) {  // GET #n[,record]
+            argc(1, 2);
+            h->name = n + "#";
+            h->args.push_back(channel(*s.args[0]));
+            if (s.args.size() == 2) h->args.push_back(convertTo(expr(*s.args[1]), Type::Float, s.args[1]->pos));
+        } else if (n == "RECORD" || n == "SEEK" || n == "RELSEEK") {  // #n,number
+            argc(2, 2);
+            if (!isChannel(*s.args[0])) fail(s.args[0]->pos, n + " expects a file channel: #n");
+            h->args.push_back(channel(*s.args[0]));
+            h->args.push_back(convertTo(expr(*s.args[1]), Type::Float, s.args[1]->pos));
+        } else if (n == "OUT" && !s.args.empty() && isChannel(*s.args[0])) {  // OUT #n,byte[,byte...]
+            argc(2, 256);
+            h->args.push_back(channel(*s.args[0]));
+            for (std::size_t k = 1; k < s.args.size(); ++k) h->args.push_back(convertTo(expr(*s.args[k]), Type::Float, s.args[k]->pos));
+        } else if (n == "NAME" || n == "RENAME") {  // NAME old$ AS new$
+            argc(2, 2);
+            h->name = "NAME";
+            h->args.push_back(convertTo(expr(*s.args[0]), Type::Str, s.args[0]->pos));
+            h->args.push_back(convertTo(expr(*s.args[1]), Type::Str, s.args[1]->pos));
         } else if (n == "KILL") {
             argc(1, 1);
             h->args.push_back(convertTo(expr(*s.args[0]), Type::Str, s.args[0]->pos));

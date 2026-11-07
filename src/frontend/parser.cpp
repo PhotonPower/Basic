@@ -29,6 +29,7 @@ const std::set<std::string, std::less<>> kCommands = {
     "DEFSNG", "DEFDBL",    "PAUSE",  "DELAY",  "CLS",    "NEW",    "ARRAYFILL", "INSERT", "DELETE",
     "OPTION", "TRON",      "TROFF",  "WRITE",  "LOCATE", "HTAB",   "VTAB",   "INPUT",   "POKE",
     "DPOKE",  "LPOKE",     "BMOVE",  "OPEN",   "CLOSE",  "KILL",   "NAME",   "RENAME",  "SOUND",
+    "FIELD",  "GET",       "PUT",    "RECORD", "SEEK",   "RELSEEK", "OUT",
 };
 
 class Parser {
@@ -331,6 +332,7 @@ private:
                 s.args.push_back(std::move(e));
             } else {
                 s.args.push_back(expr());
+                if (acceptWord("AS")) s.args.push_back(expr());  // FIELD #n,len AS a$ / NAME a$ AS b$
             }
         } while (acceptPunct(","));
     }

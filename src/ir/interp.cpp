@@ -439,6 +439,8 @@ private:
         if (n == "EOF") return I(files_.eof(f(0)));
         if (n == "LOF") return I(files_.lof(f(0)));
         if (n == "EXIST") return I(brt::Files::exist(s(0)));
+        if (n == "LOC") return I(files_.loc(f(0)));
+        if (n == "INP") return I(files_.inp(f(0)));
         if (n == "INPUT$") return argc == 1 ? S(kbd_.chars(f(0))) : S(files_.inputChars(f(0), f(1)));
         if (n == "INKEY$") return S(kbd_.inkey());
         if (n == "LEFT$") return S(brt::left(s(0), argc > 1 ? f(1) : F64_ONE));
@@ -909,7 +911,8 @@ private:
         if (n == "OPEN") {
             const std::string mode = eval(*s.args[0]).s;
             const f64 ch = eval(*s.args[1]).f;
-            files_.open(mode, ch, eval(*s.args[2]).s);
+            const std::string name = eval(*s.args[2]).s;
+            files_.open(mode, ch, name, s.args.size() > 3 ? eval(*s.args[3]).f : 0);
             return;
         }
         if (n == "CLOSE") {
@@ -919,6 +922,41 @@ private:
         }
         if (n == "KILL") {
             files_.kill(eval(*s.args[0]).s);
+            return;
+        }
+        if (n == "NAME") {
+            const std::string from = eval(*s.args[0]).s;
+            files_.name(from, eval(*s.args[1]).s);
+            return;
+        }
+        if (n == "FIELD") {  // the variables are bound to the record of the channel (probe16)
+            const f64 ch = eval(*s.args[0]).f;
+            std::vector<f64> lens;
+            std::vector<std::string*> vars;
+            for (std::size_t k = 1; k < s.args.size(); ++k) lens.push_back(eval(*s.args[k]).f);
+            for (const auto& t : s.targets) vars.push_back(&slot(t->var).s);
+            files_.field(ch, vars, lens);
+            return;
+        }
+        if (n == "GET#" || n == "PUT#") {
+            const f64 ch = eval(*s.args[0]).f;
+            const bool numbered = s.args.size() > 1;
+            const f64 rec = numbered ? eval(*s.args[1]).f : 0;
+            if (n == "GET#") files_.get(ch, numbered, rec);
+            else files_.put(ch, numbered, rec);
+            return;
+        }
+        if (n == "RECORD" || n == "SEEK" || n == "RELSEEK") {
+            const f64 ch = eval(*s.args[0]).f;
+            const f64 v = eval(*s.args[1]).f;
+            if (n == "RECORD") files_.record(ch, v);
+            else if (n == "SEEK") files_.seek(ch, v);
+            else files_.relseek(ch, v);
+            return;
+        }
+        if (n == "OUT") {
+            const f64 ch = eval(*s.args[0]).f;
+            for (std::size_t k = 1; k < s.args.size(); ++k) files_.out(ch, eval(*s.args[k]).f);
             return;
         }
         if (n == "INPUT" || n == "LINE INPUT") {  // from the keyboard

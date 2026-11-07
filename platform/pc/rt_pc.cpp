@@ -71,6 +71,11 @@ std::string errorText(int code) {
         case 67: return "asin/acos error";      // probe13 T5
         case 202: return "object in use";       // probe14 T7 (AmigaDOS ERROR_OBJECT_IN_USE)
         case 205: return "object not found";    // probe14 T7 (AmigaDOS ERROR_OBJECT_NOT_FOUND)
+        case 203: return "object already exists";  // probe16 T9
+        case 219: return "seek error";            // probe16 T7
+        case 50: return "fields greater than record";  // probe16 T6 (the original shows a garbled text)
+        case 54: return "get/put field string|len changed";  // probe16 T3
+        case 55: return "get/put: illegal recordnumber";     // probe16 T4
         case 68: return "var-type mismatch";    // probe10
         default: break;
     }
@@ -535,18 +540,169 @@ bool Files::inUse(const std::string& name, const Channel* except) const {
     return false;
 }
 
-void Files::open(const std::string& mode, f64 channel, const std::string& name) {
+void Files::open(const std::string& mode, f64 channel, const std::string& name, f64 recordLength) {
     const char m = mode.empty() ? ' ' : static_cast<char>(std::toupper(static_cast<unsigned char>(mode[0])));
-    if (m != 'O' && m != 'I' && m != 'A') throw Error{21};  // open allows: i o r a u (r, u not yet)
+    if (m != 'O' && m != 'I' && m != 'A' && m != 'U' && m != 'R') throw Error{21};  // open allows i o r a u
     Channel& c = get(channel, false);
     if (c.f != nullptr) throw Error{22};  // file already open
     if (inUse(name, &c)) throw Error{kErrObjectInUse};
-    std::FILE* f = std::fopen(name.c_str(), m == 'O' ? "wb" : m == 'A' ? "ab" : "rb");
+    std::FILE* f = nullptr;
+    if (m == 'U' || m == 'R') {  // read and write; a missing file is created (probe16 T7)
+        f = std::fopen(name.c_str(), "r+b");
+        if (f == nullptr) f = std::fopen(name.c_str(), "w+b");
+    } else {
+        f = std::fopen(name.c_str(), m == 'O' ? "wb" : m == 'A' ? "ab" : "rb");
+    }
     if (f == nullptr) throw Error{m == 'I' ? kErrObjectNotFound : kErrObjectInUse};
     c.f = f;
-    c.input = m == 'I';
+    c.input = m == 'I' || m == 'U' || m == 'R';
+    c.output = m != 'I';
+    c.writing = false;
+    c.reclen = 0;
+    if (m == 'R') {  // without a length: 128 (probe16 T8)
+        c.reclen = toInt(recordLength);
+        if (c.reclen <= 0) c.reclen = 128;
+    }
+    c.next = 0;
+    c.fields.clear();
+    c.lengths.clear();
     c.name = name;
     c.out = Output();
+}
+
+void Files::toRead(Channel& c) {
+    if (c.writing) std::fseek(c.f, 0, SEEK_CUR);
+    c.writing = false;
+}
+
+void Files::toWrite(Channel& c) {
+    if (!c.writing) std::fseek(c.f, 0, SEEK_CUR);
+    c.writing = true;
+}
+
+std::int32_t Files::size(Channel& c) {
+    std::fflush(c.f);
+    const long pos = std::ftell(c.f);
+    std::fseek(c.f, 0, SEEK_END);
+    const long len = std::ftell(c.f);
+    std::fseek(c.f, pos, SEEK_SET);
+    return static_cast<std::int32_t>(len);
+}
+
+void Files::name(const std::string& from, const std::string& to) {
+    if (!exist(from)) throw Error{kErrObjectNotFound};
+    if (exist(to)) throw Error{kErrObjectExists};  // object already exists (probe16 T9)
+    if (inUse(from, nullptr)) throw Error{kErrObjectInUse};
+    std::rename(from.c_str(), to.c_str());
+}
+
+void Files::field(f64 channel, const std::vector<std::string*>& vars, const std::vector<f64>& lengths) {
+    Channel& c = get(channel, true);
+    std::vector<std::int32_t> lens;
+    std::int64_t sum = 0;
+    for (f64 l : lengths) {
+        lens.push_back(toInt(l));
+        sum += lens.back();
+    }
+    if (sum > c.reclen) throw Error{50};  // fields greater than record (also for other modes)
+    c.fields = vars;
+    c.lengths = lens;
+    for (std::size_t k = 0; k < vars.size(); ++k) *vars[k] = std::string(static_cast<std::size_t>(std::max(0, lens[k])), ' ');
+}
+
+// Order of the checks as on the original (probe16 T4): record number (55), for GET the end of the
+// file (26), then the lengths of the field strings (54).
+std::size_t Files::recordIndex(Channel& c, bool numbered, f64 record) {
+    if (c.reclen == 0) throw Error{50};
+    if (!numbered) return static_cast<std::size_t>(std::max(0, c.next));
+    const std::int32_t r = toInt(record);
+    if (r < 1) throw Error{55};  // get/put: illegal recordnumber
+    return static_cast<std::size_t>(r - 1);
+}
+
+namespace {
+
+void checkFieldLengths(const std::vector<std::string*>& fields, const std::vector<std::int32_t>& lengths) {
+    for (std::size_t k = 0; k < fields.size(); ++k)  // the field strings must keep their length
+        if (static_cast<std::int32_t>(fields[k]->size()) != lengths[k]) throw Error{54};
+}
+
+}  // namespace
+
+void Files::get(f64 channel, bool numbered, f64 record) {
+    Channel& c = get(channel, true);
+    const std::size_t i = recordIndex(c, numbered, record);
+    if (static_cast<std::int64_t>(i + 1) * c.reclen > size(c)) throw Error{26};  // end of file
+    checkFieldLengths(c.fields, c.lengths);
+    toRead(c);
+    std::fseek(c.f, static_cast<long>(i) * c.reclen, SEEK_SET);
+    std::string rec(static_cast<std::size_t>(c.reclen), ' ');
+    const std::size_t got = std::fread(rec.data(), 1, rec.size(), c.f);
+    rec.resize(got);
+    std::size_t pos = 0;
+    for (std::size_t k = 0; k < c.fields.size(); ++k) {
+        *c.fields[k] = rec.substr(std::min(pos, rec.size()), static_cast<std::size_t>(c.lengths[k]));
+        pos += static_cast<std::size_t>(c.lengths[k]);
+    }
+    c.next = static_cast<std::int32_t>(i + 1);
+}
+
+void Files::put(f64 channel, bool numbered, f64 record) {
+    Channel& c = get(channel, true);
+    const std::size_t i = recordIndex(c, numbered, record);
+    if (static_cast<std::int64_t>(i) * c.reclen > size(c)) throw Error{55};  // at most one record beyond the end
+    checkFieldLengths(c.fields, c.lengths);
+    std::string rec;
+    for (const std::string* f : c.fields) rec += *f;
+    rec.resize(static_cast<std::size_t>(c.reclen), ' ');
+    toWrite(c);
+    std::fseek(c.f, static_cast<long>(i) * c.reclen, SEEK_SET);
+    std::fwrite(rec.data(), 1, rec.size(), c.f);
+    c.next = static_cast<std::int32_t>(i + 1);
+}
+
+void Files::record(f64 channel, f64 n) { get(channel, true).next = toInt(n); }
+
+void Files::seek(f64 channel, f64 posf) {
+    Channel& c = get(channel, true);
+    const std::int32_t pos = toInt(posf);
+    const std::int32_t len = size(c);
+    std::fflush(c.f);
+    c.writing = false;
+    if (pos < 0 || pos > len) {
+        std::fseek(c.f, 0, SEEK_END);
+        throw Error{kErrSeek};  // seek error; the position is the end (probe16 T7)
+    }
+    std::fseek(c.f, pos, SEEK_SET);
+}
+
+void Files::relseek(f64 channel, f64 n) {
+    Channel& c = get(channel, true);
+    std::fflush(c.f);
+    seek(channel, fp_add(fp_from_i32(static_cast<std::int32_t>(std::ftell(c.f))), n));
+}
+
+std::int32_t Files::loc(f64 channel) {
+    Channel& c = get(channel, true);
+    if (c.reclen != 0) return 0;
+    std::fflush(c.f);
+    return static_cast<std::int32_t>(std::ftell(c.f));
+}
+
+std::int32_t Files::inp(f64 channel) {
+    Channel& c = get(channel, true);
+    if (!c.input) throw Error{RT_ERR_NOT_OPEN};
+    toRead(c);
+    const int b = std::fgetc(c.f);
+    if (b == EOF) throw Error{26};
+    return b;
+}
+
+void Files::out(f64 channel, f64 byte) {
+    Channel& c = get(channel, true);
+    if (!c.output) throw Error{RT_ERR_NOT_OPEN};
+    toWrite(c);
+    std::fputc(toInt(byte) & 0xFF, c.f);
 }
 
 void Files::close(f64 channel) {
@@ -566,7 +722,7 @@ void Files::closeAll() {
 
 Output& Files::output(f64 channel, const Output& screen) {
     Channel& c = get(channel, true);
-    if (c.input) throw Error{RT_ERR_NOT_OPEN};
+    if (!c.output) throw Error{RT_ERR_NOT_OPEN};
     c.out.defnum = screen.defnum;
     c.out.mode = screen.mode;
     return c.out;
@@ -574,11 +730,14 @@ Output& Files::output(f64 channel, const Output& screen) {
 
 void Files::flush(f64 channel) {
     Channel& c = get(channel, true);
+    if (c.out.buf.empty()) return;
+    toWrite(c);
     std::fwrite(c.out.buf.data(), 1, c.out.buf.size(), c.f);
     c.out.buf.clear();
 }
 
 int Files::peekByte(Channel& c) {
+    toRead(c);
     const int b = std::fgetc(c.f);
     if (b != EOF) std::ungetc(b, c.f);
     return b;
@@ -631,6 +790,7 @@ std::string Files::inputChars(f64 nf, f64 channel) {
     Channel& c = get(channel, true);
     if (!c.input) throw Error{RT_ERR_NOT_OPEN};
     const std::int32_t n = toInt(nf);
+    toRead(c);
     std::string s;
     for (std::int32_t k = 0; k < n; ++k) {
         const int b = std::fgetc(c.f);
@@ -643,18 +803,11 @@ std::string Files::inputChars(f64 nf, f64 channel) {
 std::int32_t Files::eof(f64 channel) {
     Channel& c = get(channel, true);
     if (!c.input) return -1;
+    if (std::ftell(c.f) >= size(c)) return -1;
     return peekByte(c) == EOF ? -1 : 0;
 }
 
-std::int32_t Files::lof(f64 channel) {
-    Channel& c = get(channel, true);
-    std::fflush(c.f);
-    const long pos = std::ftell(c.f);
-    std::fseek(c.f, 0, SEEK_END);
-    const long len = std::ftell(c.f);
-    std::fseek(c.f, pos, SEEK_SET);
-    return static_cast<std::int32_t>(len);
-}
+std::int32_t Files::lof(f64 channel) { return size(get(channel, true)); }
 
 std::int32_t Files::exist(const std::string& name) {
     std::FILE* f = std::fopen(name.c_str(), "rb");
