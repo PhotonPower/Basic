@@ -60,6 +60,13 @@ endif()
 # ---- C reference runtime ----------------------------------------------------------------
 add_subdirectory(runtime/ref)
 
+# ---- C++ runtime layer of the pc target (also used by the reference interpreter) -------------
+add_library(basic_rt_pc STATIC platform/pc/rt_pc.cpp)
+target_include_directories(basic_rt_pc PUBLIC platform/pc)
+target_link_libraries(basic_rt_pc PUBLIC basic_rt_ref)
+target_compile_features(basic_rt_pc PUBLIC cxx_std_17)
+basic_set_warnings(basic_rt_pc)
+
 # ---- core library ---------------------------------------------------------------------
 # Frontend, IR, backends and the runtime linker are added here as they are written
 # (see docs/architecture.md and docs/roadmap.md).
@@ -71,10 +78,9 @@ add_library(basiccore STATIC
   src/frontend/builtins.cpp
   src/frontend/sema.cpp
   src/ir/hir.cpp
-  src/ir/rt_bridge.cpp
   src/ir/interp.cpp)
 target_include_directories(basiccore PUBLIC include src)
-target_link_libraries(basiccore PUBLIC basic_rt_ref)
+target_link_libraries(basiccore PUBLIC basic_rt_pc)
 target_compile_features(basiccore PUBLIC cxx_std_20)
 basic_set_warnings(basiccore)
 

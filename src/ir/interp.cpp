@@ -6,7 +6,7 @@
 #include <utility>
 #include <vector>
 
-#include "rt_bridge.hpp"
+#include "rt_pc.hpp"
 #include "rt_ref.h"
 
 namespace basic {
@@ -25,11 +25,8 @@ constexpr int kErrIndices = 18;      // wrong # of indices
 constexpr int kErrOutOfData = 34;    // out of data
 constexpr int kErrNotNumeric = 35;   // data not numeric
 
-constexpr f64 kPi = 0x400921FB54442D18u;
 
-struct RuntimeError {
-    int code;
-};
+using RuntimeError = brt::Error;
 
 // Errors of the program structure at run time that have no GFA number (RESUME outside the error
 // routine, a FUNCTION left without RETURN).
@@ -94,37 +91,15 @@ struct ResumeSignal {
 struct EndProgram {};
 struct StepLimit {};
 
-// Checks the runtime error recorded by runtime/ref (rt_error) and raises it.
-void check() {
-    const int e = takeRuntimeError();
-    if (e >= 0) throw RuntimeError{e};
-}
+using brt::check;
 
-std::int32_t toI32(f64 v) {
-    const std::int32_t r = fp_to_i32(v);
-    check();
-    return r;
-}
-
-f64 ofI32(std::int32_t v) {
-    return fp_from_i32(v);
-}
-
-std::string fmtFloat(f64 v, int digits) {
-    char buf[RT_FMT_FLT_MAX];
-    rt_fmt_flt(buf, v, digits);
-    return buf;
-}
-
-void checkLen(const std::string& s) {
-    if (s.size() > 32767) throw RuntimeError{RT_ERR_STR_LONG};
-}
+std::int32_t toI32(f64 v) { return brt::toInt(v); }
+f64 ofI32(std::int32_t v) { return brt::flt(v); }
 
 class Interp {
 public:
     Interp(const hir::Program& p, const RunOptions& o) : p_(p), opt_(o), slots_(p.vars.size()) {
         rt_randomize(o.seed);
-        takeRuntimeError();
     }
 
     RunResult run() {
@@ -158,7 +133,7 @@ public:
             r.line = line_;
             r.message = f.message;
         }
-        r.output = std::move(out_);
+        r.output = std::move(out_.buf);
         return r;
     }
 
@@ -166,32 +141,22 @@ private:
     const hir::Program& p_;
     RunOptions opt_;
     std::vector<Slot> slots_;
-    std::string out_;
-    int col_ = 0;  // characters since the last line feed (POS)
+    brt::Output out_;
     int line_ = 0;
     std::uint64_t steps_ = 0;
     int err_ = 0;
     int onError_ = -1;
     int handlerDepth_ = 0;
-    int defnum_ = 13;
-    int mode_ = 0;
     int base_ = 0;
     std::size_t dataPos_ = 0;
     struct Frame;
     std::vector<Frame*> frames_;
 
     // ---- output ---------------------------------------------------------------------------------
-    void put(const std::string& s) {
-        for (char c : s) {
-            out_ += c;
-            col_ = c == '\n' ? 0 : col_ + 1;
-        }
-    }
-
-    std::string str(const Value& v) const {
-        if (v.type == Type::Str) return v.s;
-        if (v.type == Type::Float) return fmtFloat(v.f, defnum_);
-        return fmtFloat(ofI32(v.i), defnum_);
+    void putValue(const Value& v) {
+        if (v.type == Type::Str) out_.value(v.s);
+        else if (v.type == Type::Float) out_.value(v.f);
+        else out_.value(v.i);
     }
 
     // ---- variables ------------------------------------------------------------------------------
@@ -290,40 +255,21 @@ private:
     Value convert(Value v, Type to) {
         if (to == Type::Float) return v.type == Type::Float ? v : Value::ofFloat(ofI32(v.i));
         if (to == Type::Str) return v;
-        std::int32_t i = v.i;
-        if (v.type == Type::Float) {
-            if (to == Type::Bool) return Value::ofInt(fp_cmp(v.f, 0) != 0 ? -1 : 0);
-            if (to == Type::Word) {
-                const std::int16_t w = fp_to_i16(v.f);
-                check();
-                return Value::ofInt(w);
-            }
-            if (to == Type::Byte) {
-                const std::uint8_t b = fp_to_u8(v.f);
-                check();
-                return Value::ofInt(b);
-            }
-            i = toI32(v.f);
-        }
+        const bool f = v.type == Type::Float;
         switch (to) {
-            case Type::Bool: return Value::ofInt(i != 0 ? -1 : 0);
-            case Type::Byte:
-                if (i < 0 || i > 255) throw RuntimeError{RT_ERR_NO_BYTE};
-                break;
-            case Type::Word:
-                if (i < -32768 || i > 32767) throw RuntimeError{RT_ERR_NO_WORD};
-                break;
-            default: break;
+            case Type::Bool: return Value::ofInt(f ? brt::convBool(v.f) : brt::convBool(v.i));
+            case Type::Byte: return Value::ofInt(f ? brt::convByte(v.f) : brt::convByte(v.i));
+            case Type::Word: return Value::ofInt(f ? brt::convWord(v.f) : brt::convWord(v.i));
+            default: return Value::ofInt(f ? brt::toInt(v.f) : v.i);
         }
-        return Value::ofInt(i);
     }
 
     static Value wrapTo(Type t, std::int64_t v) {
         switch (t) {
-            case Type::Byte: return Value::ofInt(static_cast<std::int32_t>(v & 0xFF));
-            case Type::Word: return Value::ofInt(static_cast<std::int16_t>(static_cast<std::uint16_t>(v & 0xFFFF)));
-            case Type::Bool: return Value::ofInt(v != 0 ? -1 : 0);
-            default: return Value::ofInt(static_cast<std::int32_t>(static_cast<std::uint32_t>(v & 0xFFFFFFFF)));
+            case Type::Byte: return Value::ofInt(brt::wrapByte(v));
+            case Type::Word: return Value::ofInt(brt::wrapWord(v));
+            case Type::Bool: return Value::ofInt(brt::wrapBool(v));
+            default: return Value::ofInt(brt::wrapInt(v));
         }
     }
 
@@ -340,33 +286,27 @@ private:
             case Op::Conv: return convert(eval(*e.args[0]), e.type);
             case Op::ToInt: return Value::ofInt(toI32(eval(*e.args[0]).f));
             case Op::Neg: return Value::ofFloat(fp_neg(eval(*e.args[0]).f));
-            case Op::Add: return floatOp(e, fp_add);
-            case Op::Sub: return floatOp(e, fp_sub);
-            case Op::Mul: return floatOp(e, fp_mul);
-            case Op::Div: return floatOp(e, fp_div);
-            case Op::Pow: return Value::ofFloat(power(eval(*e.args[0]).f, eval(*e.args[1]).f));
-            case Op::IDiv:
-            case Op::IMod: {
-                const std::int32_t a = eval(*e.args[0]).i, b = eval(*e.args[1]).i;
-                if (b == 0) throw RuntimeError{RT_ERR_DIV_ZERO};
-                if (b == -1) return Value::ofInt(e.op == Op::IDiv ? static_cast<std::int32_t>(0u - static_cast<std::uint32_t>(a)) : 0);
-                return Value::ofInt(e.op == Op::IDiv ? a / b : a % b);
-            }
+            case Op::Add: return floatOp(e, brt::add);
+            case Op::Sub: return floatOp(e, brt::sub);
+            case Op::Mul: return floatOp(e, brt::mul);
+            case Op::Div: return floatOp(e, brt::div);
+            case Op::Pow: return floatOp(e, brt::power);
+            case Op::IDiv: return intOp(e, brt::idiv);
+            case Op::IMod: return intOp(e, brt::imod);
             case Op::Not: return Value::ofInt(~eval(*e.args[0]).i);
             case Op::And: return intOp(e, [](std::int32_t a, std::int32_t b) { return a & b; });
             case Op::Or: return intOp(e, [](std::int32_t a, std::int32_t b) { return a | b; });
             case Op::Xor: return intOp(e, [](std::int32_t a, std::int32_t b) { return a ^ b; });
-            case Op::Imp: return intOp(e, [](std::int32_t a, std::int32_t b) { return ~a | b; });
-            case Op::Eqv: return intOp(e, [](std::int32_t a, std::int32_t b) { return ~(a ^ b); });
+            case Op::Imp: return intOp(e, brt::imp);
+            case Op::Eqv: return intOp(e, brt::eqv);
             case Op::Eq: case Op::Ne: case Op::Lt: case Op::Gt: case Op::Le: case Op::Ge: return compare(e);
             case Op::ApproxEq: {
                 const f64 a = eval(*e.args[0]).f, b = eval(*e.args[1]).f;
-                return Value::ofInt(fp_approx_eq(a, b) ? -1 : 0);
+                return Value::ofInt(brt::approxEq(a, b));
             }
             case Op::Concat: {
                 Value a = eval(*e.args[0]);
-                a.s += eval(*e.args[1]).s;
-                checkLen(a.s);
+                a.s = brt::concat(std::move(a.s), eval(*e.args[1]).s);
                 return a;
             }
             case Op::Builtin: return builtin(e);
@@ -377,9 +317,7 @@ private:
 
     Value floatOp(const hir::Expr& e, f64 (*fn)(f64, f64)) {
         const f64 a = eval(*e.args[0]).f, b = eval(*e.args[1]).f;
-        const f64 r = fn(a, b);
-        check();
-        return Value::ofFloat(r);
+        return Value::ofFloat(fn(a, b));
     }
 
     template <class F>
@@ -388,33 +326,11 @@ private:
         return Value::ofInt(fn(a, b));
     }
 
-    // x^y: integer exponents by repeated multiplication (exact for small powers, e.g. 2^-26);
-    // other exponents need EXP/LOG, which the runtime does not provide yet.
-    f64 power(f64 x, f64 y) {
-        const f64 t = fp_trunc(y);
-        if (fp_cmp(t, y) != 0) throw RuntimeError{RT_ERR_OVERFLOW};  // TODO: EXP(y*LOG(x))
-        const f64 lim = 0x41DFFFFFFFC00000u;  // 2^31-1
-        if (fp_cmp(t & ~(std::uint64_t{1} << 63), lim) > 0) throw RuntimeError{RT_ERR_OVERFLOW};
-        std::int64_t n = toI32(t);
-        const bool neg = n < 0;
-        if (neg) n = -n;
-        f64 r = F64_ONE, b = x;
-        while (n > 0) {
-            if (n & 1) r = fp_mul(r, b);
-            n >>= 1;
-            if (n > 0) b = fp_mul(b, b);
-            check();
-        }
-        if (neg) r = fp_div(F64_ONE, r);
-        check();
-        return r;
-    }
-
     Value compare(const hir::Expr& e) {
         const Value a = eval(*e.args[0]), b = eval(*e.args[1]);
         int c;
-        if (a.type == Type::Str) c = a.s < b.s ? -1 : (a.s > b.s ? 1 : 0);
-        else c = fp_cmp(num(a), num(b));
+        if (a.type == Type::Str) c = brt::compare(a.s, b.s);
+        else c = brt::compare(num(a), num(b));
         bool r = false;
         switch (e.op) {
             case Op::Eq: r = c == 0; break;
@@ -428,227 +344,102 @@ private:
     }
 
     // ---- built-in functions ---------------------------------------------------------------------
-    std::int32_t argInt(const hir::Expr& e, std::size_t k) { return toI32(fp_trunc(eval(*e.args[k]).f)); }
-    f64 argF(const hir::Expr& e, std::size_t k) { return eval(*e.args[k]).f; }
-    std::string argS(const hir::Expr& e, std::size_t k) { return eval(*e.args[k]).s; }
-
-    static std::string radix(std::uint32_t v, unsigned base, std::int32_t width) {
-        static const char* digits = "0123456789ABCDEF";
-        std::string r;
-        do {
-            r.insert(r.begin(), digits[v % base]);
-            v /= base;
-        } while (v != 0);
-        if (width > 0) {
-            if (static_cast<std::int32_t>(r.size()) < width) r.insert(0, static_cast<std::size_t>(width) - r.size(), '0');
-            else r = r.substr(r.size() - static_cast<std::size_t>(width));
-        }
-        return r;
-    }
-
-    static std::uint32_t shift(std::uint32_t x, std::int32_t n, int width, bool left, bool rotate, bool signExtend) {
-        const std::uint32_t mask = width == 32 ? 0xFFFFFFFFu : (1u << width) - 1;
-        n &= 31;
-        std::uint32_t v = x & mask;
-        if (rotate) {
-            n %= width;
-            if (n != 0) v = left ? ((v << n) | (v >> (width - n))) & mask : ((v >> n) | (v << (width - n))) & mask;
-        } else {
-            v = n >= width ? 0 : (left ? (v << n) & mask : v >> n);
-        }
-        if (width == 16 && signExtend) return static_cast<std::uint32_t>(static_cast<std::int32_t>(static_cast<std::int16_t>(v)));
-        return v;
-    }
-
+    // The arguments are evaluated from left to right first, then platform/pc does the work.
     Value builtin(const hir::Expr& e) {
         const std::string& n = e.sval;
-        auto I = [&](std::int32_t v) { return Value::ofInt(v); };
-        auto F = [&](f64 v) {
-            check();
-            return Value::ofFloat(v);
-        };
-        auto S = [&](std::string v) {
-            checkLen(v);
-            return Value::ofStr(std::move(v));
-        };
-        if (n == "ABS") return F(argF(e, 0) & ~(std::uint64_t{1} << 63));
-        if (n == "SGN") return I(fp_cmp(argF(e, 0), 0));
-        if (n == "INT") return F(fp_int(argF(e, 0)));
-        if (n == "TRUNC" || n == "FIX") return F(fp_trunc(argF(e, 0)));
-        if (n == "FRAC") return F(fp_frac(argF(e, 0)));
-        if (n == "CINT") return I(toI32(fp_cint(argF(e, 0))));
-        if (n == "CFLOAT") return F(argF(e, 0));
-        if (n == "ROUND") return F(fp_round(argF(e, 0), e.args.size() > 1 ? argInt(e, 1) : 0));
-        if (n == "SQR") return F(fp_sqrt(argF(e, 0)));
-        if (n == "ODD") return I((argInt(e, 0) & 1) != 0 ? -1 : 0);
-        if (n == "EVEN") return I((argInt(e, 0) & 1) == 0 ? -1 : 0);
+        if (n == "DIM?") {
+            const Array& arr = array(e.args[0]->var, false);
+            if (!arr.dimmed) return Value::ofInt(0);
+            std::int32_t c = 1;
+            for (std::int32_t u : arr.upper) c *= u - base_ + 1;
+            return Value::ofInt(c);
+        }
+        std::vector<Value> a;
+        a.reserve(e.args.size());
+        for (const auto& x : e.args) a.push_back(eval(*x));
+        const std::size_t argc = a.size();
+        auto I = [](std::int32_t v) { return Value::ofInt(v); };
+        auto F = [](f64 v) { return Value::ofFloat(v); };
+        auto S = [](std::string v) { return Value::ofStr(std::move(v)); };
+        auto f = [&](std::size_t k) { return a[k].f; };
+        auto s = [&](std::size_t k) -> const std::string& { return a[k].s; };
+        if (n == "ABS") return F(brt::abs(f(0)));
+        if (n == "SGN") return I(brt::sgn(f(0)));
+        if (n == "INT") return F(brt::intf(f(0)));
+        if (n == "TRUNC" || n == "FIX") return F(brt::truncf(f(0)));
+        if (n == "FRAC") return F(brt::frac(f(0)));
+        if (n == "CINT") return I(brt::cint(f(0)));
+        if (n == "CFLOAT") return F(f(0));
+        if (n == "ROUND") return F(brt::round(f(0), argc > 1 ? brt::toInt(f(1)) : 0));
+        if (n == "SQR") return F(brt::sqr(f(0)));
+        if (n == "ODD") return I(brt::odd(f(0)));
+        if (n == "EVEN") return I(brt::even(f(0)));
         if (n == "MIN" || n == "MAX") {
-            Value best = eval(*e.args[0]);
-            for (std::size_t k = 1; k < e.args.size(); ++k) {
-                Value v = eval(*e.args[k]);
-                const int c = v.type == Type::Str ? (v.s < best.s ? -1 : (v.s > best.s ? 1 : 0)) : fp_cmp(v.f, best.f);
-                if ((n == "MIN" && c < 0) || (n == "MAX" && c > 0)) best = std::move(v);
+            std::size_t best = 0;
+            for (std::size_t k = 1; k < argc; ++k) {
+                const int c = a[k].type == Type::Str ? brt::compare(a[k].s, a[best].s) : brt::compare(a[k].f, a[best].f);
+                if ((n == "MIN" && c < 0) || (n == "MAX" && c > 0)) best = k;
             }
-            return best;
+            return a[best];
         }
-        if (n == "RND") {
-            if (!e.args.empty()) eval(*e.args[0]);
-            return F(rt_rnd());
-        }
-        if (n == "RANDOM") return I(toI32(fp_int(fp_mul(rt_rnd(), argF(e, 0)))));
-        if (n == "RAND") return I(rt_rand(argInt(e, 0)));
-        if (n == "ADD" || n == "SUB" || n == "MUL") {
-            const std::int64_t a = argInt(e, 0), b = argInt(e, 1);
-            return wrapTo(Type::Int, n == "ADD" ? a + b : n == "SUB" ? a - b : a * b);
-        }
-        if (n == "DIV" || n == "MOD") {
-            const std::int32_t a = argInt(e, 0), b = argInt(e, 1);
-            if (b == 0) throw RuntimeError{RT_ERR_DIV_ZERO};
-            if (b == -1) return I(n == "DIV" ? static_cast<std::int32_t>(0u - static_cast<std::uint32_t>(a)) : 0);
-            return I(n == "DIV" ? a / b : a % b);
-        }
-        if (n == "PRED" || n == "SUCC") {
-            const int d = n == "PRED" ? -1 : 1;
-            if (e.type == Type::Str) {
-                const std::string s = argS(e, 0);
-                return S(std::string(1, static_cast<char>((s.empty() ? 0 : static_cast<unsigned char>(s[0])) + d)));
-            }
-            return wrapTo(Type::Int, static_cast<std::int64_t>(argInt(e, 0)) + d);
-        }
-        if (n == "BCLR" || n == "BSET" || n == "BCHG" || n == "BTST") {
-            const std::uint32_t x = static_cast<std::uint32_t>(argInt(e, 0));
-            const std::uint32_t bit = 1u << (argInt(e, 1) & 31);
-            if (n == "BTST") return I((x & bit) != 0 ? -1 : 0);
-            return I(static_cast<std::int32_t>(n == "BCLR" ? x & ~bit : n == "BSET" ? x | bit : x ^ bit));
-        }
+        if (n == "RND") return F(brt::rnd());
+        if (n == "RANDOM") return I(brt::random(f(0)));
+        if (n == "RAND") return I(brt::rand(f(0)));
+        if (n == "ADD") return I(brt::fnAdd(f(0), f(1)));
+        if (n == "SUB") return I(brt::fnSub(f(0), f(1)));
+        if (n == "MUL") return I(brt::fnMul(f(0), f(1)));
+        if (n == "DIV") return I(brt::fnDiv(f(0), f(1)));
+        if (n == "MOD") return I(brt::fnMod(f(0), f(1)));
+        if (n == "PRED") return e.type == Type::Str ? S(brt::pred(s(0))) : I(brt::pred(f(0)));
+        if (n == "SUCC") return e.type == Type::Str ? S(brt::succ(s(0))) : I(brt::succ(f(0)));
+        if (n == "BCLR") return I(brt::bitOp('C', f(0), f(1)));
+        if (n == "BSET") return I(brt::bitOp('S', f(0), f(1)));
+        if (n == "BCHG") return I(brt::bitOp('X', f(0), f(1)));
+        if (n == "BTST") return I(brt::bitOp('T', f(0), f(1)));
         if (n.rfind("SHL", 0) == 0 || n.rfind("SHR", 0) == 0 || n.rfind("ROL", 0) == 0 || n.rfind("ROR", 0) == 0) {
             const int width = n.size() == 3 ? 32 : n[3] == '&' ? 16 : 8;
-            const std::uint32_t r = shift(static_cast<std::uint32_t>(argInt(e, 0)), argInt(e, 1), width, n[2] == 'L',
-                                          n[0] == 'R', true);
-            return I(static_cast<std::int32_t>(r));
+            return I(brt::shift(f(0), f(1), width, n[2] == 'L', n[0] == 'R'));
         }
-        if (n == "AND") return I(argInt(e, 0) & argInt(e, 1));
-        if (n == "OR") return I(argInt(e, 0) | argInt(e, 1));
-        if (n == "XOR") return I(argInt(e, 0) ^ argInt(e, 1));
-        if (n == "IMP") return I(~argInt(e, 0) | argInt(e, 1));
-        if (n == "EQV") return I(~(argInt(e, 0) ^ argInt(e, 1)));
-        if (n == "SWAP") {
-            const std::uint32_t x = static_cast<std::uint32_t>(argInt(e, 0));
-            return I(static_cast<std::int32_t>((x << 16) | (x >> 16)));
-        }
-        if (n == "BYTE") return I(argInt(e, 0) & 0xFF);
-        if (n == "CARD") return I(argInt(e, 0) & 0xFFFF);
-        if (n == "WORD") return I(static_cast<std::int16_t>(static_cast<std::uint16_t>(argInt(e, 0) & 0xFFFF)));
+        if (n == "AND") return I(brt::toInt(f(0)) & brt::toInt(f(1)));
+        if (n == "OR") return I(brt::toInt(f(0)) | brt::toInt(f(1)));
+        if (n == "XOR") return I(brt::toInt(f(0)) ^ brt::toInt(f(1)));
+        if (n == "IMP") return I(brt::imp(brt::toInt(f(0)), brt::toInt(f(1))));
+        if (n == "EQV") return I(brt::eqv(brt::toInt(f(0)), brt::toInt(f(1))));
+        if (n == "SWAP") return I(brt::swapWords(f(0)));
+        if (n == "BYTE") return I(brt::byteOf(f(0)));
+        if (n == "CARD") return I(brt::cardOf(f(0)));
+        if (n == "WORD") return I(brt::wordOf(f(0)));
         if (n == "TRUE") return I(-1);
         if (n == "FALSE") return I(0);
-        if (n == "PI") return F(kPi);
+        if (n == "PI") return F(brt::kPi);
         if (n == "ERR") return I(static_cast<std::int8_t>(static_cast<std::uint8_t>(err_ & 0xFF)));  // probe9 T6
-        // strings
-        if (n == "LEN") return I(static_cast<std::int32_t>(argS(e, 0).size()));
-        if (n == "LEFT$" || n == "RIGHT$") {
-            const std::string s = argS(e, 0);
-            const std::int32_t k = e.args.size() > 1 ? argInt(e, 1) : 1;
-            if (k < 0) throw RuntimeError{RT_ERR_STR_LONG};  // probe4 T45
-            const std::size_t m = std::min(static_cast<std::size_t>(k), s.size());
-            return S(n == "LEFT$" ? s.substr(0, m) : s.substr(s.size() - m));
+        if (n == "LEN") return I(brt::len(s(0)));
+        if (n == "LEFT$") return S(brt::left(s(0), argc > 1 ? f(1) : F64_ONE));
+        if (n == "RIGHT$") return S(brt::right(s(0), argc > 1 ? f(1) : F64_ONE));
+        if (n == "MID$") return S(argc > 2 ? brt::mid(s(0), f(1), f(2)) : brt::mid(s(0), f(1)));
+        if (n == "INSTR") {
+            if (a[0].type == Type::Str) return I(brt::instr(s(0), s(1), argc > 2 ? f(2) : F64_ONE));
+            return I(brt::instr(s(1), s(2), f(0)));
         }
-        if (n == "MID$") {
-            const std::string s = argS(e, 0);
-            std::int32_t from = argInt(e, 1);
-            if (from < 0) throw RuntimeError{RT_ERR_STR_LONG};
-            if (from == 0) from = 1;  // probe4 T44
-            std::int32_t len = e.args.size() > 2 ? argInt(e, 2) : 32767;
-            if (len < 0) throw RuntimeError{RT_ERR_STR_LONG};
-            if (static_cast<std::size_t>(from) > s.size()) return S("");
-            return S(s.substr(static_cast<std::size_t>(from - 1), static_cast<std::size_t>(len)));
-        }
-        if (n == "INSTR") return I(instr(e));
-        if (n == "STRING$") {
-            const std::int32_t k = argInt(e, 0);
-            if (k < 0 || k > 32767) throw RuntimeError{RT_ERR_STR_LONG};
-            const Value v = eval(*e.args[1]);
-            const std::string unit = v.type == Type::Str ? v.s : std::string(1, static_cast<char>(toI32(fp_trunc(v.f)) & 0xFF));
-            std::string r;
-            for (std::int32_t j = 0; j < k; ++j) r += unit;
-            return S(std::move(r));
-        }
-        if (n == "SPACE$") {
-            const std::int32_t k = argInt(e, 0);
-            if (k < 0 || k > 32767) throw RuntimeError{RT_ERR_STR_LONG};
-            return S(std::string(static_cast<std::size_t>(k), ' '));
-        }
-        if (n == "CHR$") return S(std::string(1, static_cast<char>(argInt(e, 0) & 0xFF)));
-        if (n == "ASC") {
-            const std::string s = argS(e, 0);
-            return I(s.empty() ? 0 : static_cast<unsigned char>(s[0]));
-        }
+        if (n == "STRING$") return S(a[1].type == Type::Str ? brt::stringOf(f(0), s(1)) : brt::stringOf(f(0), f(1)));
+        if (n == "SPACE$") return S(brt::space(f(0)));
+        if (n == "CHR$") return S(brt::chr(f(0)));
+        if (n == "ASC") return I(brt::asc(s(0)));
         if (n == "STR$") {
-            const f64 x = argF(e, 0);
-            char buf[512];
-            if (e.args.size() == 1) return S(fmtFloat(x, defnum_));  // STR$ follows DEFNUM (probe2 T33)
-            if (e.args.size() == 2) return S(std::string(buf, static_cast<std::size_t>(rt_str_n(buf, sizeof buf, x, argInt(e, 1)))));
-            return S(std::string(buf, static_cast<std::size_t>(rt_str_fmt(buf, sizeof buf, x, argInt(e, 1), argInt(e, 2), mode_))));
+            if (argc == 1) return S(brt::str(f(0), out_.defnum));  // STR$ follows DEFNUM (probe2 T33)
+            if (argc == 2) return S(brt::str(f(0), f(1)));
+            return S(brt::str(f(0), f(1), f(2), out_.mode));
         }
-        if (n == "VAL" || n == "VAL?") {
-            const std::string s = argS(e, 0);
-            std::int32_t used = 0;
-            const f64 v = rt_val(s.data(), static_cast<std::int32_t>(s.size()), &used);
-            return n == "VAL" ? F(v) : I(used);
-        }
-        if (n == "UPPER$") {
-            std::string s = argS(e, 0);
-            for (char& c : s) {
-                const unsigned char u = static_cast<unsigned char>(c);
-                if ((u >= 'a' && u <= 'z') || (u >= 0xE0 && u <= 0xFE && u != 0xF7)) c = static_cast<char>(u - 32);
-            }
-            return S(std::move(s));
-        }
-        if (n == "TRIM$") {
-            std::string s = argS(e, 0);
-            const std::size_t a = s.find_first_not_of(' ');
-            if (a == std::string::npos) return S("");
-            return S(s.substr(a, s.find_last_not_of(' ') - a + 1));
-        }
-        if (n == "HEX$" || n == "BIN$" || n == "OCT$") {
-            const unsigned base = n == "HEX$" ? 16 : n == "BIN$" ? 2 : 8;
-            return S(radix(static_cast<std::uint32_t>(argInt(e, 0)), base, e.args.size() > 1 ? argInt(e, 1) : 0));
-        }
-        if (n == "ERR$") return S(errorText(argInt(e, 0)));
-        if (n == "DIM?") {
-            const Array& a = array(e.args[0]->var, false);
-            if (!a.dimmed) return I(0);
-            std::int32_t c = 1;
-            for (std::int32_t u : a.upper) c *= u - base_ + 1;
-            return I(c);
-        }
-        if (n == "#PACK") {  // SELECT on a string: up to 4 characters, big-endian
-            const std::string s = argS(e, 0);
-            std::uint32_t v = 0;
-            for (std::size_t k = 0; k < s.size() && k < 4; ++k) v = (v << 8) | static_cast<unsigned char>(s[k]);
-            return I(static_cast<std::int32_t>(v));
-        }
+        if (n == "VAL") return F(brt::val(s(0)));
+        if (n == "VAL?") return I(brt::valCount(s(0)));
+        if (n == "UPPER$") return S(brt::upper(s(0)));
+        if (n == "TRIM$") return S(brt::trim(s(0)));
+        if (n == "HEX$") return S(brt::radix(f(0), 16, argc > 1 ? f(1) : 0));
+        if (n == "BIN$") return S(brt::radix(f(0), 2, argc > 1 ? f(1) : 0));
+        if (n == "OCT$") return S(brt::radix(f(0), 8, argc > 1 ? f(1) : 0));
+        if (n == "ERR$") return S(brt::errorText(brt::toInt(f(0))));
+        if (n == "#PACK") return I(brt::pack(s(0)));
         throw RuntimeError{RT_ERR_OVERFLOW};  // not reached: the semantic pass rejects unknown functions
-    }
-
-    // INSTR(a$,b$[,x]) or INSTR(x,a$,b$); empty search string as decided in D12.
-    std::int32_t instr(const hir::Expr& e) {
-        std::string a, b;
-        std::int32_t from = 1;
-        if (e.args[0]->type == Type::Str) {
-            a = argS(e, 0);
-            b = argS(e, 1);
-            if (e.args.size() > 2) from = argInt(e, 2);
-        } else {
-            from = argInt(e, 0);
-            a = argS(e, 1);
-            b = argS(e, 2);
-        }
-        if (from < 0) throw RuntimeError{RT_ERR_STR_LONG};
-        if (from == 0) from = 1;
-        if (b.empty()) return from <= static_cast<std::int32_t>(a.size()) + 1 ? (a.empty() ? 1 : from) : 0;
-        if (static_cast<std::size_t>(from) > a.size()) return 0;
-        const std::size_t p = a.find(b, static_cast<std::size_t>(from - 1));
-        return p == std::string::npos ? 0 : static_cast<std::int32_t>(p + 1);
     }
 
     // ---- routines -------------------------------------------------------------------------------
@@ -921,43 +712,30 @@ private:
         char last = 0;
         for (const hir::PrintItem& it : s.items) {
             if (it.expr) {
-                if (it.kind == hir::PrintItem::Value) {
-                    put(str(eval(*it.expr)));
-                } else {
-                    std::int32_t n = toI32(fp_trunc(eval(*it.expr).f));
-                    if (it.kind == hir::PrintItem::Spc) {
-                        put(std::string(static_cast<std::size_t>(std::max(n, 0)), ' '));
-                    } else {
-                        if (n < col_) put("\n");
-                        if (n > col_) put(std::string(static_cast<std::size_t>(n - col_), ' '));
-                    }
-                }
+                if (it.kind == hir::PrintItem::Value) putValue(eval(*it.expr));
+                else if (it.kind == hir::PrintItem::Spc) out_.spc(eval(*it.expr).f);
+                else out_.tab(eval(*it.expr).f);
             }
             last = it.sep;
-            if (it.sep == ',') put(std::string(static_cast<std::size_t>(16 - col_ % 16), ' '));
-            else if (it.sep == '\'') put(" ");
+            if (it.sep == ',') out_.comma();
+            else if (it.sep == '\'') out_.apostrophe();
         }
-        if (last != ';' && last != ',') put("\n");
+        if (last != ';' && last != ',') out_.newline();
     }
 
     void printUsing(const hir::Stmt& s) {
-        const std::string fmt = eval(*s.usingFmt).s;
-        rt_using u;
-        rt_using_begin(&u, fmt.data(), static_cast<std::int32_t>(fmt.size()), mode_);
-        char buf[4096];
+        brt::Using u(out_, eval(*s.usingFmt).s);
         char last = 0;
         for (const hir::PrintItem& it : s.items) {
             if (it.expr) {
                 const Value v = eval(*it.expr);
-                const std::int32_t n = v.type == Type::Str
-                                           ? rt_using_str(&u, buf, sizeof buf, v.s.data(), static_cast<std::int32_t>(v.s.size()))
-                                           : rt_using_num(&u, buf, sizeof buf, num(v));
-                put(std::string(buf, static_cast<std::size_t>(n)));
+                if (v.type == Type::Str) u.value(v.s);
+                else u.value(num(v));
             }
             last = it.sep;
         }
-        put(std::string(buf, static_cast<std::size_t>(rt_using_end(&u, buf, sizeof buf))));
-        if (last != ';' && last != ',') put("\n");
+        u.end();
+        if (last != ';' && last != ',') out_.newline();
     }
 
     void command(const hir::Stmt& s) {
@@ -1048,11 +826,11 @@ private:
         }
         if (n == "END" || n == "STOP" || n == "QUIT" || n == "SYSTEM" || n == "EDIT" || n == "NEW") throw EndProgram{};
         if (n == "DEFNUM") {
-            defnum_ = std::min(13, std::max(2, toI32(fp_trunc(eval(*s.args[0]).f))));
+            out_.defnum = std::min(13, std::max(2, toI32(fp_trunc(eval(*s.args[0]).f))));
             return;
         }
         if (n == "MODE") {
-            mode_ = toI32(fp_trunc(eval(*s.args[0]).f)) & 3;
+            out_.mode = toI32(fp_trunc(eval(*s.args[0]).f)) & 3;
             return;
         }
         if (n == "OPTION BASE") {
@@ -1077,48 +855,7 @@ private:
 }  // namespace
 
 std::string errorText(int code) {
-    // ERR$ texts of GFA-BASIC 3.5 (English), read on the original (probe1-probe9)
-    static const char* const texts[] = {
-        "divide by zero",                              // 0
-        "overflow",                                    // 1
-        "no integer|-2147483648 .. 2147483647",        // 2
-        "no byte|0 .. 255",                            // 3
-        "no word|-32768 .. 32767",                     // 4
-        "no negative squareroot",                      // 5
-        "logarithm only for|numbers greater zero",     // 6
-        "unknown error ",                              // 7
-        "out of memory",                               // 8
-        "function or command|not implemented",         // 9
-        "string too long|max. 32767 chars",            // 10
-        "no GFA-BASIC 3.5 program",                    // 11
-        "program too long|out of memory|new",          // 12
-        "no GFA-BASIC program|eof - new",              // 13
-        "redimensioned array",                         // 14
-        "array undimensioned",                         // 15
-        "array index out of range",                    // 16
-        "dim out of range",                            // 17
-        "wrong # of indices",                          // 18
-        "procedure not found",                         // 19
-        "label not found",                             // 20
-        "open allows:|\"i\"nput  \"o\"utput \"r\"andom|\"a\"ppend \"u\"pdate",  // 21
-        "file already open",                           // 22
-        "file # wrong",                                // 23
-        "file not open",                               // 24
-        "wrong input, no number",                      // 25
-        "end of file",                                 // 26
-        "too many points for|polyline/polyfill|max. 128",  // 27
-        "array not linear",                            // 28
-        "# of points too large",                       // 29
-        "merge - no ASCII",                            // 30
-        "merge - line too long",                       // 31
-        "==> syntax error|program aborted",            // 32
-        "undefined label",                             // 33
-        "out of data",                                 // 34
-        "data not numeric",                            // 35
-    };
-    const int c = code & 0xFF;  // ERR$(-56) = "unknown error 200" (probe9 T6)
-    if (c < static_cast<int>(sizeof texts / sizeof texts[0])) return texts[c];
-    return "unknown error " + std::to_string(c);
+    return brt::errorText(code);
 }
 
 RunResult interpret(const hir::Program& program, const RunOptions& options) {

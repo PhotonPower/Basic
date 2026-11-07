@@ -6,6 +6,6 @@ Spezifikation: [docs/ir.md](../../docs/ir.md).
 | Datei | Inhalt |
 |---|---|
 | `hir.hpp`, `hir.cpp` | HIR (typisierter, strukturierter Baum) und ihre Textform |
-| `rt_bridge.*` | `rt_error` für `runtime/ref`: merkt sich den Fehler, der Aufrufer prüft ihn |
+| `interp.*` | Referenz-Interpreter auf der HIR (`basicc --run`); Laufzeitfunktionen aus `platform/pc` |
 
 LIR und Lowering kommen mit dem MC68000-Backend ([D17](../../docs/decisions.md#d17)).
