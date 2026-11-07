@@ -1,4 +1,5 @@
 ' test: groups core float print
+' source: GFA-BASIC 3.5
 ' Zahlen ohne Strings: Typen, Arithmetik, Schleifen, SELECT, Prozeduren (Umfang des 68000-Backends)
 a%=2147483647
 x=a%+1
