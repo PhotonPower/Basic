@@ -201,7 +201,9 @@ private:
     // ---- expressions ----------------------------------------------------------------------------
     static bool impure(const hir::Expr& e) {
         if (e.op == Op::CallFunc) return true;
-        if (e.op == Op::Builtin && (e.sval == "RND" || e.sval == "RANDOM" || e.sval == "RAND")) return true;
+        if (e.op == Op::Builtin && (e.sval == "RND" || e.sval == "RANDOM" || e.sval == "RAND" || e.sval == "INPUT$" ||
+                                    e.sval == "EOF" || e.sval == "LOF"))
+            return true;  // order matters: random numbers, reading files
         for (const auto& a : e.args)
             if (impure(*a)) return true;
         return false;
@@ -336,6 +338,10 @@ private:
             {"SINQ", "brt::sinq"},     {"COSQ", "brt::cosq"},
         };
         if (const auto it = simple.find(n); it != simple.end()) return call(it->second, e);
+        if (n == "EOF") return "brt::rt.files.eof(" + a(0) + ")";
+        if (n == "LOF") return "brt::rt.files.lof(" + a(0) + ")";
+        if (n == "EXIST") return "brt::Files::exist(" + a(0) + ")";
+        if (n == "INPUT$") return call("brt::rt.files.inputChars", e);
         if (n == "CFLOAT") return a(0);
         if (n == "ROUND") return argc > 1 ? ordered({e.args[0].get(), e.args[1].get()}, [](const std::vector<std::string>& x) {
             return "brt::round(" + x[0] + ", brt::toInt(" + x[1] + "))";
@@ -610,27 +616,36 @@ private:
 
     void print(const hir::Stmt& s, int in) {
         char last = 0;
+        line(in, "{");
+        ++in;
+        if (s.channel) {  // PRINT #n: into the channel's output, written at the end of the statement
+            line(in, "const f64 ch_ = " + expr(*s.channel) + ";");
+            line(in, "brt::Output& o_ = brt::rt.files.output(ch_, brt::rt.out);");
+        } else {
+            line(in, "brt::Output& o_ = brt::rt.out;");
+        }
         if (s.usingFmt) {
-            line(in, "{");
-            line(in + 1, "brt::Using u_(brt::rt.out, " + expr(*s.usingFmt) + ");");
+            line(in, "brt::Using u_(o_, " + expr(*s.usingFmt) + ");");
             for (const hir::PrintItem& it : s.items) {
-                if (it.expr) line(in + 1, "u_.value(" + expr(*it.expr) + ");");
+                if (it.expr) line(in, "u_.value(" + expr(*it.expr) + ");");
                 last = it.sep;
             }
-            line(in + 1, "u_.end();");
-            line(in, "}");
+            line(in, "u_.end();");
         } else {
             for (const hir::PrintItem& it : s.items) {
                 if (it.expr) {
                     const char* fn = it.kind == hir::PrintItem::Tab ? "tab" : it.kind == hir::PrintItem::Spc ? "spc" : "value";
-                    line(in, std::string("brt::rt.out.") + fn + "(" + expr(*it.expr) + ");");
+                    line(in, std::string("o_.") + fn + "(" + expr(*it.expr) + ");");
                 }
                 last = it.sep;
-                if (it.sep == ',') line(in, "brt::rt.out.comma();");
-                else if (it.sep == '\'') line(in, "brt::rt.out.apostrophe();");
+                if (it.sep == ',') line(in, "o_.comma();");
+                else if (it.sep == '\'') line(in, "o_.apostrophe();");
             }
         }
-        if (last != ';' && last != ',') line(in, "brt::rt.out.newline();");
+        if (last != ';' && last != ',') line(in, "o_.newline();");
+        if (s.channel) line(in, "brt::rt.files.flush(ch_);");
+        --in;
+        line(in, "}");
     }
 
     // SELECT: the number of the matching CASE, then the blocks; CONT falls into the next one.
@@ -750,6 +765,49 @@ private:
         }
         if (n == "MODE") {
             line(in, "brt::rt.out.mode = brt::toInt(" + arg(0) + ") & 3;");
+            return;
+        }
+        if (n == "OPEN") {
+            line(in, "{");
+            line(in + 1, "const std::string m_ = " + arg(0) + ";");
+            line(in + 1, "const f64 c_ = " + arg(1) + ";");
+            line(in + 1, "brt::rt.files.open(m_, c_, " + arg(2) + ");");
+            line(in, "}");
+            return;
+        }
+        if (n == "CLOSE") {
+            line(in, s.args.empty() ? std::string("brt::rt.files.closeAll();") : "brt::rt.files.close(" + arg(0) + ");");
+            return;
+        }
+        if (n == "KILL") {
+            line(in, "brt::rt.files.kill(" + arg(0) + ");");
+            return;
+        }
+        if (n == "INPUT#" || n == "LINE INPUT#") {
+            line(in, "{");
+            line(in + 1, "const f64 ch_ = " + arg(0) + ";");
+            for (const auto& t : s.targets) {
+                if (n == "LINE INPUT#") line(in + 1, lvalue(*t) + " = brt::rt.files.lineInput(ch_);");
+                else if (t->type == Type::Str) line(in + 1, lvalue(*t) + " = brt::rt.files.inputString(ch_);");
+                else line(in + 1, lvalue(*t) + " = " + conv("brt::rt.files.inputNumber(ch_)", Type::Float, t->type) + ";");
+            }
+            line(in, "}");
+            return;
+        }
+        if (n == "WRITE" || n == "WRITE#") {
+            const bool file = n == "WRITE#";
+            line(in, "{");
+            if (file) {
+                line(in + 1, "const f64 ch_ = " + arg(0) + ";");
+                line(in + 1, "brt::Output& o_ = brt::rt.files.output(ch_, brt::rt.out);");
+            } else {
+                line(in + 1, "brt::Output& o_ = brt::rt.out;");
+            }
+            for (std::size_t k = file ? 1 : 0; k < s.args.size(); ++k)
+                line(in + 1, "brt::writeValue(o_, " + arg(k) + ", " + (k == (file ? 1u : 0u) ? "true" : "false") + ");");
+            line(in + 1, "o_.newline();");
+            if (file) line(in + 1, "brt::rt.files.flush(ch_);");
+            line(in, "}");
             return;
         }
         if (n == "OPTION BASE") {

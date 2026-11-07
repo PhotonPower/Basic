@@ -167,6 +167,8 @@ void testSema() {
     CHECK_EQ(hir("x=&HFFFFFFFF+2147483648+1.5E3"), std::string("X# = (add (add -1# 2147483648#) 1500#)\n"));
     CHECK_EQ(hir("a$(2)=LEFT$(b$)\nn=LEN(a$(1))"), std::string("A$(2) = LEFT$(B$):str\nN# = (conv.float LEN(A$(1)):int)\n"));
     CHECK_EQ(hir("PRINT TAB(5);SPC(2);1"), std::string("print [tab 5# ;] [spc 2# ;] [1]\n"));
+    // "" in a string literal is one quote (probe14 T3: WRITE #2,"c""d" wrote "c"d")
+    CHECK_EQ(hir("PRINT \"c\"\"d\""), std::string("print [\"c\"d\"]\n"));
     // structure test
     CHECK_EQ(hir("IF a\nPRINT"), std::string("error 1: ENDIF missing\n"));
     CHECK_EQ(hir("FOR i=1 TO 2\nWEND"), std::string("error 1: NEXT missing\nerror 2: WEND without WHILE\n"));

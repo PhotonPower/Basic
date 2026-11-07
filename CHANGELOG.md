@@ -40,6 +40,10 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 - `RESUME` setzt `ERR` auf 0 (probe12 T1); damit ist `errors2` am Original gleich.
 - `gfa_run.py`: Startmenü der Diskette nach einem Kaltstart (`boot` in `keys.json`), längere
   Wartezeiten für den Merge-Dialog und das Einlesen.
+- Sequentielle Dateien nach dem Original (probe14): `OPEN` (`I`, `O`, `A`), `CLOSE`, `PRINT #`,
+  `WRITE #`/`WRITE`, `INPUT #`, `LINE INPUT #`, `INPUT$(n,#c)`, `EOF`, `LOF`, `EXIST`, `KILL`, mit
+  den Fehlern des Originals (21–26, −51, −54). Interpreter und C++-Ziel; `""` in Strings.
+  Testprogramm `files`.
 - MC68000: Registerplätze im Rahmen werden nach Lebensdauer geteilt (auch über Schleifen und die
   Rücksprünge von `RESUME`); der größte Rahmen der Testprogramme schrumpft von mehreren KB auf
   104 Bytes (`main` von `arrays`; `main` von `arith` von 2880 auf 40 Bytes).

@@ -1,5 +1,7 @@
 #include "rt_pc.hpp"
 
+#include <cctype>
+
 #include <algorithm>
 
 namespace {
@@ -67,6 +69,8 @@ std::string errorText(int code) {
     switch (code & 0xFF) {  // further texts seen on the original
         case 45: return "too many parameters";  // probe10
         case 67: return "asin/acos error";      // probe13 T5
+        case 202: return "object in use";       // probe14 T7 (AmigaDOS ERROR_OBJECT_IN_USE)
+        case 205: return "object not found";    // probe14 T7 (AmigaDOS ERROR_OBJECT_NOT_FOUND)
         case 68: return "var-type mismatch";    // probe10
         default: break;
     }
@@ -503,6 +507,176 @@ void Output::tab(f64 nf) {
 void Output::spc(f64 nf) {
     const std::int32_t n = toInt(fp_trunc(nf));
     if (n > 0) put(std::string(static_cast<std::size_t>(n), ' '));
+}
+
+// ---- files -------------------------------------------------------------------------------------
+namespace {
+
+std::string upperName(const std::string& s) {
+    std::string r = s;
+    for (char& c : r) c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+    return r;
+}
+
+}  // namespace
+
+Files::Channel& Files::get(f64 channel, bool open) {
+    const std::int32_t n = toInt(channel);
+    if (n < 0 || n > 99) throw Error{23};  // file # wrong
+    Channel& c = ch_[n];
+    if (open && c.f == nullptr) throw Error{RT_ERR_NOT_OPEN};
+    return c;
+}
+
+bool Files::inUse(const std::string& name, const Channel* except) const {
+    const std::string u = upperName(name);
+    for (const Channel& c : ch_)
+        if (&c != except && c.f != nullptr && upperName(c.name) == u) return true;
+    return false;
+}
+
+void Files::open(const std::string& mode, f64 channel, const std::string& name) {
+    const char m = mode.empty() ? ' ' : static_cast<char>(std::toupper(static_cast<unsigned char>(mode[0])));
+    if (m != 'O' && m != 'I' && m != 'A') throw Error{21};  // open allows: i o r a u (r, u not yet)
+    Channel& c = get(channel, false);
+    if (c.f != nullptr) throw Error{22};  // file already open
+    if (inUse(name, &c)) throw Error{kErrObjectInUse};
+    std::FILE* f = std::fopen(name.c_str(), m == 'O' ? "wb" : m == 'A' ? "ab" : "rb");
+    if (f == nullptr) throw Error{m == 'I' ? kErrObjectNotFound : kErrObjectInUse};
+    c.f = f;
+    c.input = m == 'I';
+    c.name = name;
+    c.out = Output();
+}
+
+void Files::close(f64 channel) {
+    Channel& c = get(channel, false);
+    if (c.f == nullptr) return;
+    std::fclose(c.f);
+    c.f = nullptr;
+}
+
+void Files::closeAll() {
+    for (Channel& c : ch_)
+        if (c.f != nullptr) {
+            std::fclose(c.f);
+            c.f = nullptr;
+        }
+}
+
+Output& Files::output(f64 channel, const Output& screen) {
+    Channel& c = get(channel, true);
+    if (c.input) throw Error{RT_ERR_NOT_OPEN};
+    c.out.defnum = screen.defnum;
+    c.out.mode = screen.mode;
+    return c.out;
+}
+
+void Files::flush(f64 channel) {
+    Channel& c = get(channel, true);
+    std::fwrite(c.out.buf.data(), 1, c.out.buf.size(), c.f);
+    c.out.buf.clear();
+}
+
+int Files::peekByte(Channel& c) {
+    const int b = std::fgetc(c.f);
+    if (b != EOF) std::ungetc(b, c.f);
+    return b;
+}
+
+std::string Files::lineInput(f64 channel) {
+    Channel& c = get(channel, true);
+    if (!c.input) throw Error{RT_ERR_NOT_OPEN};
+    if (peekByte(c) == EOF) throw Error{26};  // end of file
+    std::string s;
+    for (int b; (b = std::fgetc(c.f)) != EOF && b != '\n';) s += static_cast<char>(b);
+    return s;
+}
+
+// One item: up to a comma or the end of the line; in quotes everything up to the closing quote
+// (then on to the comma). Unquoted text keeps its spaces (probe14 T4).
+std::string Files::item(Channel& c) {
+    if (!c.input) throw Error{RT_ERR_NOT_OPEN};
+    if (peekByte(c) == EOF) throw Error{26};  // end of file
+    std::string s;
+    int b = std::fgetc(c.f);
+    std::string lead;
+    while (b == ' ') {
+        lead += ' ';
+        b = std::fgetc(c.f);
+    }
+    if (b == '"') {
+        while ((b = std::fgetc(c.f)) != EOF && b != '"' && b != '\n') s += static_cast<char>(b);
+        if (b == '"')
+            while ((b = std::fgetc(c.f)) != EOF && b != ',' && b != '\n') {
+            }
+        return s;
+    }
+    s = lead;
+    for (; b != EOF && b != ',' && b != '\n'; b = std::fgetc(c.f)) s += static_cast<char>(b);
+    return s;
+}
+
+std::string Files::inputString(f64 channel) { return item(get(channel, true)); }
+
+f64 Files::inputNumber(f64 channel) {
+    const std::string s = trim(item(get(channel, true)));
+    std::int32_t used = 0;
+    const f64 v = rt_val(s.data(), static_cast<std::int32_t>(s.size()), &used);
+    if (s.empty() || used != static_cast<std::int32_t>(s.size())) throw Error{35};  // data not numeric
+    return v;
+}
+
+std::string Files::inputChars(f64 nf, f64 channel) {
+    Channel& c = get(channel, true);
+    if (!c.input) throw Error{RT_ERR_NOT_OPEN};
+    const std::int32_t n = toInt(nf);
+    std::string s;
+    for (std::int32_t k = 0; k < n; ++k) {
+        const int b = std::fgetc(c.f);
+        if (b == EOF) throw Error{26};
+        s += static_cast<char>(b);
+    }
+    return s;
+}
+
+std::int32_t Files::eof(f64 channel) {
+    Channel& c = get(channel, true);
+    if (!c.input) return -1;
+    return peekByte(c) == EOF ? -1 : 0;
+}
+
+std::int32_t Files::lof(f64 channel) {
+    Channel& c = get(channel, true);
+    std::fflush(c.f);
+    const long pos = std::ftell(c.f);
+    std::fseek(c.f, 0, SEEK_END);
+    const long len = std::ftell(c.f);
+    std::fseek(c.f, pos, SEEK_SET);
+    return static_cast<std::int32_t>(len);
+}
+
+std::int32_t Files::exist(const std::string& name) {
+    std::FILE* f = std::fopen(name.c_str(), "rb");
+    if (f == nullptr) return 0;
+    std::fclose(f);
+    return -1;
+}
+
+void Files::kill(const std::string& name) {
+    if (!exist(name)) throw Error{kErrObjectNotFound};
+    if (inUse(name, nullptr)) throw Error{kErrObjectInUse};
+    std::remove(name.c_str());
+}
+
+void writeValue(Output& out, f64 x, bool first) {
+    if (!first) out.put(",");
+    out.value(x);
+}
+
+void writeValue(Output& out, const std::string& s, bool first) {
+    if (!first) out.put(",");
+    out.put("\"" + s + "\"");
 }
 
 Using::Using(Output& out, std::string format) : out_(out), format_(std::move(format)) {

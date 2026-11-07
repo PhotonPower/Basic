@@ -50,6 +50,7 @@ using ArrVar = Var<Array<T>>;
 
 struct State {
     Output out;
+    Files files;
     int err = 0;
     void (*onError)() = nullptr;
     int handlerDepth = 0;

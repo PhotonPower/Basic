@@ -153,6 +153,18 @@ Diese Punkte sind aus dem Handbuch nicht sicher zu entnehmen und werden am Origi
 - ~~**`ERR` nach `RESUME`**~~ (probe12 T1): `RESUME` setzt `ERR` auf 0 (in der Fehlerroutine 7,
   danach 0, ohne Dateibefehle in der Routine). Ob auch das Ende der Fehlerroutine ohne `RESUME`
   `ERR` löscht, ist offen (probe12 T2 lief nicht durch).
+- ~~**Sequentielle Dateien**~~ (probe14): Zeilen enden mit LF (10). `PRINT #` formatiert wie auf dem
+  Bildschirm, mit eigenen Kommazonen je Kanal. `WRITE #` schreibt Zahlen wie `PRINT`, Strings in
+  Anführungszeichen (ein `"` im String wird nicht verdoppelt), durch Kommas getrennt. `INPUT #`
+  trennt an Komma und Zeilenende; ein String ohne Anführungszeichen behält seine Leerzeichen
+  (`  12 , abc ,` gibt `a=12`, `b$=" abc "`), in Anführungszeichen gehört auch ein Komma dazu; eine
+  Zahl muss das ganze Element sein (sonst Fehler 35, das Element ist verbraucht); hinter dem Ende
+  Fehler 26, die Variable bleibt. `LINE INPUT #` liest die Zeile ohne LF, `INPUT$(n,#c)` n Bytes,
+  `EOF` ist am Ende −1, `LOF` die Länge, `EXIST` −1/0, `CLOSE` ohne Kanal schließt alle. Kanäle
+  0–99 (sonst Fehler 23); Modus außer `I O A R U` Fehler 21, Kanal schon offen 22, nicht offen 24.
+  Fehler des Dateisystems sind AmigaDOS-Codes als vorzeichenbehaftetes Byte: −51 „object not
+  found“ (205), −54 „object in use“ (202, z. B. eine Datei zweimal zum Schreiben). `""` in einem
+  String ist ein Anführungszeichen. Noch nicht umgesetzt: die Modi `R` (wahlfrei) und `U`.
 - ~~**`SELECT` mit Mehrzeichen-Strings**~~ (Anhang C, Punkt 8), am Original (probe4 T1–T9):
   - Die Zeichen werden **Big-Endian** gepackt: `CASE "ab"` = 97·256 + 98 = 24930, `CASE "abcd"` =
     1633837924. Die Formel im Handbuch (ASCII1 + 255 · ASCII2) ist falsch, auch die

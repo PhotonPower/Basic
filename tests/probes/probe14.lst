@@ -1,0 +1,145 @@
+' probe14 - Sequentielle Dateien (GFA-BASIC 3.5, Amiga)
+' Ergebnisdatei: gfa_run.py setzt datei$ auf DH0:probe14.txt (docs/gfa-original.md).
+' Testdateien auf DH0: ueber die Kanaele 2 bis 4 (Kanal 1 ist die Ergebnisdatei).
+'
+datei$="DH0:probe14.txt"
+OPEN "O",#1,datei$
+ON ERROR GOSUB fehler
+PRINT #1,"probe14"
+'
+' T1 Zeilenende und Laenge: PRINT # schreibt "ab" und ein Zeilenende
+OPEN "O",#2,"DH0:p14a.dat"
+PRINT #2,"ab"
+CLOSE #2
+OPEN "I",#2,"DH0:p14a.dat"
+l%=LOF(#2)
+s$=INPUT$(l%,#2)
+CLOSE #2
+PRINT #1,"T1 LOF=";l%;" Bytes:";
+FOR i%=1 TO LEN(s$)
+  PRINT #1," ";ASC(MID$(s$,i%,1));
+NEXT i%
+PRINT #1
+'
+' T2 PRINT # mit Zahlen, Strichpunkt, Komma (Zonen?) und Apostroph
+OPEN "O",#2,"DH0:p14b.dat"
+PRINT #2,1;-2;3.5
+PRINT #2,"x",7,"y"
+PRINT #2,"a";
+PRINT #2,"b"'"c"
+CLOSE #2
+OPEN "I",#2,"DH0:p14b.dat"
+WHILE NOT EOF(#2)
+  LINE INPUT #2,z$
+  PRINT #1,"T2 [";z$;"] ";LEN(z$)
+WEND
+CLOSE #2
+'
+' T3 WRITE #
+OPEN "O",#2,"DH0:p14c.dat"
+WRITE #2,1,"zwei",-3.5,""
+WRITE #2,"a,b","c""d"
+CLOSE #2
+OPEN "I",#2,"DH0:p14c.dat"
+WHILE NOT EOF(#2)
+  LINE INPUT #2,z$
+  PRINT #1,"T3 [";z$;"]"
+WEND
+CLOSE #2
+'
+' T4 INPUT # liest Werte (Komma, Anfuehrungszeichen, Leerzeichen)
+OPEN "O",#2,"DH0:p14d.dat"
+PRINT #2,"  12 , abc ,"+CHR$(34)+"x,y"+CHR$(34)+",-7.5"
+PRINT #2,"eins zwei"
+PRINT #2,"3"
+CLOSE #2
+OPEN "I",#2,"DH0:p14d.dat"
+INPUT #2,a,b$,c$,d
+PRINT #1,"T4 a=";a;" b$=[";b$;"] c$=[";c$;"] d=";d
+INPUT #2,e$
+PRINT #1,"T4 e$=[";e$;"]"
+INPUT #2,f
+PRINT #1,"T4 f=";f;" EOF=";EOF(#2)
+INPUT #2,g
+PRINT #1,"T4 nach dem Ende: g=";g
+CLOSE #2
+'
+' T5 INPUT # einer Zahl aus Text
+OPEN "O",#2,"DH0:p14e.dat"
+PRINT #2,"abc"
+PRINT #2,"12abc"
+CLOSE #2
+OPEN "I",#2,"DH0:p14e.dat"
+INPUT #2,h
+PRINT #1,"T5 h=";h
+INPUT #2,h
+PRINT #1,"T5 h=";h
+CLOSE #2
+'
+' T6 Anhaengen, LOF, EXIST, KILL
+OPEN "A",#2,"DH0:p14a.dat"
+PRINT #2,"cd"
+CLOSE #2
+OPEN "I",#2,"DH0:p14a.dat"
+PRINT #1,"T6 LOF nach A: ";LOF(#2)
+LINE INPUT #2,z$
+LINE INPUT #2,y$
+PRINT #1,"T6 [";z$;"][";y$;"] EOF=";EOF(#2)
+CLOSE #2
+PRINT #1,"T6 EXIST: ";EXIST("DH0:p14a.dat");" ";EXIST("DH0:gibtsnicht.dat")
+KILL "DH0:p14a.dat"
+PRINT #1,"T6 nach KILL: ";EXIST("DH0:p14a.dat")
+'
+' T7 Fehler
+PRINT #1,"T7 OPEN I einer fehlenden Datei"
+OPEN "I",#2,"DH0:gibtsnicht.dat"
+PRINT #1,"T7 OPEN mit falschem Modus"
+OPEN "Z",#2,"DH0:p14z.dat"
+PRINT #1,"T7 Kanal zweimal"
+OPEN "O",#2,"DH0:p14z.dat"
+OPEN "O",#2,"DH0:p14z.dat"
+CLOSE #2
+PRINT #1,"T7 Kanal 0"
+OPEN "O",#0,"DH0:p14z.dat"
+PRINT #1,"T7 Kanal 100"
+OPEN "O",#100,"DH0:p14z.dat"
+PRINT #1,"T7 Kanal 99"
+OPEN "O",#99,"DH0:p14z.dat"
+CLOSE #99
+PRINT #1,"T7 PRINT # auf geschlossenen Kanal"
+PRINT #3,"x"
+PRINT #1,"T7 INPUT # auf Ausgabedatei"
+OPEN "O",#2,"DH0:p14z.dat"
+INPUT #2,x
+CLOSE #2
+PRINT #1,"T7 KILL einer fehlenden Datei"
+KILL "DH0:gibtsnicht.dat"
+KILL "DH0:p14z.dat"
+'
+' T8 CLOSE ohne Kanal schliesst alle? (danach Kanal 1 wieder oeffnen)
+OPEN "O",#2,"DH0:p14f.dat"
+OPEN "O",#3,"DH0:p14g.dat"
+CLOSE
+OPEN "A",#1,datei$
+PRINT #1,"T8 nach CLOSE: Kanal 2 wieder frei"
+OPEN "O",#2,"DH0:p14f.dat"
+CLOSE #2
+KILL "DH0:p14b.dat"
+KILL "DH0:p14c.dat"
+KILL "DH0:p14d.dat"
+KILL "DH0:p14e.dat"
+KILL "DH0:p14f.dat"
+KILL "DH0:p14g.dat"
+'
+PRINT #1,"ende"
+CLOSE #1
+END
+'
+PROCEDURE fehler
+  e%=ERR
+  CLOSE #1
+  OPEN "A",#1,datei$
+  PRINT #1,"   -> ERR ";e%;" ";ERR$(e%)
+  ON ERROR GOSUB fehler
+  RESUME NEXT
+RETURN

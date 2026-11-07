@@ -9,6 +9,7 @@
 // runtime/ref. Errors are thrown as brt::Error with the GFA error number.
 
 #include <cstdint>
+#include <cstdio>
 #include <string>
 
 #include "rt_ref.h"
@@ -160,6 +161,53 @@ struct Output {
     void tab(f64 n);
     void spc(f64 n);
 };
+
+// ---- files (probe14) -----------------------------------------------------------------------------
+// Sequential files on channels 0..99 (error 23 outside). Lines end with LF. Errors of the file
+// system are AmigaDOS codes as on the original: 205 "object not found", 202 "object in use" (ERR
+// shows them as signed bytes, -51 and -54).
+constexpr int kErrObjectInUse = 202;
+constexpr int kErrObjectNotFound = 205;
+
+class Files {
+public:
+    Files() = default;
+    Files(const Files&) = delete;
+    Files& operator=(const Files&) = delete;
+    ~Files() { closeAll(); }
+
+    void open(const std::string& mode, f64 channel, const std::string& name);
+    void close(f64 channel);
+    void closeAll();
+    // PRINT #, WRITE #: the text goes to the channel's Output (own column); flush() writes it
+    Output& output(f64 channel, const Output& screen);
+    void flush(f64 channel);
+    std::string lineInput(f64 channel);               // LINE INPUT #: up to the line feed
+    std::string inputString(f64 channel);             // INPUT # into a string variable
+    f64 inputNumber(f64 channel);                      // INPUT # into a number: error 35 if it is none
+    std::string inputChars(f64 n, f64 channel);       // INPUT$(n,#c)
+    std::int32_t eof(f64 channel);                    // -1 at the end
+    std::int32_t lof(f64 channel);                    // length of the file
+    static std::int32_t exist(const std::string& name);
+    void kill(const std::string& name);
+
+private:
+    struct Channel {
+        std::FILE* f = nullptr;
+        bool input = false;
+        std::string name;
+        Output out;
+    };
+    Channel ch_[100];
+    Channel& get(f64 channel, bool open);
+    bool inUse(const std::string& name, const Channel* except) const;
+    int peekByte(Channel& c);
+    std::string item(Channel& c);
+};
+
+// WRITE: numbers as by PRINT, strings in quotes, separated by commas
+void writeValue(Output& out, f64 x, bool first);
+void writeValue(Output& out, const std::string& s, bool first);
 
 // PRINT USING: one per statement.
 class Using {

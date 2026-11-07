@@ -623,8 +623,8 @@ private:
 
     void print(const ast::Stmt& s, hir::Block& out) {
         if (s.name == "LPRINT") fail(s.pos, "LPRINT is not supported");
-        if (s.channel) fail(s.pos, "files are not supported yet");
         auto h = make(SKind::Print, s);
+        if (s.channel) h->channel = toFloat(expr(*s.channel), s.pos);
         if (s.usingFmt) h->usingFmt = convertTo(expr(*s.usingFmt), Type::Str, s.usingFmt->pos);
         for (const ast::PrintItem& it : s.print) {
             hir::PrintItem hi;
@@ -706,6 +706,43 @@ private:
                     fail(s.args[k]->pos, "ON GOSUB needs procedures without parameters");
                 h->vars.push_back(id);
             }
+        } else if (n == "OPEN") {  // OPEN mode$,#n,name$ (probe14)
+            argc(3, 3);
+            if (!isChannel(*s.args[1])) fail(s.args[1]->pos, "OPEN expects a file channel: #n");
+            h->args.push_back(convertTo(expr(*s.args[0]), Type::Str, s.args[0]->pos));
+            h->args.push_back(channel(*s.args[1]));
+            h->args.push_back(convertTo(expr(*s.args[2]), Type::Str, s.args[2]->pos));
+        } else if (n == "CLOSE") {
+            argc(0, 1);
+            if (!s.args.empty()) {
+                if (!isChannel(*s.args[0])) fail(s.args[0]->pos, "CLOSE expects a file channel: #n");
+                h->args.push_back(channel(*s.args[0]));
+            }
+        } else if (n == "KILL") {
+            argc(1, 1);
+            h->args.push_back(convertTo(expr(*s.args[0]), Type::Str, s.args[0]->pos));
+        } else if (n == "INPUT" || n == "LINE INPUT") {
+            if (s.args.empty() || !isChannel(*s.args[0])) fail(s.pos, n + " from the keyboard is not supported yet");
+            argc(2, 64);
+            h->name = n + "#";
+            h->args.push_back(channel(*s.args[0]));
+            for (std::size_t k = 1; k < s.args.size(); ++k) {
+                if (s.args[k]->kind != ExprKind::Var) fail(s.args[k]->pos, n + " needs variables");
+                h->targets.push_back(lvalue(*s.args[k]));
+                if (n == "LINE INPUT" && h->targets.back()->type != Type::Str) fail(s.args[k]->pos, "LINE INPUT needs string variables");
+            }
+        } else if (n == "WRITE") {  // WRITE [#n,]values: strings in quotes, separated by commas
+            std::size_t k = 0;
+            if (!s.args.empty() && isChannel(*s.args[0])) {
+                h->name = "WRITE#";
+                h->args.push_back(channel(*s.args[0]));
+                k = 1;
+            }
+            for (; k < s.args.size(); ++k) {
+                hir::ExprPtr v = expr(*s.args[k]);
+                if (v->type != Type::Str) v = toFloat(std::move(v), s.args[k]->pos);
+                h->args.push_back(std::move(v));
+            }
         } else if (n == "ON BREAK") {
             return;  // no break key in compiled programs
         } else if (kSimpleCommands.count(n) != 0) {
@@ -718,6 +755,9 @@ private:
         }
         out.push_back(std::move(h));
     }
+
+    static bool isChannel(const ast::Expr& e) { return e.kind == ExprKind::Unary && e.text == "#"; }
+    hir::ExprPtr channel(const ast::Expr& e) { return toFloat(expr(*e.args[0]), e.pos); }
 
     hir::ExprPtr numericTarget(const ast::Expr& e) {
         hir::ExprPtr t = lvalue(e);
@@ -890,6 +930,7 @@ private:
         const Builtin* b = findBuiltin(e.text);
         if (b->printOnly) fail(e.pos, e.text + " is only allowed in PRINT");
         if (kNotYet.count(e.text) != 0) fail(e.pos, e.text + " is not supported yet");
+        if (e.text == "INPUT$" && e.args.size() == 1) fail(e.pos, "INPUT$ from the keyboard is not supported yet");
         const int n = static_cast<int>(e.args.size());
         if (n < b->minArgs || (b->maxArgs >= 0 && n > b->maxArgs))
             fail(e.pos, e.text + ": wrong number of arguments");
@@ -904,6 +945,11 @@ private:
                 auto v = makeExpr(Op::Load, typeOf(a.text));
                 v->var = varId(a.text, true);
                 c->args.push_back(std::move(v));
+                continue;
+            }
+            if (kind == 'c') {  // file channel #n
+                if (a.kind != ExprKind::Unary || a.text != "#") fail(a.pos, e.text + " expects a file channel: #n");
+                c->args.push_back(toFloat(expr(*a.args[0]), a.pos));
                 continue;
             }
             hir::ExprPtr v = expr(a);

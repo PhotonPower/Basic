@@ -132,7 +132,15 @@ std::vector<Token> lexLine(std::string_view s, int lineNumber, Diagnostics& diag
         if (c == '"') {
             ++i;
             std::string text;
-            while (i < s.size() && s[i] != '"') text += s[i++];
+            for (;;) {  // "" inside the string is one quote (probe14 T3)
+                while (i < s.size() && s[i] != '"') text += s[i++];
+                if (i + 1 < s.size() && s[i + 1] == '"') {
+                    text += '"';
+                    i += 2;
+                    continue;
+                }
+                break;
+            }
             if (i >= s.size()) {
                 diags.push_back({lineNumber, static_cast<int>(start) + 1, "unterminated string"});
             } else {

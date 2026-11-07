@@ -199,8 +199,17 @@ private:
         // after '(' : arguments up to ')'; "()" marks a whole array
         e.parens = true;
         if (acceptPunct(")")) return;
-        do e.args.push_back(expr());
-        while (acceptPunct(","));
+        do {
+            if (atPunct("#")) {  // file channel: EOF(#1), INPUT$(n,#1)
+                const ast::Pos p = pos();
+                take();
+                auto c = make(ExprKind::Unary, p, "#");
+                c->args.push_back(expr());
+                e.args.push_back(std::move(c));
+            } else {
+                e.args.push_back(expr());
+            }
+        } while (acceptPunct(","));
         expectPunct(")");
     }
 
@@ -570,6 +579,14 @@ private:
             return s;
         }
         if (word == "MID$" && atPunct("(", 1)) return assignment(p);  // MID$(a$,x,y)=b$
+        if (word == "LINE" && atWord("INPUT", 1)) {
+            take();
+            take();
+            Stmt s = stmt(StmtKind::Command, p);
+            s.name = "LINE INPUT";
+            exprList(s);
+            return s;
+        }
         if (kCommands.count(word) != 0 && !atPunct("=", 1)) {
             take();
             Stmt s = stmt(StmtKind::Command, p);

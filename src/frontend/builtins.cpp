@@ -59,6 +59,8 @@ constexpr std::array kBuiltins = {
     Builtin{"POS", 'i', 1, 1, "n"},       Builtin{"INKEY$", 's', 0, 0, ""},
     Builtin{"DIM?", 'i', 1, 1, "a"},      Builtin{"TAB", 'i', 1, 1, "n", true},
     Builtin{"SPC", 'i', 1, 1, "n", true}, Builtin{"AT", 'i', 2, 2, "nn", true},
+    Builtin{"EOF", 'i', 1, 1, "c"},       Builtin{"LOF", 'i', 1, 1, "c"},
+    Builtin{"EXIST", 'i', 1, 1, "s"},     Builtin{"INPUT$", 's', 1, 2, "nc"},
 };
 
 }  // namespace

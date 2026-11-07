@@ -142,6 +142,7 @@ private:
     RunOptions opt_;
     std::vector<Slot> slots_;
     brt::Output out_;
+    brt::Files files_;
     int line_ = 0;
     std::uint64_t steps_ = 0;
     int err_ = 0;
@@ -153,10 +154,10 @@ private:
     std::vector<Frame*> frames_;
 
     // ---- output ---------------------------------------------------------------------------------
-    void putValue(const Value& v) {
-        if (v.type == Type::Str) out_.value(v.s);
-        else if (v.type == Type::Float) out_.value(v.f);
-        else out_.value(v.i);
+    void putValue(const Value& v, brt::Output& out) {
+        if (v.type == Type::Str) out.value(v.s);
+        else if (v.type == Type::Float) out.value(v.f);
+        else out.value(v.i);
     }
 
     // ---- variables ------------------------------------------------------------------------------
@@ -427,6 +428,10 @@ private:
         if (n == "PI") return F(brt::kPi);
         if (n == "ERR") return I(static_cast<std::int8_t>(static_cast<std::uint8_t>(err_ & 0xFF)));  // probe9 T6
         if (n == "LEN") return I(brt::len(s(0)));
+        if (n == "EOF") return I(files_.eof(f(0)));
+        if (n == "LOF") return I(files_.lof(f(0)));
+        if (n == "EXIST") return I(brt::Files::exist(s(0)));
+        if (n == "INPUT$") return S(files_.inputChars(f(0), f(1)));
         if (n == "LEFT$") return S(brt::left(s(0), argc > 1 ? f(1) : F64_ONE));
         if (n == "RIGHT$") return S(brt::right(s(0), argc > 1 ? f(1) : F64_ONE));
         if (n == "MID$") return S(argc > 2 ? brt::mid(s(0), f(1), f(2)) : brt::mid(s(0), f(1)));
@@ -764,23 +769,30 @@ private:
     }
 
     void print(const hir::Stmt& s) {
-        if (s.usingFmt) return printUsing(s);
-        char last = 0;
-        for (const hir::PrintItem& it : s.items) {
-            if (it.expr) {
-                if (it.kind == hir::PrintItem::Value) putValue(eval(*it.expr));
-                else if (it.kind == hir::PrintItem::Spc) out_.spc(eval(*it.expr).f);
-                else out_.tab(eval(*it.expr).f);
+        f64 ch = 0;
+        if (s.channel) ch = eval(*s.channel).f;
+        brt::Output& out = s.channel ? files_.output(ch, out_) : out_;
+        if (s.usingFmt) {
+            printUsing(s, out);
+        } else {
+            char last = 0;
+            for (const hir::PrintItem& it : s.items) {
+                if (it.expr) {
+                    if (it.kind == hir::PrintItem::Value) putValue(eval(*it.expr), out);
+                    else if (it.kind == hir::PrintItem::Spc) out.spc(eval(*it.expr).f);
+                    else out.tab(eval(*it.expr).f);
+                }
+                last = it.sep;
+                if (it.sep == ',') out.comma();
+                else if (it.sep == '\'') out.apostrophe();
             }
-            last = it.sep;
-            if (it.sep == ',') out_.comma();
-            else if (it.sep == '\'') out_.apostrophe();
+            if (last != ';' && last != ',') out.newline();
         }
-        if (last != ';' && last != ',') out_.newline();
+        if (s.channel) files_.flush(ch);
     }
 
-    void printUsing(const hir::Stmt& s) {
-        brt::Using u(out_, eval(*s.usingFmt).s);
+    void printUsing(const hir::Stmt& s, brt::Output& out) {
+        brt::Using u(out, eval(*s.usingFmt).s);
         char last = 0;
         for (const hir::PrintItem& it : s.items) {
             if (it.expr) {
@@ -791,7 +803,7 @@ private:
             last = it.sep;
         }
         u.end();
-        if (last != ';' && last != ',') out_.newline();
+        if (last != ';' && last != ',') out.newline();
     }
 
     void command(const hir::Stmt& s) {
@@ -883,6 +895,45 @@ private:
         if (n == "END" || n == "STOP" || n == "QUIT" || n == "SYSTEM" || n == "EDIT" || n == "NEW") throw EndProgram{};
         if (n == "DEFNUM") {
             out_.defnum = std::min(13, std::max(2, toI32(fp_trunc(eval(*s.args[0]).f))));
+            return;
+        }
+        if (n == "OPEN") {
+            const std::string mode = eval(*s.args[0]).s;
+            const f64 ch = eval(*s.args[1]).f;
+            files_.open(mode, ch, eval(*s.args[2]).s);
+            return;
+        }
+        if (n == "CLOSE") {
+            if (s.args.empty()) files_.closeAll();
+            else files_.close(eval(*s.args[0]).f);
+            return;
+        }
+        if (n == "KILL") {
+            files_.kill(eval(*s.args[0]).s);
+            return;
+        }
+        if (n == "INPUT#" || n == "LINE INPUT#") {
+            const f64 ch = eval(*s.args[0]).f;
+            for (const auto& t : s.targets) {
+                const Type ty = var(t->var).type;
+                if (n == "LINE INPUT#") storeTarget(*t, Value::ofStr(files_.lineInput(ch)));
+                else if (ty == Type::Str) storeTarget(*t, Value::ofStr(files_.inputString(ch)));
+                else storeTarget(*t, convert(Value::ofFloat(files_.inputNumber(ch)), ty));
+            }
+            return;
+        }
+        if (n == "WRITE" || n == "WRITE#") {
+            const bool file = n == "WRITE#";
+            const f64 ch = file ? eval(*s.args[0]).f : 0;
+            brt::Output& out = file ? files_.output(ch, out_) : out_;
+            for (std::size_t k = file ? 1 : 0; k < s.args.size(); ++k) {
+                const Value v = eval(*s.args[k]);
+                const bool first = k == (file ? 1u : 0u);
+                if (v.type == Type::Str) brt::writeValue(out, v.s, first);
+                else brt::writeValue(out, v.f, first);
+            }
+            out.newline();
+            if (file) files_.flush(ch);
             return;
         }
         if (n == "MODE") {
