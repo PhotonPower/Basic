@@ -17,6 +17,7 @@
 #include <vector>
 
 #include "rt_gfx.hpp"
+#include "rt_gui.hpp"
 #include "rt_pc.hpp"
 
 #ifdef _WIN32
@@ -58,6 +59,8 @@ struct State {
     Keyboard kbd;
     Memory mem;
     Gfx gfx;
+    Gui gui;
+    void (*menuProc)() = nullptr;  // ON MENU GOSUB
     int err = 0;
     void (*onError)() = nullptr;
     int handlerDepth = 0;
@@ -260,6 +263,15 @@ void swapPtr(f64 p, Array<T>& a, int code) {
     std::swap(*static_cast<Array<T>*>(const_cast<void*>(key)), a);
 }
 
+// ---- requesters and menus (D26) -------------------------------------------------------------------
+inline void onMenu() {
+    try {
+        if (rt.gui.onMenu(rt.out) && rt.menuProc != nullptr) rt.menuProc();
+    } catch (const Gui::EndOfInput&) {
+        throw EndProgram{};  // no more events
+    }
+}
+
 // ---- graphics (D25) -----------------------------------------------------------------------------
 inline std::int32_t gfxInt(f64 v) { return toInt(fp_trunc(v)); }
 
@@ -392,6 +404,7 @@ int header(F f) {
 // ---- program start -----------------------------------------------------------------------------
 inline int run(const char* name, void (*program)(), const std::pair<const char*, bool>* data, std::size_t dataCount) {
     rt.kbd.in = &std::cin;
+    rt.gui.in = &std::cin;
     rt.kbd.flush = [] {  // the prompt appears before the program waits
         std::fwrite(rt.out.buf.data(), 1, rt.out.buf.size(), stdout);
         std::fflush(stdout);
@@ -400,6 +413,7 @@ inline int run(const char* name, void (*program)(), const std::pair<const char*,
 #ifdef _WIN32
     _setmode(_fileno(stdout), _O_BINARY);  // "\n" stays "\n"
 #endif
+    rt.gui.flush = rt.kbd.flush;
     rt.data = data;
     rt.dataCount = dataCount;
     randomize(rt.seed);

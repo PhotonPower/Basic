@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "rt_gfx.hpp"
+#include "rt_gui.hpp"
 #include "rt_pc.hpp"
 #include "rt_ref.h"
 
@@ -104,12 +105,14 @@ public:
     Interp(const hir::Program& p, const RunOptions& o) : p_(p), opt_(o), slots_(p.vars.size()) {
         rt_randomize(o.seed);
         kbd_.in = o.input;
+        gui_.in = o.input;
         if (o.live != nullptr)
             kbd_.flush = [this] {
                 *opt_.live << out_.buf;
                 opt_.live->flush();
                 out_.buf.clear();
             };
+        gui_.flush = kbd_.flush;
     }
 
     RunResult run() {
@@ -171,6 +174,8 @@ private:
     brt::Keyboard kbd_;
     brt::Memory mem_;
     brt::Gfx gfx_;
+    brt::Gui gui_;
+    int menuProc_ = -1;  // ON MENU GOSUB
     int line_ = 0;
     std::uint64_t steps_ = 0;
     int err_ = 0;
@@ -543,6 +548,7 @@ private:
             return I(brt::rinstr(s(1), s(2), f(0)));
         }
         if (n == "POS") return I(out_.pos());
+        if (n == "MENU") return I(gui_.value(toI32(fp_trunc(f(0)))));
         if (n == "POINT") return I(gfx_.point(toI32(fp_trunc(f(0))), toI32(fp_trunc(f(1)))));
         if (n == "CRSCOL") return I(out_.crsCol);
         if (n == "CRSLIN") return I(out_.crsLin);
@@ -863,6 +869,56 @@ private:
         exec(s.elseBody);
     }
 
+    // ---- requesters and menus (D26) --------------------------------------------------------------
+    bool guiCommand(const hir::Stmt& s) {
+        const std::string& n = s.name;
+        static const std::vector<hir::ExprPtr> none;
+        if (n == "ALERT") {
+            const f64 sym = eval(*s.args[0]).f;
+            const std::string text = eval(*s.args[1]).s;
+            const f64 def = eval(*s.args[2]).f;
+            const std::string buttons = eval(*s.args[3]).s;
+            const std::int32_t r = gui_.alert(out_, toI32(fp_trunc(sym)), text, toI32(fp_trunc(def)), buttons);
+            storeTarget(*s.targets[0], convert(Value::ofInt(r), var(s.targets[0]->var).type));
+        } else if (n == "FILESELECT") {
+            const std::string t = eval(*s.args[0]).s;
+            const std::string ok = eval(*s.args[1]).s;
+            const std::string path = eval(*s.args[2]).s;
+            storeTarget(*s.targets[0], Value::ofStr(gui_.fileselect(out_, t, ok, path)));
+        } else if (n == "FORM INPUT") {
+            const f64 len = eval(*s.args[0]).f;
+            const std::string old = s.mode == 1 ? loadTarget(*s.targets[0]).s : std::string();
+            storeTarget(*s.targets[0], Value::ofStr(gui_.formInput(out_, toI32(fp_trunc(len)), old)));
+        } else if (n == "MENU") {
+            if (s.mode == 0) {
+                const Array& a = array(s.targets[0]->var);
+                gui_.menu(out_, a.strs);
+            } else {
+                const f64 item = eval(*s.args[0]).f;
+                const Value v = eval(*s.args[1]);
+                if (s.mode == 1) gui_.menuFlags(toI32(fp_trunc(item)), toI32(fp_trunc(v.f)));
+                else gui_.menuText(toI32(fp_trunc(item)), v.s);
+            }
+        } else if (n == "MENU KILL") {
+            gui_.menuKill();
+            menuProc_ = -1;
+        } else if (n == "ON MENU GOSUB") {
+            menuProc_ = s.vars[0];
+        } else if (n == "ON MENU" || n == "SLEEP") {
+            for (const auto& a : s.args) eval(*a);
+            try {
+                if (gui_.onMenu(out_) && menuProc_ >= 0) callProc(menuProc_, none);
+            } catch (const brt::Gui::EndOfInput&) {
+                throw EndProgram{};  // no more events (D26)
+            }
+        } else if (n == "MENU KEY" || n == "ON MENU KEY GOSUB" || n == "ON MENU BUTTON GOSUB" || n == "ON MESSAGE GOSUB") {
+            for (const auto& a : s.args) eval(*a);  // no keys, buttons or messages on a console
+        } else {
+            return false;
+        }
+        return true;
+    }
+
     // ---- graphics (D25): the arguments from left to right, then brt::Gfx ------------------------
     bool gfxCommand(const hir::Stmt& s) {
         if (!brt::Gfx::isCommand(s.name)) return false;
@@ -1161,6 +1217,7 @@ private:
             storeTarget(t, Value::ofStr(n == "LSET" ? b + fill : fill + b));
             return;
         }
+        if (guiCommand(s)) return;
         if (n == "ON GOSUB") {
             const std::int32_t k = toI32(fp_trunc(eval(*s.args[0]).f));
             static const std::vector<hir::ExprPtr> none;

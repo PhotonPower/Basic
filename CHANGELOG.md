@@ -40,6 +40,9 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 - `RESUME` setzt `ERR` auf 0 (probe12 T1); damit ist `errors2` am Original gleich.
 - `gfa_run.py`: Startmenü der Diskette nach einem Kaltstart (`boot` in `keys.json`), längere
   Wartezeiten für den Merge-Dialog und das Einlesen.
+- Requester und Menüs Stufe 1 (D26): `ALERT`, `FILESELECT`, `FORM INPUT`, `MENU m$()`/`MENU x,y`/
+  `MENU x,s$`/`MENU KILL`, `ON MENU [t]`, `ON MENU GOSUB`, `MENU(x)` im Interpreter und C++-Ziel als
+  Textdialoge auf der Tastatureingabe (`platform/pc/rt_gui`). Testprogramm `gui1` mit Eingabe.
 - Grafik auf dem Amiga (D25 Stufe 2): eigener Screen und Fenster, Zeichnen über die ROM-Bibliotheken;
   `gfx1` gibt unter Kickstart 1.2 genau die am Original bestätigten Werte aus. `PAUSE`/`DELAY` warten
   auf dem Amiga (dos `Delay`). `amiga_run.py` startet die Programme nacheinander.

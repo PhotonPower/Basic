@@ -1,0 +1,17 @@
+Hallo
+Welt
+<1:Ja|2:Nein|3:Vielleicht>? a%=3
+leer
+<1:OK>? b=1
+ungueltig
+<1:Ja|2:Nein>? c&=2
+Laden [OK] DH0:? d$=[foo.txt]
+Speichern [OK] ? e$=[]
+x$=[abcde]
+x$=[abcde]
+menu: Datei: 1 Laden 2 Speichern 3 -Trenner | Farbe: 6 Rot 7 Blau
+Wahl 1 256 nach 1
+Wahl 6 256 nach 4
+Wahl 7 256 nach 5
+Wahl 2 256 nach 6
+

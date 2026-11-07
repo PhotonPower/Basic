@@ -433,3 +433,30 @@ Die OS-Emulation des Schwesterprojekts kennt `intuition.library` nicht; `test_m6
 Ergebnis: Mit `basicc --run p.lst --gfx bild` (Interpreter) bzw. `BASIC_GFX_OUT=bild` (C++-Ziel)
 entstehen `bild.ppm` und `bild.txt`, eine Zusammenfassung je Fenster (Größe, Zahl und FNV-Prüfsumme
 der Pixel, Texte) und je Screen (Palette). Testprogramme halten sie in `<name>.gfx` fest.
+
+<a id="d26"></a>
+## D26 – Requester und Menüs, Stufe 1: Textdialoge ohne Fenster
+
+`ALERT`, `FILESELECT`, `FORM INPUT` und die Menüs (`MENU m$()`, `MENU x,y`, `MENU x,s$`, `MENU KILL`,
+`ON MENU [t]`, `ON MENU GOSUB`, `MENU(x)`) warten auf den Benutzer. Interpreter und C++-Ziel haben
+keine Fenster; dort werden sie Textdialoge auf demselben Eingabestrom wie `INPUT`
+(`platform/pc/rt_gui`), testbar mit `<name>.in`:
+
+- `ALERT sym,text$,vorgabe,knöpfe$,wahl`: die Textzeilen (`|` trennt), dann `<1:Ja|2:Nein>? `; die
+  Eingabe ist die Nummer eines Knopfs. Leer, ungültig oder Ende der Eingabe: der Vorgabeknopf
+  (Vorgabe 0: Knopf 1). Am Original haben wir die Requester nicht bedient.
+- `FILESELECT titel$,ok$,pfad$,name$` in der Reihenfolge der Syntaxzeile der Referenz (so rufen es
+  echte Programme auf; das Beispiel der Referenz hat eine andere Reihenfolge): `titel [ok] pfad? `,
+  die Eingabe ist der Name, leer heißt Abbruch.
+- `FORM INPUT n AS a$` liest eine Zeile, höchstens n Zeichen; eine leere Eingabe lässt a$ stehen.
+- `MENU m$()` schreibt das Menü einmal als Liste (`menu: Datei: 1 Laden 2 Speichern | …`); die
+  Nummer ist der Index im Feld (Überschriften und Leerstrings mitgezählt, Referenz). Einträge mit `-`
+  sind gesperrt, `MENU x,y` gibt mit Bit 16 (ITEMENABLED) frei oder sperrt.
+- `ON MENU` liest eine Zeile: die Nummer eines freigegebenen Eintrags wählt ihn (`MENU(0)`,
+  `MENU(1)` = 256, MENUPICK) und ruft die Prozedur von `ON MENU GOSUB`; eine leere Zeile ist ein Tick.
+  Am Ende der Eingabe endet das Programm, sonst liefe die übliche Schleife `DO … ON MENU … LOOP`
+  ewig. Tasten, Maustasten und andere Nachrichten (`ON MENU KEY/BUTTON GOSUB`, `ON MESSAGE GOSUB`)
+  gibt es auf einer Konsole nicht.
+
+Stufe 2: auf dem Amiga echte Requester und Intuition-Menüs, die 68000-Ziele über `rt_gui`/`plat_gui`
+wie die Grafik.

@@ -199,7 +199,7 @@ void testSema() {
     // names); upper case stays the keyword. Names may start with digits (2d_display).
     CHECK_EQ(hir("exit\nPRINT 2\nPROCEDURE exit\nPRINT 1\nRETURN").find("call EXIT"), std::size_t{0});
     CHECK(hir("write(1,2)\nWRITE 3\nPROCEDURE write(a,b)\nRETURN").find("call WRITE 1# 2#\ncmd WRITE 3#") != std::string::npos);
-    CHECK(hir("DIM menu(2)\nmenu(1)=39\nmenu\nPROCEDURE menu\nRETURN").find("MENU#(1) = 39#\ncall MENU") != std::string::npos);
+    CHECK(hir("DIM menue(2)\nmenue(1)=39\nmenue\nPROCEDURE menue\nRETURN").find("MENUE#(1) = 39#\ncall MENUE") != std::string::npos);
     CHECK_EQ(hir("2d_display\n@2d_display\nGOSUB 2d_display\n> PROCEDURE 2d_display\nRETURN").find("call 2D_DISPLAY\ncall 2D_DISPLAY\ncall 2D_DISPLAY"), std::size_t{0});
     // names of builtins without '(' are variables (DIM a$(max)); variables and procedures have
     // separate names (new.colors(farbe) with PROCEDURE farbe)

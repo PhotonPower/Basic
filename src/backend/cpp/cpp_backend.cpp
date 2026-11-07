@@ -438,6 +438,7 @@ private:
             });
         }
         if (n == "POS") return "brt::rt.out.pos()";
+        if (n == "MENU") return "brt::rt.gui.value(brt::gfxInt(" + a(0) + "))";
         if (n == "POINT")
             return ordered({e.args[0].get(), e.args[1].get()}, [](const std::vector<std::string>& x) {
                 return "brt::rt.gfx.point(brt::gfxInt(" + x[0] + "), brt::gfxInt(" + x[1] + "))";
@@ -920,6 +921,53 @@ private:
             line(in + 1, "auto& r_ = " + lvalue(*s.targets[0]) + ";");
             line(in + 1, "r_ = brt::" + std::string(n == "LSET" ? "lset" : "rset") + "(r_, " + expr(*s.value) + ");");
             line(in, "}");
+            return;
+        }
+        if (n == "ALERT" || n == "FILESELECT" || n == "FORM INPUT") {  // D26
+            const hir::Expr& t = *s.targets[0];
+            line(in, "{");
+            for (std::size_t k = 0; k < s.args.size(); ++k)
+                line(in + 1, std::string(s.args[k]->type == Type::Str ? "const std::string" : "const f64") + " a" + std::to_string(k) + "_ = " + arg(k) + ";");
+            if (n == "ALERT") {
+                line(in + 1, "const std::int32_t r_ = brt::rt.gui.alert(brt::rt.out, brt::gfxInt(a0_), a1_, brt::gfxInt(a2_), a3_);");
+                line(in + 1, lvalue(t) + " = " + conv("r_", Type::Int, t.type) + ";");
+            } else if (n == "FILESELECT") {
+                line(in + 1, lvalue(t) + " = brt::rt.gui.fileselect(brt::rt.out, a0_, a1_, a2_);");
+            } else {
+                line(in + 1, "auto& t_ = " + lvalue(t) + ";");
+                line(in + 1, "t_ = brt::rt.gui.formInput(brt::rt.out, brt::gfxInt(a0_), " + std::string(s.mode == 1 ? "t_" : "std::string()") + ");");
+            }
+            line(in, "}");
+            return;
+        }
+        if (n == "MENU") {
+            if (s.mode == 0) {
+                line(in, "brt::rt.gui.menu(brt::rt.out, " + var(s.targets[0]->var) + "().data);");
+            } else {
+                line(in, "{");
+                line(in + 1, "const f64 x_ = " + arg(0) + ";");
+                if (s.mode == 1) line(in + 1, "brt::rt.gui.menuFlags(brt::gfxInt(x_), brt::gfxInt(" + arg(1) + "));");
+                else line(in + 1, "brt::rt.gui.menuText(brt::gfxInt(x_), " + arg(1) + ");");
+                line(in, "}");
+            }
+            return;
+        }
+        if (n == "MENU KILL") {
+            line(in, "brt::rt.gui.menuKill();");
+            line(in, "brt::rt.menuProc = nullptr;");
+            return;
+        }
+        if (n == "ON MENU GOSUB") {
+            line(in, "brt::rt.menuProc = &" + routines_[static_cast<std::size_t>(s.vars[0])] + ";");
+            return;
+        }
+        if (n == "ON MENU" || n == "SLEEP") {
+            for (std::size_t k = 0; k < s.args.size(); ++k) line(in, "(void)(" + arg(k) + ");");
+            line(in, "brt::onMenu();");
+            return;
+        }
+        if (n == "MENU KEY" || n == "ON MENU KEY GOSUB" || n == "ON MENU BUTTON GOSUB" || n == "ON MESSAGE GOSUB") {
+            for (std::size_t k = 0; k < s.args.size(); ++k) line(in, "(void)(" + arg(k) + ");");
             return;
         }
         if (n == "ON GOSUB") {

@@ -865,6 +865,46 @@ private:
             h->targets.push_back(lvalue(*e.args[0]));
             if (h->targets[0]->type != Type::Str) fail(s.pos, n + " needs a string variable");
             h->value = convertTo(expr(*e.args[1]), Type::Str, e.pos);
+        } else if (n == "ALERT") {  // ALERT symbol,text$,default,buttons$,choice (D26)
+            argc(5, 5);
+            h->args.push_back(convertTo(expr(*s.args[0]), Type::Float, s.args[0]->pos));
+            h->args.push_back(convertTo(expr(*s.args[1]), Type::Str, s.args[1]->pos));
+            h->args.push_back(convertTo(expr(*s.args[2]), Type::Float, s.args[2]->pos));
+            h->args.push_back(convertTo(expr(*s.args[3]), Type::Str, s.args[3]->pos));
+            h->targets.push_back(numericTarget(*s.args[4]));
+        } else if (n == "FILESELECT") {  // FILESELECT title$,ok$,path$,name$ (as the syntax line; D26)
+            argc(4, 4);
+            for (std::size_t k = 0; k < 3; ++k) h->args.push_back(convertTo(expr(*s.args[k]), Type::Str, s.args[k]->pos));
+            h->targets.push_back(lvalue(*s.args[3]));
+            if (h->targets[0]->type != Type::Str) fail(s.args[3]->pos, "FILESELECT needs a string variable");
+        } else if (n == "FORM INPUT") {
+            h->args.push_back(convertTo(expr(*s.args[0]), Type::Float, s.args[0]->pos));
+            h->targets.push_back(lvalue(*s.args[1]));
+            if (h->targets[0]->type != Type::Str) fail(s.args[1]->pos, "FORM INPUT needs a string variable");
+            h->mode = s.variant;
+        } else if (n == "MENU") {  // MENU m$() / MENU x,flags / MENU x,text$
+            argc(1, 2);
+            if (s.args.size() == 1) {
+                const ast::Expr& a = *s.args[0];
+                if (a.kind != ExprKind::Var || !a.wholeArray || typeOf(a.text) != Type::Str) fail(a.pos, "MENU expects a string array: m$()");
+                auto v = makeExpr(Op::Load, Type::Str);
+                v->var = varId(a.text, true);
+                h->targets.push_back(std::move(v));
+                h->mode = 0;
+            } else {
+                h->args.push_back(convertTo(expr(*s.args[0]), Type::Float, s.args[0]->pos));
+                hir::ExprPtr v = expr(*s.args[1]);
+                h->mode = v->type == Type::Str ? 2 : 1;
+                h->args.push_back(v->type == Type::Str ? std::move(v) : convertTo(std::move(v), Type::Float, s.args[1]->pos));
+            }
+        } else if (n == "MENU KILL" || n == "MENU KEY" || n == "SLEEP") {
+            for (const auto& a : s.args) h->args.push_back(convertTo(expr(*a), Type::Float, a->pos));
+        } else if (n == "ON MENU") {
+            for (const auto& a : s.args) h->args.push_back(convertTo(expr(*a), Type::Float, a->pos));
+        } else if (n.rfind("ON MENU", 0) == 0 || n == "ON MESSAGE GOSUB") {  // ... GOSUB proc
+            const int id = procedureId(s.args[0]->text, s.args[0]->pos);
+            if (!p_.routines[static_cast<std::size_t>(id)].params.empty()) fail(s.args[0]->pos, n + " needs a procedure without parameters");
+            h->vars.push_back(id);
         } else if (n == "ON") {
             h->name = "ON GOSUB";
             h->args.push_back(convertTo(expr(*s.args[0]), Type::Float, s.args[0]->pos));

@@ -31,6 +31,7 @@ const std::set<std::string, std::less<>> kGfxCommands = {
 
 const std::set<std::string, std::less<>> kCommands = {
     "INC",    "DEC",       "ADD",    "SUB",    "MUL",    "DIV",    "SWAP",   "CLR",     "ERASE",    "ABSOLUTE", "VSYNC",
+    "ALERT",  "FILESELECT", "MENU",  "SLEEP",
     "DEFNUM", "MODE",      "RANDOMIZE", "ERROR", "QUIT", "SYSTEM", "STOP",   "END",     "EDIT",
     "CLEAR",  "LSET",      "RSET",   "DEFINT", "DEFFLT", "DEFSTR", "DEFBIT", "DEFBYT",  "DEFWRD",
     "DEFSNG", "DEFDBL",    "PAUSE",  "DELAY",  "CLS",    "NEW",    "ARRAYFILL", "INSERT", "DELETE",
@@ -654,6 +655,21 @@ private:
         }
         if (word == "ON" || word == "ONERROR") {
             take();
+            if (word == "ON" && (atWord("MENU") || atWord("MESSAGE"))) {  // chapter 9 (D26)
+                Stmt s = stmt(StmtKind::Command, p);
+                const bool message = take().text == "MESSAGE";
+                std::string kind = message ? "MESSAGE" : "";
+                if (!message && (atWord("KEY") || atWord("BUTTON"))) kind = take().text;
+                if (acceptWord("GOSUB")) {
+                    s.name = "ON MENU" + std::string(kind.empty() ? "" : " " + kind) + " GOSUB";
+                    s.args.push_back(makeName(procName("procedure name")));
+                } else {
+                    if (!kind.empty()) fail("GOSUB expected");
+                    s.name = "ON MENU";  // ON MENU [t]: look for events once
+                    if (!at(Tok::End)) s.args.push_back(expr());
+                }
+                return s;
+            }
             if (word == "ON" && !acceptWord("ERROR")) {
                 Stmt s = stmt(StmtKind::Command, p);  // ON x GOSUB a,b / ON BREAK ...
                 s.name = "ON";
@@ -690,6 +706,24 @@ private:
             return s;
         }
         if (word == "MID$" && atPunct("(", 1)) return assignment(p);  // MID$(a$,x,y)=b$
+        if (word == "FORM" && atWord("INPUT", 1)) {  // FORM INPUT n AS a$ / FORM INPUT n,a$
+            take();
+            take();
+            Stmt s = stmt(StmtKind::Command, p);
+            s.name = "FORM INPUT";
+            s.args.push_back(expr());
+            if (acceptWord("AS")) s.variant = 1;
+            else expectPunct(",");
+            s.args.push_back(lvalue());
+            return s;
+        }
+        if (word == "MENU" && (atWord("KILL", 1) || atWord("KEY", 1))) {
+            take();
+            Stmt s = stmt(StmtKind::Command, p);
+            s.name = "MENU " + take().text;
+            exprList(s);
+            return s;
+        }
         if (word == "LINE" && atWord("INPUT", 1)) {
             take();
             take();

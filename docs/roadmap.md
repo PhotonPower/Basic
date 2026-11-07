@@ -71,8 +71,9 @@ Anfang der Anweisung (probe20, probe21, D24).
 ✔ Grafik auf m68k-test (Ports, der Testtreiber zeichnet mit `brt::Gfx`).
 ✔ Grafik Stufe 2: Amiga über `intuition.library`/`graphics.library`; `gfx1` unter Kickstart 1.2 mit
 den Werten des Originals.
-Weiter: `ALERT`, Menüs,
-`FILESELECT`, `FORM INPUT`; `ABSOLUTE` mit dem vollen Speicherabbild nach D6; weitere Optimierungen (Variablen in Registern innerhalb von Schleifen ohne Aufrufe, Fließkomma inline).
+✔ Requester und Menüs Stufe 1 (D26): Textdialoge im Interpreter und C++-Ziel.
+Weiter: Requester und Menüs auf den 68000-Zielen (Amiga: Intuition); `POLYLINE`/`POLYFILL`,
+`MKDIR`/`RMDIR`/`CHDIR`/`FILES`, `RESERVE`/`FRE`, `SOUND`; `ABSOLUTE` mit dem vollen Speicherabbild nach D6; weitere Optimierungen (Variablen in Registern innerhalb von Schleifen ohne Aufrufe, Fließkomma inline).
 
 - Quelltext-Linker (`src/link`) mit Map-Datei und Label-Prüfung.
 - LIR → 68000-Assembler, `runtime/m68k` (Integer, Strings, Ausgabe, Fließkomma-Kern), `platform/amiga`

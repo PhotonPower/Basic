@@ -1,0 +1,46 @@
+' test: groups core print gui
+' Requester und Menues ohne Fenster (D26): Textdialoge auf der Tastatureingabe (gui1.in).
+DIM m$(10)
+m$(0)="Datei"
+m$(1)="Laden"
+m$(2)="Speichern"
+m$(3)="-Trenner"
+m$(4)=""
+m$(5)="Farbe"
+m$(6)="Rot"
+m$(7)="Blau"
+m$(8)=""
+m$(9)=""
+ALERT 1,"Hallo|Welt",2,"Ja|Nein|Vielleicht",a%
+PRINT "a%=";a%
+ALERT 0,"leer",0,"OK",b
+PRINT "b=";b
+ALERT 0,"ungueltig",2,"Ja|Nein",c&
+PRINT "c&=";c&
+FILESELECT "Laden","OK","DH0:",d$
+PRINT "d$=[";d$;"]"
+FILESELECT "Speichern","OK","",e$
+PRINT "e$=[";e$;"]"
+x$="alt"
+FORM INPUT 5 AS x$
+PRINT "x$=[";x$;"]"
+FORM INPUT 5 AS x$
+PRINT "x$=[";x$;"]"
+MENU m$()
+ON MENU GOSUB wahl
+MENU 7,0
+MENU 1,"Lad"
+n%=0
+DO
+  ON MENU
+  INC n%
+LOOP
+PROCEDURE wahl
+  PRINT "Wahl ";MENU(0);" ";MENU(1);" nach ";n%
+  IF MENU(0)=6
+    MENU 7,80
+  ENDIF
+  IF MENU(0)=2
+    MENU KILL
+  ENDIF
+RETURN
