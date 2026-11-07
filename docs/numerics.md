@@ -20,7 +20,8 @@ Bewusst vereinfachte Semantik, damit die Z80-Implementierung klein bleibt:
 |---|---|
 | Rundung | nur „round to nearest, ties to even“ |
 | denormalisierte Zahlen | gibt es nicht: Ergebnisse unterhalb von 2⁻¹⁰²² werden zu 0 |
-| ±Unendlich, NaN | gibt es nicht: Überlauf löst einen GFA-Laufzeitfehler aus (Original: `1E300*1E300` und `EXP(1000)` sind dort kein Überlauf, weil der Exponent 16 Bit hat; probe1 T48, T50, probe2 T15, T16) |
+| ±Unendlich, NaN | gibt es nicht: Überlauf löst Fehler 1 „overflow“ aus, wie im Original (probe3 T16, T18, T19). Die Grenze liegt bei binary64 anders: Im Original ist `1E300*1E300` noch kein Überlauf (probe2 T15) |
+| `VAL` außerhalb des Bereichs | ergibt 0 ohne Fehler, wie im Original (`VAL("1E10000")`, probe3 T20) |
 | Unterlauf | Ergebnis 0 ohne Fehler (wie Original, probe1 T49) |
 | Division durch 0 | GFA-Laufzeitfehler (Original: Fehler 0 „divide by zero“, probe1 T15) |
 | −0 | gibt es nicht: Ergebnisse 0 haben immer positives Vorzeichen |
@@ -42,7 +43,8 @@ Exponent, beide Big-Endian.
 - 0 ist `00 00 00 00 00 00 00 00`; −0 gibt es nicht (`-1*0`, probe2 T18).
 - Der Exponent hat 16 Bit, der Wertebereich reicht also bis etwa 10^±9500: `1E300*1E300` ergibt
   ohne Fehler `1.0E+600` (Bytes `8E B3 97 14 29 7A 0B C8`), `EXP(1000)` ergibt `1.970071114025E+434`
-  (probe2 T15–T17). Was beim Überschreiten dieses Bereichs passiert, klärt probe3.
+  (probe2 T15–T17). Der nutzbare Bereich ist aber kleiner als der Exponent erlaubt: `1E600*1E600`
+  meldet Fehler 1 „overflow“, und `1E-300*1E-300` ergibt bereits 0 (probe3 T16, T17).
 
 | Wert | Bytes |
 |---|---|
@@ -53,19 +55,20 @@ Exponent, beide Big-Endian.
 `MKS$` scheint im Original fehlerhaft zu sein: 1, 2 und 0,1 ergeben `FF FF FF 7F`, −1 ergibt
 `FF FF FF FF`, 0 ergibt `00 00 00 00`, und `CVS(MKS$(1.5))` ist 9.223371487099E+18 (etwa 2⁶³)
 (probe1 T46, T47, probe2 T40–T44). Das sieht nach einer sättigenden Umwandlung aus, nicht nach einem
-Fließkommaformat. Ob wir das nachbilden, ist offen ([roadmap.md](roadmap.md#offene-fragen)).
+Fließkommaformat. Wir bilden das nicht nach, `MKS$`/`CVS` liefern IEEE single ([D11](decisions.md#d11)).
 `CVD(MKD$(0.1))` ergibt wieder 0,1 (probe2 T45).
 
 **`PI`** ist im Original ungenau: Bytes `C9 0F DA A2 21 DB 04 00`, also 3,14159265359141670…
 statt 3,14159265358979… (Abweichung 1,6·10⁻¹², 114 Einheiten der letzten Stelle; probe2 T19, T21).
 Daher die Ausgabe `3.141592653591` (probe1 T34). Das Dezimalliteral `3.14159265359` wird dagegen
 korrekt gerundet eingelesen (`C9 0F DA A2 21 77`, probe2 T20). Transzendente Funktionen sind im
-Original nicht genau: `EXP(1000)` hat einen relativen Fehler von etwa 4·10⁻¹² (probe2 T16).
+Original nicht genau: `EXP(1000)` hat einen relativen Fehler von etwa 4·10⁻¹² (probe2 T16). Beides
+bilden wir nicht nach: `PI` ist der nächstgelegene binary64-Wert ([D11](decisions.md#d11)).
 
-> **Abweichung vom Original:** GFA-BASIC 3.5 rechnet mit 48 Bit Mantisse, nicht mit den 53 Bit von
-> binary64. Das ist im Ergebnis sichtbar: `FOR x=0 TO 1 STEP 0.1` läuft im Original 10-mal (probe1
-> T21), mit binary64 11-mal (0,1 zehnmal addiert ergibt 1,000000000000007 bzw. 0,9999999999999999).
-> Ob die Festlegung [D4](decisions.md#d4) bleibt, ist offen ([roadmap.md](roadmap.md#offene-fragen)).
+> **Bewusste Abweichung vom Original** ([D11](decisions.md#d11)): GFA-BASIC 3.5 rechnet mit 48 Bit
+> Mantisse, wir mit den 53 Bit von binary64. Das ist im Ergebnis sichtbar: `FOR x=0 TO 1 STEP 0.1`
+> läuft im Original 10-mal (probe1 T21), mit binary64 11-mal (0,1 zehnmal addiert ergibt
+> 1,000000000000007 bzw. 0,9999999999999999).
 
 ## Grundoperationen
 
@@ -108,24 +111,26 @@ von Grundoperationen.
 
 ## Ungefähre Gleichheit `==`
 
-Die Referenz sagt: `==` vergleicht etwa 28 Bit der Mantisse. Festlegung: Beide Operanden werden mit
-„round to nearest even“ auf 28 Bit signifikante Mantisse gerundet und dann exakt verglichen. Das ist
-präzise definiert und auf allen Zielen gleich; ob es in Grenzfällen genau dem Original entspricht,
-ist zu prüfen.
+Die Referenz sagt: `==` vergleicht etwa 28 Bit der Mantisse. Festlegung, am Original bestätigt:
+Beide Operanden werden auf **28 signifikante Bit** gerundet, bei genau der Hälfte **vom Betrag her
+aufwärts** (von 0 weg), und dann exakt verglichen. Ein Übertrag beim Runden erhöht den Exponenten
+(`1-2^-29` wird zu 1). 0 ist nur gleich 0.
 
-Am Original (probe1 T41): `1==1+2^-29` ist wahr (−1), `1==1+2^-28` ist falsch (0), ebenso für
-2^-27 und 2^-26. Bei 1 (Mantisse `$800000000000`) liegt 2^-29 auf Bit 18, 2^-28 auf Bit 19 der
-48-Bit-Mantisse; Unterschiede in den unteren 19 Bit werden also ignoriert. Die 28-Bit-Rundung oben
-ergibt für 2^-28 dagegen „gleich“ (genau halbe Stelle, gerade Rundung) und muss angepasst werden;
-die genaue Regel ist noch offen.
+Diese Regel erklärt alle 17 geprüften Fälle aus probe2 T34–T39 und probe3 T5–T15. „Round to nearest
+even“, die frühere Festlegung, widerspricht dagegen 6 davon, z. B. `1==1+2^-28` (Original: falsch).
+Die Bytes in probe3 T1–T4 zeigen, dass `2^(-28)` exakt ist.
 
-probe2 T34–T39: Die Grenze liegt bei 1,5 und bei 1000 an derselben relativen Stelle (2^-29 gleich,
-2^-28 ungleich), die Regel ist also relativ. `1==1-2^-29` ist wahr, `1==1-2^-28` falsch. `0==1E-20`
-und `1E-20==2E-20` sind falsch. `1+2^-29==1+2^-28` ist falsch, obwohl die Differenz nur 2^-29 beträgt;
-`1==1+3*2^-30` und `1==1+(2^-28-2^-40)` sind wahr. Das passt am ehesten zu „untere 19 Bit der Mantisse
-abschneiden, dann vergleichen“, aber nicht zu `1==1-2^-29` (anderer Exponent). Die Testwerte entstehen
-mit `^`, das im Original womöglich nicht exakt rechnet; probe3 wiederholt die Fälle mit exakt
-halbierten Werten und gibt die Bytes aus.
+| Vergleich | Original | Begründung (28 Bit, Hälfte aufwärts) |
+|---|---|---|
+| `1==1+2^-29` | wahr | 2^-29 liegt unter der halben Stelle |
+| `1==1+2^-28` | falsch | genau halbe Stelle → aufgerundet |
+| `1+2^-28==1+2*2^-28` | wahr | beide runden auf 1+2^-27 |
+| `1+2^-29==1+2^-28` | falsch | ab- bzw. aufgerundet |
+| `1==1-2^-29` | wahr | rundet mit Übertrag auf 1 |
+| `1==1-2^-28` | falsch | liegt eine volle Stelle darunter |
+| `0==2^-116` | falsch | 0 ist nur gleich 0 |
+
+(probe1 T41, probe2 T34–T39, probe3 T5–T15)
 
 ## Zahl ↔ Text
 

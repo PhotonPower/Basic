@@ -97,6 +97,7 @@ Diese Punkte sind aus dem Handbuch nicht sicher zu entnehmen und werden am Origi
   | Nr. | `ERR$` | Auslöser |
   |---|---|---|
   | 0 | divide by zero | `1/0`, `1 DIV 0` (probe1 T14, T15) |
+  | 1 | overflow | Fließkomma-Überlauf, z. B. `EXP(30000)` (probe3 T16, T18) |
   | 2 | no integer\|-2147483648 .. 2147483647 | Überlauf bei Zuweisung an `%` (probe1 T1) |
   | 3 | no byte\|0 .. 255 | Überlauf bei Zuweisung an `\|` (probe2 T6) |
   | 4 | no word\|-32768 .. 32767 | Überlauf bei Zuweisung an `&` (probe1 T4) |

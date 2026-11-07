@@ -68,6 +68,22 @@ für MC68000 und Z80 ist deshalb handgeschriebener Assembler; C gibt es nur in d
 PC-Ziel.
 → [toolchain.md](toolchain.md)
 
+<a id="d11"></a>
+## D11 – IEEE binary64 bleibt; Eigenheiten des Originals werden nicht nachgebildet
+
+Bestätigt [D4](#d4) nach dem Abgleich mit dem Original (probe1–probe3). GFA-BASIC 3.5 rechnet mit
+48 Bit Mantisse und eigenem Exponentformat; wir bleiben bei binary64. Damit weichen einzelne
+Ergebnisse vom Original ab, z. B. läuft `FOR x=0 TO 1 STEP 0.1` 11- statt 10-mal, und die Grenzen
+für Über- und Unterlauf liegen anders.
+
+Nicht nachgebildet werden Eigenheiten des Originals, die als Fehler oder Ungenauigkeit gelten:
+die ungenaue Konstante `PI` (wir nehmen den nächstgelegenen binary64-Wert), das fehlerhafte `MKS$`
+(wir liefern IEEE single), die ungenauen transzendenten Funktionen.
+
+Übernommen wird dagegen alles, was Sprachsemantik ist und sich im binary64-Format darstellen lässt:
+Ganzzahl- und Rundungsregeln, `FOR`-Semantik, Ausgabeformat, Fehlernummern und -texte, die Regel von
+`==` (siehe [numerics.md](numerics.md)).
+
 <a id="d10"></a>
 ## D10 – Testplattformen als FPGA-Vorlage
 

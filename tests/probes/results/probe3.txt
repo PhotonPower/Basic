@@ -1,0 +1,55 @@
+; source: GFA-BASIC 3.5 (Amiga, English), FS-UAE A500, Kickstart 1.2, 2026-11-07
+probe3
+T1 2^-28 halbiert: 80 00 00 00 00 00 03 E3 
+T2 2^(-28): 80 00 00 00 00 00 03 E3 
+T3 2^-29 halbiert: 80 00 00 00 00 00 03 E2 
+T4 2^(-29): 80 00 00 00 00 00 03 E2 
+T5 1==1+g: -1 1==1+h: 0
+T6 1==1-g: -1 1==1-h: 0 1==1-g/2: -1
+T7 1+g==1+h: 0 1+h==1+g: 0
+T8 1+h==1+h+g: -1 1+h==1+2*h: -1
+T9 1+g: 80 00 00 04 00 00 03 FF 
+T10 1-g: FF FF FF F8 00 00 03 FE 
+T11 1-h: FF FF FF F0 00 00 03 FE 
+T12 0.5==0.5+g/2: -1 0.5==0.5+h/2: 0
+T13 1.9999==1.9999+h: 0 1.9999==1.9999+g: -1
+T14 -1==-1-g: -1 -1==-1-h: 0
+T15 0==0: -1 0==g*g*g*g: 0
+T16 Quadrat 1
+   x=1.0E+600
+T16 Quadrat 2
+   -> ERR 1 overflow
+   x=1.0E+600
+T16 Quadrat 3
+   -> ERR 1 overflow
+   x=1.0E+600
+T16 Quadrat 4
+   -> ERR 1 overflow
+   x=1.0E+600
+T16 Quadrat 5
+   -> ERR 1 overflow
+   x=1.0E+600
+T16 Quadrat 6
+   -> ERR 1 overflow
+   x=1.0E+600
+T17 Quadrat 1
+   x=0
+T17 Quadrat 2
+   x=0
+T17 Quadrat 3
+   x=0
+T17 Quadrat 4
+   x=0
+T17 Quadrat 5
+   x=0
+T17 Quadrat 6
+   x=0
+T18 EXP(30000)
+   -> ERR 1 overflow
+   x=0
+T19 1E+300^40
+   -> ERR 1 overflow
+   x=0
+T20 VAL(1E10000)
+   x=0
+ende

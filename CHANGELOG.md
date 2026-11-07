@@ -26,6 +26,11 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
   Byte-Überlauf (Fehler 3), `FOR` mit negativer Schrittweite und am Bereichsende, 16-Bit-Exponent,
   ungenaue Konstante `PI`, Schwellen der Exponentdarstellung, `DEFNUM`, fehlerhaftes `MKS$`.
   Folgefragen als `tests/probes/probe3.lst`.
+- probe3 am Original ausgewertet (`tests/probes/results/probe3.txt`): Regel von `==` bestätigt
+  (28 Bit, Hälfte aufwärts statt gerade Rundung), Fehler 1 „overflow“, Unterlauf zu 0,
+  `VAL` außerhalb des Bereichs ergibt 0.
+- Entscheidung D11: IEEE binary64 bleibt, Eigenheiten des Originals (`PI`, `MKS$`, ungenaue
+  Funktionen) werden nicht nachgebildet.
 - `CLAUDE.md` mit Hinweisen für Agenten; `docs/gfa-original.md`.
 - Projektgerüst: Verzeichnisstruktur, CMake, CI (Linux/macOS/Windows, Sanitizer, Build ohne Emulatoren).
 - Einbindung der Schwesterprojekte PhotonPower/Z80 (`e74cf00`) und PhotonPower/MC68000 (`0074b8b`)
