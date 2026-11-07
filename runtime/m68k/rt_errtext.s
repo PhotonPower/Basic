@@ -89,7 +89,23 @@ rt_errtext__more:
         DC.L    rt_errtext__t203
         DC.W    219
         DC.L    rt_errtext__t219
+        DC.W    77
+        DC.L    rt_errtext__t77
+        DC.W    79
+        DC.L    rt_errtext__t79
+        DC.W    82
+        DC.L    rt_errtext__t82
+        DC.W    83
+        DC.L    rt_errtext__t83
         DC.W    -1
+rt_errtext__t77:
+        DC.B    31,'Matrices are of different order'
+rt_errtext__t79:
+        DC.B    26,'Matrix product not defined'
+rt_errtext__t82:
+        DC.B    17,'Non square matrix'
+rt_errtext__t83:
+        DC.B    25,'Transposition not defined'
 rt_errtext__t45:
         DC.B    19,'too many parameters'
 rt_errtext__t67:

@@ -40,6 +40,9 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 - `RESUME` setzt `ERR` auf 0 (probe12 T1); damit ist `errors2` am Original gleich.
 - `gfa_run.py`: Startmenü der Diskette nach einem Kaltstart (`boot` in `keys.json`), längere
   Wartezeiten für den Merge-Dialog und das Einlesen.
+- Gruppe `matrix` auf dem 68000 (`runtime/m68k/rt_mat.s`), im Konformanztest bitgleich zu
+  `rt_mat.c`; Testprogramm `matfile` (`MAT PRINT #`). Behoben: Ein Programm mit `MAT READ`, aber ohne
+  `READ`/`RESTORE`, bekam keine `DATA`-Tabelle.
 - PhotonPower/MC68000 auf `f41f822` festgelegt: Der Verlauf dort wurde umgeschrieben, `0074b8b`
   gibt es nicht mehr; inhaltlich gleich bis auf entfernte Abfalldateien im Wurzelverzeichnis.
 - Gruppe `matrix` (`MAT BASE CLR SET ONE READ PRINT CPY XCPY TRANS ADD SUB MUL NORM DET QDET RANG

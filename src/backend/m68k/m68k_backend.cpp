@@ -36,7 +36,9 @@ public:
         }
         for (const lir::Function& f : p_.functions) function(f);
         out_.provides.push_back("main");
-        if (uses_.count("rt_data_str") + uses_.count("rt_data_num") + uses_.count("rt_data_restore") != 0) dataTable();
+        // the DATA table for rt_data: READ, RESTORE, MAT READ (which reads through rt_data_num)
+        if (uses_.count("rt_data_str") + uses_.count("rt_data_num") + uses_.count("rt_data_restore") + uses_.count("rt_mat_read") != 0)
+            dataTable();
         if (p_.onError) errorTables();
         out_.uses.assign(uses_.begin(), uses_.end());
         return out_;

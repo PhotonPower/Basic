@@ -725,8 +725,97 @@ private:
         place(end);
     }
 
+    // ---- MAT (D23): views of runtime/m68k/rt_mat, then the operation ------------------------------
+    void matView(const hir::Expr& t, int k, bool column = false) {
+        Reg a = addrOf(t.var);
+        rtcallVoid("rt_mat_view", {a, constI(k), constI(column ? 1 : 0)});
+    }
+
+    // offsets a(i[,j]) of view k: DET/RANG (cpy false) or CPY/XCPY rules
+    void matAt(const hir::Expr& t, int k, bool cpy, bool transpose) {
+        if (t.args.empty()) return;
+        Reg i = toI(expr(*t.args[0]));
+        Reg j = t.args.size() > 1 ? toI(expr(*t.args[1])) : constI(0);
+        const int flags = k | static_cast<int>(t.args.size()) << 8 | (cpy ? 1 << 10 : 0) | (transpose ? 1 << 11 : 0);
+        rtcallVoid("rt_mat_at", {constI(flags), i, j});
+    }
+
+    void matScalarResult(const hir::Expr& target, Reg x) { storeTarget(target, convF(x, var(target.var).type)); }
+
+    void mat(const hir::Stmt& s) {
+        const std::string w = s.name.substr(4);
+        const auto& T = s.targets;
+        auto arg = [&](std::size_t k) { return expr(*s.args[k]); };
+        if (w == "BASE") {
+            rtcallVoid("rt_mat_set_base", {toI(arg(0))});
+        } else if (w == "CLR" || w == "SET") {
+            Reg a = addrOf(T[0]->var);
+            rtcallVoid("rt_mat_fill", {a, w == "SET" ? arg(0) : constF(0)});
+        } else if (w == "ONE" || w == "READ") {
+            matView(*T[0], 0);
+            rtcallVoid(w == "ONE" ? "rt_mat_one" : "rt_mat_read", {});
+        } else if (w == "PRINT") {
+            if (s.channel) rtcallVoid("rt_file_select", {toI(expr(*s.channel))});
+            matView(*T[0], 0);
+            if (s.args.size() == 2) {
+                Reg g = toI(arg(0));
+                rtcallVoid("rt_mat_print", {constI(1), g, toI(arg(1))});
+            } else {
+                rtcallVoid("rt_mat_print", {constI(0), constI(0), constI(0)});
+            }
+            if (s.channel) rtcallVoid("rt_file_deselect", {});
+        } else if (w == "CPY" || w == "XCPY") {
+            const bool tr = w == "XCPY";
+            matView(*T[0], 0, !tr);
+            matView(*T[1], 1, !tr);
+            matAt(*T[0], 0, true, tr);
+            matAt(*T[1], 1, true, tr);
+            Reg h = s.args.size() == 2 ? toI(arg(0)) : constI(-1);
+            Reg wd = s.args.size() == 2 ? toI(arg(1)) : constI(-1);
+            rtcallVoid("rt_mat_cpy", {h, wd, constI(tr ? 1 : 0)});
+        } else if (w == "TRANS" || w == "INV") {
+            matView(*T[0], 0);
+            matView(*T[T.size() > 1 ? 1 : 0], 1);
+            rtcallVoid(w == "TRANS" ? "rt_mat_trans" : "rt_mat_inv", {});
+        } else if (w == "ADD" || w == "SUB") {
+            const int sub = w == "SUB" ? 1 : 0;
+            matView(*T[0], 0);
+            if (s.mode == 2) {
+                rtcallVoid("rt_mat_scalar", {arg(0), constI(sub)});
+            } else {
+                matView(*T[s.mode == 0 ? 1 : 0], 1);
+                matView(*T[s.mode == 0 ? 2 : 1], 2);
+                rtcallVoid("rt_mat_addsub", {constI(sub)});
+            }
+        } else if (w == "MUL") {
+            if (s.mode == 3) {
+                matView(*T[0], 0);
+                rtcallVoid("rt_mat_scalar", {arg(0), constI(2)});
+            } else if (s.mode == 0) {
+                for (int k = 0; k < 3; ++k) matView(*T[static_cast<std::size_t>(k)], k);
+                rtcallVoid("rt_mat_mul", {});
+            } else {
+                const int n = s.mode == 1 ? 2 : 3;
+                for (int k = 0; k < n; ++k) matView(*T[static_cast<std::size_t>(k + 1)], k);
+                matScalarResult(*T[0], rtcall(s.mode == 1 ? "rt_mat_dot" : "rt_mat_triple", {}, VT::F64));
+            }
+        } else if (w == "NORM") {
+            matView(*T[0], 0);
+            rtcallVoid("rt_mat_norm", {toI(arg(0))});
+        } else if (w == "DET" || w == "QDET" || w == "RANG") {
+            matView(*T[1], 0);
+            matAt(*T[1], 0, false, false);
+            if (!s.args.empty()) rtcallVoid("rt_mat_limit", {constI(0), toI(arg(0))});
+            Reg x = w == "RANG" ? rtcall("rt_mat_rank", {}, VT::F64) : rtcall("rt_mat_det", {constI(w == "QDET" ? 1 : 0)}, VT::F64);
+            matScalarResult(*T[0], x);
+        } else {
+            unsupported(s.name);
+        }
+    }
+
     void command(const hir::Stmt& s) {
         const std::string& n = s.name;
+        if (n.rfind("MAT ", 0) == 0) return mat(s);
         if (n == "INC" || n == "DEC" || n == "ADD" || n == "SUB" || n == "MUL" || n == "DIV") {
             const hir::Expr& t = *s.targets[0];
             const int v = t.var;

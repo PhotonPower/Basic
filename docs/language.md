@@ -180,7 +180,7 @@ Diese Punkte sind aus dem Handbuch nicht sicher zu entnehmen und werden am Origi
   record“); wir liefern „fields greater than record“.
 - **Matrixbefehle** (`MAT …`, Kapitel 13): am Original (probe17) und nach [D23](decisions.md#d23).
   Fehlernummern 77, 79, 82, 83; `MAT PRINT` mit „,“ und CR LF; `MAT SET`/`CLR` auf das ganze Feld;
-  `MAT ONE` stürzt im Original ab. Interpreter und C++-Ziel; `MAT INPUT #` und 68000 folgen.
+  `MAT ONE` stürzt im Original ab. In allen Ausführungen; `MAT INPUT #` folgt.
 - **Tastatureingabe** (`INPUT`, `LINE INPUT`, `INKEY$`, `INPUT$(n)`): nach der Befehlsreferenz und
   [D20](decisions.md#d20). Offen am Original: Anzeige und Verhalten bei einer ungültigen Zahl, bei
   zu wenigen und zu vielen Werten in einer Zeile (probe15 braucht einen Weg, Tasten an das

@@ -324,4 +324,12 @@ C++-Ziel Byte für Byte die des Originals. Die Rechenregeln stehen in `runtime/r
   `rt_mat.c`, damit die Assembler-Ziele bitgleich rechnen können.
 - **`MAT CPY`/`XCPY`:** h und w beschreiben den Block der Quelle; ohne Angabe so viel, wie in Quelle
   und Ziel passt. `MAT TRANS a()` ohne Quelle transponiert in sich (quadratisch, sonst 83).
-- `MAT INPUT #` und die 68000-Ziele folgen.
+- **68000:** `runtime/m68k/rt_mat.s` rechnet dieselben Operationen in derselben Reihenfolge auf
+  Sichten (vier Puffer, aufgebaut von `rt_mat_view`/`rt_mat_at`/`rt_mat_limit`); Beträge werden als
+  vorzeichenlose 64-Bit-Zahlen verglichen (bei nicht negativen Werten ohne Denormale dasselbe wie
+  `fp_cmp`). Arbeitsspeicher für `MUL`, `TRANS`, `CPY`, `DET`, `RANG`, `INV` wächst bei Bedarf über
+  `plat_alloc` (kein Platz: Fehler 8). Der Konformanztest vergleicht alle Operationen bitgenau mit
+  `rt_mat.c`, auch an Nullmatrizen, gleich großen Pivots und fast singulären Matrizen. Ein Überlauf
+  mitten in einer Operation bricht auf dem 68000 sofort ab (mit `ON ERROR`); Interpreter und C++-Ziel
+  rechnen die Operation zu Ende und melden den Fehler danach.
+- `MAT INPUT #` folgt.
