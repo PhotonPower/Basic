@@ -440,6 +440,14 @@ private:
         if (n == "LOF") return I(files_.lof(f(0)));
         if (n == "EXIST") return I(brt::Files::exist(s(0)));
         if (n == "LOC") return I(files_.loc(f(0)));
+        if (n == "MKI$") return S(brt::mki(f(0)));
+        if (n == "MKL$") return S(brt::mkl(f(0)));
+        if (n == "MKS$") return S(brt::mks(f(0)));
+        if (n == "MKD$") return S(brt::mkd(f(0)));
+        if (n == "CVI") return I(brt::cvi(s(0)));
+        if (n == "CVL") return I(brt::cvl(s(0)));
+        if (n == "CVS") return F(brt::cvs(s(0)));
+        if (n == "CVD") return F(brt::cvd(s(0)));
         if (n == "INP") return I(files_.inp(f(0)));
         if (n == "INPUT$") return argc == 1 ? S(kbd_.chars(f(0))) : S(files_.inputChars(f(0), f(1)));
         if (n == "INKEY$") return S(kbd_.inkey());

@@ -44,7 +44,7 @@ hir::ExprPtr constFloat(f64 v) {
 }
 
 // Builtins the runtime does not provide yet (input, files ...).
-const std::set<std::string, std::less<>> kNotYet = { "TIMER", "MKI$", "MKL$", "MKS$", "MKD$", "CVI", "CVL", "CVS", "CVD", "AT", "POS", "RINSTR",
+const std::set<std::string, std::less<>> kNotYet = { "TIMER", "AT", "POS", "RINSTR",
 };
 
 // Commands handled by the interpreter with their argument forms.

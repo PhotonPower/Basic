@@ -21,11 +21,11 @@ auch am echten GFA-BASIC laufen kann:
 python3 tools/gfa/gfa_run.py tests/programs/arith.lst --out tests/programs/arith.out
 ```
 
-**Stand:** Alle `.out`-Dateien außer `strheap.out`, `errnest.out`, `input.out`, `random.out` und `intfast.out` sind am Original erzeugt
+**Stand:** Alle `.out`-Dateien außer `strheap.out`, `errnest.out`, `input.out`, `random.out`, `intfast.out` und `binary.out` sind am Original erzeugt
 (Kopfzeile `' source: GFA-BASIC 3.5`). `strheap` belastet den String-Heap (Speicherbereinigung, auch
 mit gesicherten `LOCAL`-Strings), `arrays` Arrays aller Typen, `SWAP`, `ERASE`, `OPTION BASE` und
 Grenzfälle von `VAR` (am Original gleich), `input` die Tastatureingabe (Eingabe aus `input.in`, nach
-der Befehlsreferenz, D20), `intfast` die Ganzzahl-Abkürzungen der Assembler-Ziele an den Überlaufgrenzen (vom Interpreter),
+der Befehlsreferenz, D20), `binary` `MKx$`/`CVx` (MKD$-Bytes vom Original), `intfast` die Ganzzahl-Abkürzungen der Assembler-Ziele an den Überlaufgrenzen (vom Interpreter),
 `files` sequentielle Dateien (aus probe14), `random` wahlfreie Dateien (aus probe16, zwei Zeilen
 weichen bewusst ab), `math` die transzendenten Funktionen (aus probe13, auf 8
 Stellen gerundet), `resume` die Fortsetzung nach Fehlern in Kopfzeilen

@@ -31,7 +31,13 @@ Wird eine Zahl aus dem Speicher gelesen (`DOUBLE{}`, `CVD`, Datei), die denormal
 NaN ist, wird sie beim Laden normalisiert (Denormale → 0) bzw. löst einen Fehler aus.
 
 `SINGLE{}` und `MKS$`/`CVS` (4-Byte-Format) sowie das GFA-eigene 8-Byte-Format von `FLOAT{}` und
-`MKD$`/`CVD` werden nur an diesen Schnittstellen konvertiert.
+`MKD$`/`CVD` werden nur an diesen Schnittstellen konvertiert (`runtime/ref/rt_mk.c`): `MKD$` rundet die
+53 Bit auf die 48 des GFA-Formats (zur nächsten, bei Gleichstand gerade; die Bytes von probe1 T42–T45
+und probe2 T20 kommen so heraus), das Exponentwort ist der IEEE-Exponent (gleicher Bias bei
+0,5 ≤ m < 1). `CVD` liest exakt; außerhalb von binary64 Fehler 1 bzw. 0. `MKS$` rundet auf IEEE single
+(Überlauf Fehler 1, kleiner als die kleinste normale Zahl 0), `CVS` liest sie (unendlich/NaN Fehler 1).
+`MKI$`/`MKL$` schreiben die unteren 16/32 Bit der Ganzzahl, höchstwertiges Byte zuerst; `CVI` ist
+vorzeichenbehaftet. Ein zu kurzer String zählt bei `CVx` als mit Nullbytes aufgefüllt.
 
 **GFA-eigenes 8-Byte-Format** (am Original ermittelt, probe1 T42–T45): 6 Byte Mantisse, dann 2 Byte
 Exponent, beide Big-Endian.

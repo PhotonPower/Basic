@@ -514,6 +514,65 @@ void Output::spc(f64 nf) {
     if (n > 0) put(std::string(static_cast<std::size_t>(n), ' '));
 }
 
+// ---- binary strings ------------------------------------------------------------------------------
+namespace {
+
+std::string bytesOf(const unsigned char* b, std::size_t n) { return std::string(reinterpret_cast<const char*>(b), n); }
+
+void padded(const std::string& s, unsigned char* out, std::size_t n) {
+    for (std::size_t k = 0; k < n; ++k) out[k] = k < s.size() ? static_cast<unsigned char>(s[k]) : 0;
+}
+
+}  // namespace
+
+std::string mki(f64 x) {
+    const std::uint32_t v = static_cast<std::uint32_t>(toInt(x));
+    const unsigned char b[2] = {static_cast<unsigned char>(v >> 8), static_cast<unsigned char>(v)};
+    return bytesOf(b, 2);
+}
+std::string mkl(f64 x) {
+    const std::uint32_t v = static_cast<std::uint32_t>(toInt(x));
+    const unsigned char b[4] = {static_cast<unsigned char>(v >> 24), static_cast<unsigned char>(v >> 16),
+                                static_cast<unsigned char>(v >> 8), static_cast<unsigned char>(v)};
+    return bytesOf(b, 4);
+}
+std::string mks(f64 x) {
+    unsigned char b[4];
+    rt_mks(x, b);
+    check();
+    return bytesOf(b, 4);
+}
+std::string mkd(f64 x) {
+    unsigned char b[8];
+    rt_mkd(x, b);
+    return bytesOf(b, 8);
+}
+std::int32_t cvi(const std::string& s) {
+    unsigned char b[2];
+    padded(s, b, 2);
+    return static_cast<std::int16_t>(static_cast<std::uint16_t>((b[0] << 8) | b[1]));
+}
+std::int32_t cvl(const std::string& s) {
+    unsigned char b[4];
+    padded(s, b, 4);
+    return static_cast<std::int32_t>((static_cast<std::uint32_t>(b[0]) << 24) | (static_cast<std::uint32_t>(b[1]) << 16) |
+                                     (static_cast<std::uint32_t>(b[2]) << 8) | b[3]);
+}
+f64 cvs(const std::string& s) {
+    unsigned char b[4];
+    padded(s, b, 4);
+    const f64 r = rt_cvs(b);
+    check();
+    return r;
+}
+f64 cvd(const std::string& s) {
+    unsigned char b[8];
+    padded(s, b, 8);
+    const f64 r = rt_cvd(b);
+    check();
+    return r;
+}
+
 // ---- files -------------------------------------------------------------------------------------
 namespace {
 

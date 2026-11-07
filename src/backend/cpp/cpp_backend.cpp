@@ -335,7 +335,9 @@ private:
             {"STRING$", "brt::stringOf"}, {"EXP", "brt::expf"},  {"LOG", "brt::logf"},       {"LOG10", "brt::log10f"},
             {"SIN", "brt::sinf"},      {"COS", "brt::cosf"},      {"TAN", "brt::tanf"},     {"ATN", "brt::atnf"},
             {"ASIN", "brt::asinf"},    {"ACOS", "brt::acosf"},    {"DEG", "brt::degf"},     {"RAD", "brt::radf"},
-            {"SINQ", "brt::sinq"},     {"COSQ", "brt::cosq"},
+            {"SINQ", "brt::sinq"},     {"COSQ", "brt::cosq"},     {"MKI$", "brt::mki"},     {"MKL$", "brt::mkl"},
+            {"MKS$", "brt::mks"},      {"MKD$", "brt::mkd"},      {"CVI", "brt::cvi"},      {"CVL", "brt::cvl"},
+            {"CVS", "brt::cvs"},       {"CVD", "brt::cvd"},
         };
         if (const auto it = simple.find(n); it != simple.end()) return call(it->second, e);
         if (n == "EOF") return "brt::rt.files.eof(" + a(0) + ")";

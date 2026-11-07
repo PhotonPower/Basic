@@ -1,0 +1,39 @@
+' test: groups core print
+' MKI$ MKL$ MKS$ MKD$ CVI CVL CVS CVD. Die MKD$-Bytes von 1, -2.5, 0.1, 0 und 3.14159265359 sind die
+' des Originals (probe1 T42-T45, probe2 T20); MKS$ liefert IEEE single (D11), MKI$/MKL$ nach der
+' Befehlsreferenz (hoechstwertiges Byte zuerst).
+PRINT "MKD$:"
+@hex(MKD$(1))
+@hex(MKD$(-2.5))
+@hex(MKD$(0.1))
+@hex(MKD$(0))
+@hex(MKD$(3.14159265359))
+@hex(MKD$(1E300))
+PRINT CVD(MKD$(0.1));" ";CVD(MKD$(-2.5));" ";CVD(MKD$(1E-300))
+PRINT "MKS$:"
+@hex(MKS$(1.5))
+@hex(MKS$(-0.1))
+PRINT CVS(MKS$(1.5));" ";CVS(MKS$(0.1))
+PRINT "MKI$/MKL$:"
+@hex(MKI$(258))
+@hex(MKI$(-2))
+@hex(MKL$(16909060))
+@hex(MKL$(-1))
+PRINT CVI(MKI$(-2));" ";CVI(CHR$(255));" ";CVL(MKL$(-123456789));" ";CVL("")
+ON ERROR GOSUB fehler
+x=CVS(CHR$(127)+CHR$(128)+CHR$(0)+CHR$(0))
+x=CVD(MKD$(1)+"")
+PRINT "ende"
+END
+PROCEDURE hex(s$)
+  LOCAL i%
+  FOR i%=1 TO LEN(s$)
+    PRINT RIGHT$("0"+HEX$(ASC(MID$(s$,i%,1))),2);" ";
+  NEXT i%
+  PRINT
+RETURN
+PROCEDURE fehler
+  PRINT "Fehler ";ERR
+  ON ERROR GOSUB fehler
+  RESUME NEXT
+RETURN

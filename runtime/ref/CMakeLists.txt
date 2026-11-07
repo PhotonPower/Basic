@@ -20,7 +20,8 @@ add_library(basic_rt_ref STATIC
   rt_str_fmt.c
   rt_val.c
   rt_rnd.c
-  rt_math.c)
+  rt_math.c
+  rt_mk.c)
 target_include_directories(basic_rt_ref PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 set_target_properties(basic_rt_ref PROPERTIES C_STANDARD 99 C_STANDARD_REQUIRED ON C_EXTENSIONS OFF)
 basic_set_warnings(basic_rt_ref)

@@ -81,6 +81,12 @@ f64 rt_powf(f64 x, f64 y);         /* x^y for a non-integer y */
 f64 rt_deg(f64 x);
 f64 rt_rad(f64 x);
 
+/* ---- binary strings (rt_mk.c): MKD$/CVD in the GFA 8-byte format, MKS$/CVS IEEE single -------- */
+void rt_mkd(f64 x, unsigned char out[8]);
+f64 rt_cvd(const unsigned char in[8]);       /* outside binary64: error 1 / 0 */
+void rt_mks(f64 x, unsigned char out[4]);    /* overflow: error 1 */
+f64 rt_cvs(const unsigned char in[4]);       /* infinity, NaN: error 1 */
+
 /* ---- number <-> text (rt_*) --------------------------------------------------------------- */
 #define RT_FMT_FLT_MAX 32          /* buffer size for rt_fmt_flt, including the terminating 0 */
 

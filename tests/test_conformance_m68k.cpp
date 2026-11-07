@@ -641,6 +641,93 @@ void usingTest(Runtime& rt, int cases) {
     }
 }
 
+// MKD$/CVD (GFA 8-byte format), MKS$/CVS (IEEE single): the bytes and values of runtime/ref/rt_mk.c
+void mkTest(Runtime& rt, int cases) {
+    Rng r;
+    int failures = 0;
+    auto fail = [&](const char* what, f64 x, const std::string& got, const std::string& want) {
+        ++g_failures;
+        if (++failures <= 10) std::fprintf(stderr, "%s(%016llX): %s, expected %s\n", what, static_cast<unsigned long long>(x), got.c_str(), want.c_str());
+    };
+    auto hex = [](const unsigned char* b, int n) {
+        std::string h;
+        char t[4];
+        for (int k = 0; k < n; ++k) {
+            std::snprintf(t, sizeof t, "%02X", b[k]);
+            h += t;
+        }
+        return h;
+    };
+    auto mk = [&](const char* name, f64 x, int n, unsigned char* got, int& err) {
+        M68kRegs in;
+        in.d = {static_cast<std::uint32_t>(x >> 32), static_cast<std::uint32_t>(x), 0, 0, 0, 0, 0, 0};
+        rt.rt().write32(kErrorCell, 0xFFFFFFFF);
+        const auto res = rt.rt().call(name, in, 100000);
+        err = static_cast<int>(rt.rt().read32(kErrorCell));
+        const std::uint32_t d = res.regs.a[0], at = rt.rt().read32(d);
+        for (int k = 0; k < n; ++k) got[k] = rt.rt().read8(at + static_cast<std::uint32_t>(k));
+        rt.rt().call("rt_str_release", M68kRegs{});
+    };
+    auto cv = [&](const char* name, const unsigned char* b, int n, int& err) {
+        for (int k = 0; k < n; ++k) rt.rt().write8(0x77000 + static_cast<std::uint32_t>(k), b[k]);
+        rt.rt().write32(0x77F20, 0x77000);
+        rt.rt().write32(0x77F24, static_cast<std::uint32_t>(n) << 16);
+        M68kRegs in;
+        in.a[0] = 0x77F20;
+        rt.rt().write32(kErrorCell, 0xFFFFFFFF);
+        const auto res = rt.rt().call(name, in, 100000);
+        err = static_cast<int>(rt.rt().read32(kErrorCell));
+        return (static_cast<f64>(res.regs.d[0]) << 32) | res.regs.d[1];
+    };
+    auto one = [&](f64 x) {
+        unsigned char want[8], got[8];
+        int err = 0;
+        rt_mkd(fp_canon(x), want);
+        mk("rt_mkd", x, 8, got, err);
+        ++g_checks;
+        if (std::memcmp(want, got, 8) != 0) fail("rt_mkd", x, hex(got, 8), hex(want, 8));
+        g_error = -1;
+        const f64 backWant = rt_cvd(want);
+        const int errWant = g_error;
+        const f64 back = cv("rt_cvd", want, 8, err);
+        ++g_checks;
+        if (back != backWant || err != errWant) fail("rt_cvd", x, std::to_string(back), std::to_string(backWant));
+        g_error = -1;
+        rt_mks(fp_canon(x), want);
+        const int errMks = g_error;
+        mk("rt_mks", x, 4, got, err);
+        ++g_checks;
+        if (std::memcmp(want, got, 4) != 0 || err != errMks) fail("rt_mks", x, hex(got, 4), hex(want, 4));
+        g_error = -1;
+        const f64 sWant = rt_cvs(want);
+        const f64 sBack = cv("rt_cvs", want, 4, err);
+        ++g_checks;
+        if (sBack != sWant || err != g_error) fail("rt_cvs", x, std::to_string(sBack), std::to_string(sWant));
+    };
+    for (f64 x : {f64{0}, F64_ONE, f64{0xC004000000000000u}, f64{0x3FB999999999999Au}, f64{0x7FEFFFFFFFFFFFFFu},
+                  f64{0x0010000000000000u}, f64{0x47EFFFFFE0000000u}, f64{0x47EFFFFFF0000000u}, f64{0x3810000000000000u},
+                  f64{0x380FFFFFF0000000u}, f64{0x3FF000001F000000u}, f64{0x3FF0000010000000u}, f64{0x3FF0000030000000u}})
+        one(x);
+    for (int i = 0; i < cases / 4; ++i) one(randomF64(r, i % 3 == 0 ? 0 : 800, i % 3 == 0 ? 2046 : 1250));
+    for (int i = 0; i < cases / 8; ++i) {  // arbitrary bytes for CVD and CVS
+        unsigned char b[8];
+        for (unsigned char& c : b) c = static_cast<unsigned char>(r.next());
+        int err = 0;
+        g_error = -1;
+        const f64 want = rt_cvd(b);
+        const int ew = g_error;
+        const f64 got = cv("rt_cvd", b, 8, err);
+        ++g_checks;
+        if (got != want || err != ew) fail("rt_cvd bytes", 0, std::to_string(got) + " err " + std::to_string(err), std::to_string(want) + " err " + std::to_string(ew));
+        g_error = -1;
+        const f64 sw = rt_cvs(b);
+        const int es = g_error;
+        const f64 sg = cv("rt_cvs", b, 4, err);
+        ++g_checks;
+        if (sg != sw || err != es) fail("rt_cvs bytes", 0, std::to_string(sg), std::to_string(sw));
+    }
+}
+
 // Bit functions against the semantics of platform/pc (brt::shift, brt::bitOp; that library cannot
 // be linked here because it defines rt_error itself).
 std::uint32_t refShift(std::uint32_t x, std::uint32_t count, int width, int kind) {
@@ -741,6 +828,7 @@ int main() {
     binary(rt, "rt_powf", rt_powf, cases / 4);
     valTest(rt, cases);
     usingTest(rt, cases);
+    mkTest(rt, cases);
     formatTest(rt, cases / 4);
     std::cout << "68000 instructions executed: " << rt.instructions() << "\n";
     return report("conformance_m68k");

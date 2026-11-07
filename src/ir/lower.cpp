@@ -1215,6 +1215,10 @@ private:
         if (n == "LOF") return rtcall("rt_file_lof", {toI(arg(e, 0))}, VT::I32);
         if (n == "EXIST") return rtcall("rt_file_exist", {arg(e, 0)}, VT::I32);
         if (n == "LOC") return rtcall("rt_file_loc", {toI(arg(e, 0))}, VT::I32);
+        if (n == "MKI$" || n == "MKL$") return rtcall(n == "MKI$" ? "rt_mki" : "rt_mkl", {toI(arg(e, 0))}, VT::Str);
+        if (n == "MKS$" || n == "MKD$") return rtcall(n == "MKS$" ? "rt_mks" : "rt_mkd", {arg(e, 0)}, VT::Str);
+        if (n == "CVI" || n == "CVL") return rtcall(n == "CVI" ? "rt_cvi" : "rt_cvl", {arg(e, 0)}, VT::I32);
+        if (n == "CVS" || n == "CVD") return rtcall(n == "CVS" ? "rt_cvs" : "rt_cvd", {arg(e, 0)}, VT::F64);
         if (n == "INP") return rtcall("rt_file_inp", {toI(arg(e, 0))}, VT::I32);
         if (n == "INKEY$") return rtcall("rt_kbd_inkey", {}, VT::Str);
         if (n == "INPUT$" && e.args.size() == 1) return rtcall("rt_kbd_chars", {toI(arg(e, 0))}, VT::Str);

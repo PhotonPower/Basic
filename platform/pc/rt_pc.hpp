@@ -137,6 +137,17 @@ std::string trim(const std::string& s);
 std::string radix(f64 x, unsigned base, f64 width);  // HEX$ BIN$ OCT$; width <= 0: as needed
 std::int32_t pack(const std::string& s);  // SELECT on a string: up to 4 characters, big-endian
 
+// Binary strings: MKI$/MKL$ big-endian (low 16 bits / 32 bits), MKD$ GFA 8-byte format, MKS$ IEEE
+// single; CVx read them back (a shorter string counts as padded with zero bytes)
+std::string mki(f64 x);
+std::string mkl(f64 x);
+std::string mks(f64 x);
+std::string mkd(f64 x);
+std::int32_t cvi(const std::string& s);
+std::int32_t cvl(const std::string& s);
+f64 cvs(const std::string& s);
+f64 cvd(const std::string& s);
+
 // String assignment commands
 void midAssign(std::string& a, f64 from, f64 len, const std::string& b);  // MID$(a$,x[,y])=b$
 std::string lset(const std::string& a, const std::string& b);
