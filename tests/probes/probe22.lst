@@ -1,0 +1,118 @@
+' probe22 - Grafik: Rasterregeln ueber POINT() (GFA-BASIC 3.5, Amiga). Ergebnisdatei DH0:probe22.txt.
+' Gezeichnet wird in Fenster 0 (ganzer Screen); jedes Raster gibt POINT(x,y) als Ziffern aus.
+'
+datei$="DH0:probe22.txt"
+OPEN "O",#1,datei$
+ON ERROR GOSUB fehler
+PRINT #1,"probe22"
+@flush
+OPENW 0
+CLEARW 0
+PRINT #1,"T0 Fenster 0: B ";DPEEK(WINDOW(0)+8);" H ";DPEEK(WINDOW(0)+10);" links ";PEEK(WINDOW(0)+54);" oben ";PEEK(WINDOW(0)+55);" Tiefe ";PEEK({WINDOW(0)+46}+189)
+@flush
+' T1 PLOT und POINT, Farben
+COLOR 1
+PLOT 2,2
+COLOR 3
+PLOT 3,2
+PRINT #1,"T1 ";POINT(2,2);POINT(3,2);POINT(4,2);" aussen ";POINT(-1,-1);" ";POINT(5000,5)
+@flush
+' T2 LINE 0,10 bis 9,13 und 9,20 bis 0,23
+CLEARW 0
+COLOR 1
+LINE 0,10,9,13
+LINE 9,20,0,23
+@raster("T2",0,9,10,23)
+' T3 BOX und PBOX: COLOR 1,0,2, DEFFILL 3
+CLEARW 0
+COLOR 1,0,2
+DEFFILL 3,1
+BOX 0,30,5,33
+PBOX 8,30,13,33
+BOUNDARY 0
+PBOX 16,30,21,33
+BOUNDARY 1
+@raster("T3",0,22,29,34)
+' T4 CIRCLE r=4 und PCIRCLE r=3
+CLEARW 0
+COLOR 1,0,2
+DEFFILL 3,1
+CIRCLE 5,45,4
+PCIRCLE 16,45,3
+@raster("T4",0,20,40,50)
+' T5 ELLIPSE rx=6 ry=3
+CLEARW 0
+COLOR 1
+ELLIPSE 7,60,6,3
+@raster("T5",0,14,56,64)
+' T6 GRAPHMODE 2 (XOR) und 1 (JAM2) mit Linienmuster
+CLEARW 0
+COLOR 1
+LINE 0,70,9,70
+GRAPHMODE 2
+LINE 0,70,4,70
+LINE 0,71,4,71
+GRAPHMODE 1
+COLOR 1,2
+DEFLINE &HF0F0
+LINE 0,72,19,72
+GRAPHMODE 0
+LINE 0,73,19,73
+DEFLINE 1
+@raster("T6",0,19,70,73)
+' T7 DRAW TO, Clipping links oben
+CLEARW 0
+COLOR 1
+PLOT 0,80
+DRAW TO 5,82
+DRAW 7,80 TO 9,80 TO 9,82
+LINE -3,85,3,85
+@raster("T7",0,10,80,85)
+' T8 TEXT: wo liegt die Grundlinie? (nur belegt/frei je Zeile)
+CLEARW 0
+COLOR 1
+TEXT 0,100,"H"
+s$=""
+FOR y%=90 TO 103
+  b%=0
+  FOR x%=0 TO 7
+    IF POINT(x%,y%)<>0
+      b%=1
+    ENDIF
+  NEXT x%
+  s$=s$+STR$(b%)
+NEXT y%
+PRINT #1,"T8 Zeilen 90..103 belegt: ";s$
+@flush
+' T9 CLS loescht die Grafik?
+COLOR 1
+PBOX 0,110,5,112
+CLS
+PRINT #1,"T9 nach CLS: ";POINT(2,111)
+PRINT #1,"ende"
+CLOSE #1
+END
+'
+PROCEDURE raster(t$,x0%,x1%,y0%,y1%)
+  LOCAL x%,y%,s$
+  FOR y%=y0% TO y1%
+    s$=""
+    FOR x%=x0% TO x1%
+      s$=s$+STR$(POINT(x%,y%))
+    NEXT x%
+    PRINT #1,t$;" y";y%;" ";s$
+  NEXT y%
+  @flush
+RETURN
+PROCEDURE flush
+  CLOSE #1
+  OPEN "A",#1,datei$
+RETURN
+PROCEDURE fehler
+  e%=ERR
+  CLOSE #1
+  OPEN "A",#1,datei$
+  PRINT #1,"   -> ERR ";e%;" ";ERR$(e%)
+  ON ERROR GOSUB fehler
+  RESUME NEXT
+RETURN

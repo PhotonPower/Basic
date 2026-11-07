@@ -14,6 +14,13 @@ target_link_libraries(test_runtime_ref PRIVATE basic_rt_ref)
 basic_set_warnings(test_runtime_ref)
 add_test(NAME runtime_ref COMMAND test_runtime_ref)
 
+# Graphics of platform/pc (D25) against the rasters measured on the original (probe22-24).
+add_executable(test_gfx test_gfx.cpp)
+target_link_libraries(test_gfx PRIVATE basic_rt_pc)
+target_compile_definitions(test_gfx PRIVATE BASIC_SOURCE_DIR="${PROJECT_SOURCE_DIR}")
+basic_set_warnings(test_gfx)
+add_test(NAME gfx COMMAND test_gfx)
+
 # Differential test of the pc target: every tests/programs/<name>.lst is compiled to C++ with
 # basicc, built, run, and its output compared with <name>.out (made on the original GFA-BASIC).
 file(GLOB BASIC_TEST_PROGRAMS CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/programs/*.lst)
@@ -36,6 +43,8 @@ foreach(program ${BASIC_TEST_PROGRAMS})
                    -DEXPECTED=${CMAKE_CURRENT_SOURCE_DIR}/programs/${name}.out
                    -DINPUT=${CMAKE_CURRENT_SOURCE_DIR}/programs/${name}.in
                    -DERRFILE=${CMAKE_CURRENT_SOURCE_DIR}/programs/${name}.err
+                   -DGFXFILE=${CMAKE_CURRENT_SOURCE_DIR}/programs/${name}.gfx
+                   -DGFXOUT=${CMAKE_CURRENT_BINARY_DIR}/pc/${name}.screen
                    -P ${CMAKE_CURRENT_SOURCE_DIR}/compare_output.cmake)
 endforeach()
 

@@ -178,6 +178,11 @@ Diese Punkte sind aus dem Handbuch nicht sicher zu entnehmen und werden am Origi
   `OUT #n,b,...` lesen/schreiben Bytes. `NAME a$ AS b$` auf ein vorhandenes Ziel: −53 „object
   already exists“ (203). `ERR$(50)` ist im Original verstümmelt („file isn4fields greater than
   record“); wir liefern „fields greater than record“.
+- **Grafik und Fenster** (Stufe 1, [D25](decisions.md#d25)): `OPENS`, `OPENW`, `CLOSEW`, `CLOSES`,
+  `CLEARW`, `TITLEW`, `TITLES`, `COLOR`, `SETCOLOR`, `GRAPHMODE`, `DEFFILL`, `BOUNDARY`, `DEFLINE`,
+  `PLOT`, `LINE`, `DRAW` (Koordinaten), `BOX`, `PBOX`, `CIRCLE`, `PCIRCLE`, `ELLIPSE`, `PELLIPSE`,
+  `TEXT`, `POINT()` im Interpreter und C++-Ziel; Rasterregeln am Original gemessen (probe22–24).
+  Ausgelassene Werte (`DEFFILL ,2`, `COLOR 1,,2`) bleiben unverändert. 68000 folgt.
 - **Namen** (an Listings des Originals): Bezeichner dürfen Latin-1-Buchstaben enthalten (`straße$`,
   `menü`, `löschen`; Groß-/Kleinschreibung zählt nicht) und Prozedurnamen mit Ziffern beginnen
   (`2d_display`). Variablen und Prozeduren haben getrennte Namen; ein Builtin-Name ohne `(` ist eine

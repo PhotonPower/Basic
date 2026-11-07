@@ -61,7 +61,7 @@ endif()
 add_subdirectory(runtime/ref)
 
 # ---- C++ runtime layer of the pc target (also used by the reference interpreter) -------------
-add_library(basic_rt_pc STATIC platform/pc/rt_pc.cpp)
+add_library(basic_rt_pc STATIC platform/pc/rt_pc.cpp platform/pc/rt_gfx.cpp)
 target_include_directories(basic_rt_pc PUBLIC platform/pc)
 target_link_libraries(basic_rt_pc PUBLIC basic_rt_ref)
 target_compile_features(basic_rt_pc PUBLIC cxx_std_17)

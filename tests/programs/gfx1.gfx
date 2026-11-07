@@ -1,0 +1,4 @@
+window 0 screen 0 632x232 at 0,11 pixels 862 fnv 60c15ca793818a73
+  text 20,220 colour 3: Hallo
+  text 20,230 colour 3: 1.5
+screen 0 640x256 depth 2 palette 05A FFF 0F0 F00

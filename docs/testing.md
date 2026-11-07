@@ -48,7 +48,8 @@ Jedes Programm unter `tests/programs/` wird übersetzt und ausgeführt auf:
 Alle Ausgaben müssen Byte für Byte gleich sein und gleich der Datei `.out`. Programme, die eine
 Gruppe benutzen, die ein Ziel nicht hat, werden dort übersprungen (die Gruppen stehen in einer
 Kopfzeile des Testprogramms). Zufallszahlen laufen mit festem Startwert. Eine Datei `<name>.in` liefert die
-Tastatureingabe. Endet ein Programm absichtlich mit einem nicht abgefangenen Fehler, steht dessen
+Tastatureingabe. Zeichnet ein Programm, steht die erwartete Zusammenfassung der Grafik (D25) in
+`<name>.gfx`. Endet ein Programm absichtlich mit einem nicht abgefangenen Fehler, steht dessen
 Nummer in `<name>.err`: Die Ausgabe muss dann `.out` sein, und das Programm muss mit genau diesem
 Fehler enden (auf den 68000-Zielen folgt in der Konsole `runtime error <n>`).
 

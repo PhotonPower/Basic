@@ -22,6 +22,7 @@ enum class ExprKind {
     Call,    // text = function name; args; user = @name / FN name
     Unary,   // text = "-", "+", "NOT" or "#" (file channel argument of a command); args[0]
     Binary,  // text = operator ("+", "MOD", "AND", "==", ...); args[0], args[1]
+    Missing, // an argument left out (DEFFILL ,2,4; COLOR 1,,2)
 };
 
 struct Expr {

@@ -650,6 +650,57 @@ private:
         out.push_back(std::move(h));
     }
 
+    // ---- graphics and windows (chapters 8, 9; D25) ------------------------------------------------
+    // HIR: cmd <name> with the arguments as Float (a string for TEXT/TITLEW/TITLES); a left out one
+    // is 0 and its bit in mode is clear (bit k = argument k given). DRAW: mode 1 for "DRAW TO".
+    bool gfxCommand(const ast::Stmt& s, hir::Stmt& h) {
+        static const std::map<std::string, std::pair<int, int>, std::less<>> counts = {
+            {"OPENS", {1, 7}},    {"CLOSES", {1, 1}},   {"OPENW", {1, 9}},    {"CLOSEW", {1, 1}},   {"CLEARW", {1, 1}},
+            {"TITLEW", {2, 3}},   {"TITLES", {2, 2}},   {"FRONTS", {1, 1}},   {"BACKS", {1, 1}},    {"FRONTW", {1, 1}},
+            {"BACKW", {1, 1}},    {"COLOR", {1, 3}},    {"SETCOLOR", {2, 4}}, {"GRAPHMODE", {1, 1}}, {"DEFFILL", {1, 3}},
+            {"BOUNDARY", {1, 1}}, {"DEFLINE", {1, 1}},  {"PLOT", {2, 2}},     {"LINE", {4, 4}},     {"BOX", {4, 4}},
+            {"PBOX", {4, 4}},     {"CIRCLE", {3, 3}},   {"PCIRCLE", {3, 3}},  {"ELLIPSE", {4, 4}},   {"PELLIPSE", {4, 4}},
+            {"TEXT", {3, 3}},     {"DRAW", {2, 64}},
+        };
+        const auto it = counts.find(s.name);
+        if (it == counts.end()) return false;
+        const auto n = static_cast<int>(s.args.size());
+        if (n < it->second.first || n > it->second.second) fail(s.pos, s.name + ": wrong number of arguments");
+        if (s.name == "SETCOLOR" && n == 3) fail(s.pos, "SETCOLOR expects reg,rgb or reg,r,g,b");
+        if (s.name == "DRAW") {
+            h.mode = s.variant;
+            for (const auto& a : s.args) h.args.push_back(convertTo(expr(*a), Type::Float, a->pos));
+            return true;
+        }
+        unsigned present = 0;
+        for (int k = 0; k < n; ++k) {
+            const ast::Expr& a = *s.args[static_cast<std::size_t>(k)];
+            if (a.kind == ExprKind::Missing) {
+                if (s.name != "COLOR" && s.name != "DEFFILL") fail(a.pos, s.name + ": argument expected");
+                auto z = makeExpr(Op::ConstFloat, Type::Float);
+                z->fval = 0;
+                h.args.push_back(std::move(z));
+                continue;
+            }
+            present |= 1u << k;
+            const bool text = (s.name == "TEXT" && k == 2) || ((s.name == "TITLEW" || s.name == "TITLES") && k >= 1);
+            if (text) {
+                hir::ExprPtr v = expr(a);
+                if (v->type != Type::Str) {  // a number as PRINT writes it
+                    auto c = makeExpr(Op::Builtin, Type::Str);
+                    c->sval = "STR$";
+                    c->args.push_back(convertTo(std::move(v), Type::Float, a.pos));
+                    v = std::move(c);
+                }
+                h.args.push_back(std::move(v));
+            } else {
+                h.args.push_back(convertTo(expr(a), Type::Float, a.pos));
+            }
+        }
+        h.mode = static_cast<int>(present);
+        return true;
+    }
+
     // ---- MAT (chapter 13, D23) ----------------------------------------------------------------
     // a() or a(i[,j]) (offsets): a float array as a Load of the array variable, offsets as args (Int)
     hir::ExprPtr matArray(const ast::Expr& a, bool offsets) {
@@ -758,6 +809,7 @@ private:
         };
         if (n.rfind("MAT ", 0) == 0) {
             matCommand(s, *h);
+        } else if (gfxCommand(s, *h)) {
         } else if (n == "INC" || n == "DEC") {
             argc(1, 1);
             h->targets.push_back(numericTarget(*s.args[0]));
@@ -982,6 +1034,7 @@ private:
             case ExprKind::Unary: return unary(e);
             case ExprKind::Binary: return binary(e);
             case ExprKind::Call: return e.user ? userCall(e) : builtin(e);
+            case ExprKind::Missing: fail(e.pos, "argument expected");
         }
         fail(e.pos, "invalid expression");
     }

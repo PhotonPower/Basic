@@ -61,6 +61,12 @@ int main() {
             if (!r.ok) std::cerr << name << ":" << r.line << ": " << r.message << "\n";
             CHECK(r.ok);
         }
+        const fs::path gfxPath = fs::path(entry.path()).replace_extension(".gfx");  // graphics digest (D25)
+        if (fs::exists(gfxPath)) {
+            const std::string expectedGfx = read(gfxPath);
+            if (r.gfx != expectedGfx) std::cerr << name << ": graphics differ\n--- expected\n" << expectedGfx << "--- actual\n" << r.gfx;
+            CHECK_EQ(r.gfx, expectedGfx);
+        }
         const std::string expected = read(expectedPath);
         if (r.output != expected) {
             ++g_failures;

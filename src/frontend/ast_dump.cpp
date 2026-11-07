@@ -6,6 +6,7 @@ std::string dump(const Expr& e) {
     std::string r;
     switch (e.kind) {
         case ExprKind::Number: return e.text;
+        case ExprKind::Missing: return "_";
         case ExprKind::String: return "\"" + e.text + "\"";
         case ExprKind::Var:
             r = e.text;

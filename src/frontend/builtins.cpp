@@ -37,7 +37,7 @@ constexpr std::array kBuiltins = {
     Builtin{"FALSE", 'i', 0, 0, ""},      Builtin{"POS", 'i', 1, 1, "n"},
     Builtin{"CRSCOL", 'i', 0, 0, ""},     Builtin{"CRSLIN", 'i', 0, 0, ""},
     Builtin{"TIMER", 'i', 0, 0, ""},      Builtin{"RINSTR", 'i', 2, 3, "xxx"},
-    Builtin{"LPOS", 'i', 1, 1, "n"},      Builtin{"FRE", 'i', 0, 1, "n"},      Builtin{"PI", 'f', 0, 0, ""},
+    Builtin{"LPOS", 'i', 1, 1, "n"},      Builtin{"POINT", 'i', 2, 2, "nn"},      Builtin{"FRE", 'i', 0, 1, "n"},      Builtin{"PI", 'f', 0, 0, ""},
     Builtin{"ERR", 'i', 0, 0, ""},        Builtin{"TIMER", 'i', 0, 0, ""},
     Builtin{"EXP", 'f', 1, 1, "n"},       Builtin{"LOG", 'f', 1, 1, "n"},
     Builtin{"LOG10", 'f', 1, 1, "n"},     Builtin{"SIN", 'f', 1, 1, "n"},

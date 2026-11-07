@@ -1,0 +1,98 @@
+' probe23 - Grafik, Folgefragen zu probe22: Seitenverhaeltnis von CIRCLE, Gleichstand bei LINE,
+' Stiftmodell COLOR/DEFFILL, erster Punkt einer XOR-Linie (GFA-BASIC 3.5, Amiga). DH0:probe23.txt.
+'
+datei$="DH0:probe23.txt"
+OPEN "O",#1,datei$
+ON ERROR GOSUB fehler
+PRINT #1,"probe23"
+@flush
+OPENW 0
+' T1 CIRCLE: Ausdehnung in y fuer r = 1..40 (x ist r)
+COLOR 1
+FOR r%=1 TO 40
+  CLEARW 0
+  CIRCLE 100,100,r%
+  y0%=-1
+  y1%=-1
+  x0%=-1
+  FOR y%=40 TO 160
+    IF POINT(100,y%)<>0
+      IF y0%<0
+        y0%=y%
+      ENDIF
+      y1%=y%
+    ENDIF
+  NEXT y%
+  FOR x%=40 TO 160
+    IF POINT(x%,100)<>0 AND x0%<0
+      x0%=x%
+    ENDIF
+  NEXT x%
+  PRINT #1,"T1 r=";r%;" oben ";100-y0%;" unten ";y1%-100;" links ";100-x0%
+NEXT r%
+@flush
+' T2 LINE mit Gleichstand: dx=2 dy=1, dx=4 dy=2 (vor- und rueckwaerts), dy>dx
+CLEARW 0
+COLOR 1
+LINE 0,10,2,11
+LINE 10,11,8,10
+LINE 0,20,4,22
+LINE 14,22,10,20
+LINE 0,30,1,32
+LINE 6,32,5,30
+@raster("T2a",0,14,10,11)
+@raster("T2b",0,14,20,22)
+@raster("T2c",0,6,30,32)
+' T3 Stiftmodell: COLOR 1, DEFFILL 3, dann PLOT / COLOR 2 dann PBOX / PCIRCLE-Rand
+CLEARW 0
+COLOR 1
+DEFFILL 3,1
+PLOT 0,40
+COLOR 2
+PBOX 2,40,4,41
+DEFFILL 1,1
+PLOT 6,40
+COLOR 1,0,3
+DEFFILL 2,1
+PCIRCLE 20,45,3
+@raster("T3",0,25,40,47)
+' T4 XOR: erster Punkt einer Linie, PLOT im XOR-Modus
+CLEARW 0
+COLOR 1
+GRAPHMODE 2
+LINE 0,50,4,50
+LINE 0,51,4,51
+LINE 0,52,4,52
+PLOT 8,50
+PLOT 8,50
+PLOT 9,50
+DRAW TO 12,50
+GRAPHMODE 0
+@raster("T4",0,14,50,52)
+PRINT #1,"ende"
+CLOSE #1
+END
+'
+PROCEDURE raster(t$,x0%,x1%,y0%,y1%)
+  LOCAL x%,y%,s$
+  FOR y%=y0% TO y1%
+    s$=""
+    FOR x%=x0% TO x1%
+      s$=s$+STR$(POINT(x%,y%))
+    NEXT x%
+    PRINT #1,t$;" y";y%;" ";s$
+  NEXT y%
+  @flush
+RETURN
+PROCEDURE flush
+  CLOSE #1
+  OPEN "A",#1,datei$
+RETURN
+PROCEDURE fehler
+  e%=ERR
+  CLOSE #1
+  OPEN "A",#1,datei$
+  PRINT #1,"   -> ERR ";e%;" ";ERR$(e%)
+  ON ERROR GOSUB fehler
+  RESUME NEXT
+RETURN

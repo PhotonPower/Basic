@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <functional>
 #include <iostream>
 #include <initializer_list>
@@ -15,6 +16,7 @@
 #include <utility>
 #include <vector>
 
+#include "rt_gfx.hpp"
 #include "rt_pc.hpp"
 
 #ifdef _WIN32
@@ -55,6 +57,7 @@ struct State {
     Files files;
     Keyboard kbd;
     Memory mem;
+    Gfx gfx;
     int err = 0;
     void (*onError)() = nullptr;
     int handlerDepth = 0;
@@ -257,6 +260,9 @@ void swapPtr(f64 p, Array<T>& a, int code) {
     std::swap(*static_cast<Array<T>*>(const_cast<void*>(key)), a);
 }
 
+// ---- graphics (D25) -----------------------------------------------------------------------------
+inline std::int32_t gfxInt(f64 v) { return toInt(fp_trunc(v)); }
+
 // ---- MAT (D23): the same steps as the interpreter ------------------------------------------------
 inline MatArray mat(Array<f64>& a) { return MatArray{a.data.data(), &a.upper, a.dimmed}; }
 inline MatBase matBase() { return MatBase{rt.matBase, rt.base}; }
@@ -419,6 +425,14 @@ inline int run(const char* name, void (*program)(), const std::pair<const char*,
     }
     std::fwrite(rt.out.buf.data(), 1, rt.out.buf.size(), stdout);
     std::fflush(stdout);
+    if (const char* gfxOut = std::getenv("BASIC_GFX_OUT"); gfxOut != nullptr && rt.gfx.used()) {  // D25
+        if (std::FILE* f = std::fopen((std::string(gfxOut) + ".txt").c_str(), "w")) {
+            const std::string d = rt.gfx.digest();
+            std::fwrite(d.data(), 1, d.size(), f);
+            std::fclose(f);
+        }
+        rt.gfx.writePpm(std::string(gfxOut) + ".ppm");
+    }
     if (!message.empty()) {
         std::fprintf(stderr, "%s:%d: %s\n", name, rt.line, message.c_str());
         status = 1;

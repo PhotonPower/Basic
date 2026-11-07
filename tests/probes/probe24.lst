@@ -1,0 +1,82 @@
+' probe24 - Grafik: Raster von CIRCLE, PCIRCLE, PELLIPSE und PBOX mit BOUNDARY 1
+' (GFA-BASIC 3.5, Amiga). Ergebnisdatei DH0:probe24.txt.
+'
+datei$="DH0:probe24.txt"
+OPEN "O",#1,datei$
+ON ERROR GOSUB fehler
+PRINT #1,"probe24"
+@flush
+OPENW 0
+COLOR 1,0,2
+DEFFILL 3,1
+BOUNDARY 0
+' T1 CIRCLE r = 4, 6, 9, 12, 17
+FOR k%=1 TO 5
+  r%=VAL(MID$("040609121700",2*k%-1,2))
+  CLEARW 0
+  COLOR 1
+  CIRCLE 30,30,r%
+  @raster("T1 r="+STR$(r%),30-r%-1,30+r%+1,30-8,30+8)
+NEXT k%
+' T2 PCIRCLE r = 4, 6, 9 ohne und mit BOUNDARY
+FOR k%=1 TO 3
+  r%=VAL(MID$("040609",2*k%-1,2))
+  CLEARW 0
+  COLOR 1,0,2
+  DEFFILL 3,1
+  BOUNDARY 0
+  PCIRCLE 30,30,r%
+  @raster("T2 r="+STR$(r%)+" ohne",30-r%-1,30+r%+1,30-5,30+5)
+  CLEARW 0
+  BOUNDARY 1
+  PCIRCLE 30,30,r%
+  @raster("T2 r="+STR$(r%)+" mit",30-r%-1,30+r%+1,30-5,30+5)
+NEXT k%
+' T3 PELLIPSE 6,3 und ELLIPSE 5,5
+CLEARW 0
+BOUNDARY 0
+PELLIPSE 30,30,6,3
+@raster("T3 pe",23,37,26,34)
+CLEARW 0
+COLOR 1
+ELLIPSE 30,30,5,5
+@raster("T3 e55",24,36,24,36)
+' T4 PBOX mit BOUNDARY 1, BOX und PBOX mit vertauschten Ecken
+CLEARW 0
+COLOR 1,0,2
+DEFFILL 3,1
+BOUNDARY 1
+PBOX 0,40,5,43
+BOUNDARY 0
+COLOR 1
+BOX 13,43,8,40
+DEFFILL 3,1
+PBOX 21,43,16,40
+@raster("T4",0,22,39,44)
+PRINT #1,"ende"
+CLOSE #1
+END
+'
+PROCEDURE raster(t$,x0%,x1%,y0%,y1%)
+  LOCAL x%,y%,s$
+  FOR y%=y0% TO y1%
+    s$=""
+    FOR x%=x0% TO x1%
+      s$=s$+STR$(POINT(x%,y%))
+    NEXT x%
+    PRINT #1,t$;" y";y%;" ";s$
+  NEXT y%
+  @flush
+RETURN
+PROCEDURE flush
+  CLOSE #1
+  OPEN "A",#1,datei$
+RETURN
+PROCEDURE fehler
+  e%=ERR
+  CLOSE #1
+  OPEN "A",#1,datei$
+  PRINT #1,"   -> ERR ";e%;" ";ERR$(e%)
+  ON ERROR GOSUB fehler
+  RESUME NEXT
+RETURN

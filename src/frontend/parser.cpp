@@ -22,6 +22,13 @@ struct SyntaxError {
 };
 
 // Commands with the generic syntax "NAME [expr {, expr}]" (reference chapters 2, 4, 5, 7).
+// Graphics and windows (chapters 8, 9; D25)
+const std::set<std::string, std::less<>> kGfxCommands = {
+    "OPENS", "CLOSES", "OPENW", "CLOSEW", "CLEARW", "TITLEW", "TITLES", "FRONTS", "BACKS", "FRONTW", "BACKW",
+    "COLOR", "SETCOLOR", "GRAPHMODE", "DEFFILL", "BOUNDARY", "DEFLINE", "PLOT", "LINE", "DRAW", "BOX",
+    "PBOX", "CIRCLE", "PCIRCLE", "ELLIPSE", "PELLIPSE", "TEXT",
+};
+
 const std::set<std::string, std::less<>> kCommands = {
     "INC",    "DEC",       "ADD",    "SUB",    "MUL",    "DIV",    "SWAP",   "CLR",     "ERASE",    "ABSOLUTE", "VSYNC",
     "DEFNUM", "MODE",      "RANDOMIZE", "ERROR", "QUIT", "SYSTEM", "STOP",   "END",     "EDIT",
@@ -692,6 +699,23 @@ private:
             exprList(s);
             return s;
         }
+        if (kGfxCommands.count(word) != 0 && !(word == "LINE" && atWord("INPUT", 1)) && !atPunct("=", 1)) {
+            take();
+            Stmt s = stmt(StmtKind::Command, p);
+            s.name = word;
+            if (word == "DRAW") {  // DRAW x,y / DRAW TO x,y / DRAW x1,y1 TO x2,y2 [TO ...]
+                if (at(Tok::String)) fail("DRAW with a turtle string is not supported yet");
+                if (acceptWord("TO")) s.variant = 1;
+                do {
+                    s.args.push_back(expr());
+                    expectPunct(",");
+                    s.args.push_back(expr());
+                } while (acceptWord("TO"));
+                return s;
+            }
+            gfxArgs(s);
+            return s;
+        }
         if (word == "MAT" && peek(1).kind == Tok::Ident) {  // chapter 13
             static const std::set<std::string_view> words = {"BASE", "CLR",  "SET",  "ONE",   "READ", "PRINT", "INPUT",
                                                              "CPY",  "COPY", "XCPY", "TRANS", "ADD",  "SUB",   "MUL",
@@ -729,6 +753,21 @@ private:
         s.name = take().text;
         callArgs(s);
         return s;
+    }
+
+    // arguments that may be left out: "DEFFILL ,2,4", "COLOR 1,,2"; "#n" for a window number
+    void gfxArgs(Stmt& s) {
+        if (at(Tok::End)) return;
+        for (;;) {
+            if (atPunct(",") || at(Tok::End)) {
+                s.args.push_back(make(ExprKind::Missing, pos(), ""));
+            } else {
+                acceptPunct("#");
+                s.args.push_back(expr());
+            }
+            if (!acceptPunct(",")) break;
+            if (at(Tok::End)) s.args.push_back(make(ExprKind::Missing, pos(), ""));
+        }
     }
 
     // MAT w ...: args = target [, operands after '='] [, further arguments]; variant 0 without '=',

@@ -215,7 +215,7 @@ private:
         if (e.op == Op::CallFunc) return true;
         if (e.op == Op::Builtin && (e.sval == "RND" || e.sval == "RANDOM" || e.sval == "RAND" || e.sval == "INPUT$" || e.sval == "INKEY$" ||
                                     e.sval == "EOF" || e.sval == "LOF" || e.sval == "LOC" || e.sval == "INP" ||
-                                    (e.sval.size() > 2 && e.sval.substr(e.sval.size() - 2) == "{}") || e.sval == "TYPE" || e.sval == "PEEK" || e.sval == "DPEEK" || e.sval == "LPEEK" || e.sval == "MALLOC" || e.sval == "MFREE"))
+                                    (e.sval.size() > 2 && e.sval.substr(e.sval.size() - 2) == "{}") || e.sval == "TYPE" || e.sval == "POINT" || e.sval == "PEEK" || e.sval == "DPEEK" || e.sval == "LPEEK" || e.sval == "MALLOC" || e.sval == "MFREE"))
             return true;  // order matters: random numbers, reading files
         for (const auto& a : e.args)
             if (impure(*a)) return true;
@@ -438,6 +438,10 @@ private:
             });
         }
         if (n == "POS") return "brt::rt.out.pos()";
+        if (n == "POINT")
+            return ordered({e.args[0].get(), e.args[1].get()}, [](const std::vector<std::string>& x) {
+                return "brt::rt.gfx.point(brt::gfxInt(" + x[0] + "), brt::gfxInt(" + x[1] + "))";
+            });
         if (n == "CRSCOL") return "brt::rt.out.crsCol";
         if (n == "CRSLIN") return "brt::rt.out.crsLin";
         if (n == "TIMER") return "brt::timer()";
@@ -823,7 +827,27 @@ private:
         const std::string& n = s.name;
         auto arg = [&](std::size_t k) { return expr(*s.args[k]); };
         if (n.rfind("MAT ", 0) == 0) return mat(s, in);
-        if (n == "CLS") return line(in, "brt::rt.out.cls();");
+        if (n == "CLS") {
+            line(in, "brt::rt.out.cls();");
+            line(in, "brt::rt.gfx.cls();");
+            return;
+        }
+        static const std::set<std::string> gfx = {"OPENS", "CLOSES", "OPENW", "CLOSEW", "CLEARW", "TITLEW", "TITLES",
+                                                  "FRONTS", "BACKS", "FRONTW", "BACKW", "COLOR", "SETCOLOR", "GRAPHMODE",
+                                                  "DEFFILL", "BOUNDARY", "DEFLINE", "PLOT", "LINE", "DRAW", "BOX",
+                                                  "PBOX", "CIRCLE", "PCIRCLE", "ELLIPSE", "PELLIPSE", "TEXT"};
+        if (gfx.count(n) != 0) {  // D25: the arguments from left to right, then brt::Gfx
+            line(in, "{");
+            line(in + 1, "std::vector<std::int32_t> v_;");
+            line(in + 1, "std::string s_;");
+            for (const auto& a : s.args) {
+                if (a->type == Type::Str) line(in + 1, "s_ = " + expr(*a) + ";");
+                else line(in + 1, "v_.push_back(brt::gfxInt(" + expr(*a) + "));");
+            }
+            line(in + 1, "brt::rt.gfx.command(\"" + n + "\", v_, s_, " + std::to_string(s.mode) + ");");
+            line(in, "}");
+            return;
+        }
         if (n == "LOCATE") {
             line(in, "{");
             line(in + 1, "const f64 c_ = " + arg(0) + ";");

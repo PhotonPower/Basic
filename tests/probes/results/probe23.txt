@@ -1,0 +1,61 @@
+probe23
+T1 r=1 oben 0 unten 0 links 1
+T1 r=2 oben 0 unten 0 links 2
+T1 r=3 oben 1 unten 1 links 3
+T1 r=4 oben 1 unten 1 links 4
+T1 r=5 oben 2 unten 2 links 5
+T1 r=6 oben 2 unten 2 links 6
+T1 r=7 oben 3 unten 3 links 7
+T1 r=8 oben 3 unten 3 links 8
+T1 r=9 oben 4 unten 4 links 9
+T1 r=10 oben 4 unten 4 links 10
+T1 r=11 oben 4 unten 4 links 11
+T1 r=12 oben 5 unten 5 links 12
+T1 r=13 oben 5 unten 5 links 13
+T1 r=14 oben 6 unten 6 links 14
+T1 r=15 oben 6 unten 6 links 15
+T1 r=16 oben 7 unten 7 links 16
+T1 r=17 oben 7 unten 7 links 17
+T1 r=18 oben 8 unten 8 links 18
+T1 r=19 oben 8 unten 8 links 19
+T1 r=20 oben 8 unten 8 links 20
+T1 r=21 oben 9 unten 9 links 21
+T1 r=22 oben 9 unten 9 links 22
+T1 r=23 oben 10 unten 10 links 23
+T1 r=24 oben 10 unten 10 links 24
+T1 r=25 oben 11 unten 11 links 25
+T1 r=26 oben 11 unten 11 links 26
+T1 r=27 oben 12 unten 12 links 27
+T1 r=28 oben 12 unten 12 links 28
+T1 r=29 oben 12 unten 12 links 29
+T1 r=30 oben 13 unten 13 links 30
+T1 r=31 oben 13 unten 13 links 31
+T1 r=32 oben 14 unten 14 links 32
+T1 r=33 oben 14 unten 14 links 33
+T1 r=34 oben 15 unten 15 links 34
+T1 r=35 oben 15 unten 15 links 35
+T1 r=36 oben 16 unten 16 links 36
+T1 r=37 oben 16 unten 16 links 37
+T1 r=38 oben 16 unten 16 links 38
+T1 r=39 oben 17 unten 17 links 39
+T1 r=40 oben 17 unten 17 links 40
+T2a y10 100000001100000
+T2a y11 011000000010000
+T2b y20 100000000011000
+T2b y21 011000000000110
+T2b y22 000110000000001
+T2c y30 1000010
+T2c y31 0100010
+T2c y32 0100001
+T3 y40 30222010000000000000000000
+T3 y41 00222000000000000000000000
+T3 y42 00000000000000000000000000
+T3 y43 00000000000000000000000000
+T3 y44 00000000000000000022222000
+T3 y45 00000000000000000222222200
+T3 y46 00000000000000000022222000
+T3 y47 00000000000000000000000000
+T4 y50 333330000333300
+T4 y51 033330000000000
+T4 y52 033330000000000
+ende

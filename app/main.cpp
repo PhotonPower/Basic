@@ -36,7 +36,8 @@ void usage(std::ostream& out) {
         << "  basicc --emit-ast <program.lst>                       print the syntax tree\n"
         << "  basicc --emit-hir <program.lst>                       print the typed intermediate code\n"
         << "  basicc --emit-lir <program.lst>                       print the three-address code\n"
-        << "  basicc --run <program.lst> [--seed <n>]               run with the reference interpreter\n"
+        << "  basicc --run <program.lst> [--seed <n>] [--gfx <p>]   run with the reference interpreter;\n"
+        << "                                                        --gfx: graphics to <p>.ppm and <p>.txt\n"
         << "  basicc --version\n"
         << "  basicc --help\n\n"
         << "Planned debugging options: --emit-asm, --map\n"
@@ -52,7 +53,7 @@ bool readFile(const std::string& path, std::string& out) {
     return true;
 }
 
-int run(const std::string& path, std::uint32_t seed) {
+int run(const std::string& path, std::uint32_t seed, const std::string& gfx) {
     std::string source;
     if (!readFile(path, source)) {
         std::cerr << "basicc: cannot read '" << path << "'\n";
@@ -68,8 +69,13 @@ int run(const std::string& path, std::uint32_t seed) {
     options.seed = seed;
     options.input = &std::cin;   // INPUT, INKEY$ read the standard input
     options.live = &std::cout;   // prompts appear before the program waits
+    if (!gfx.empty()) options.gfxPicture = gfx + ".ppm";
     const basic::RunResult r = basic::interpret(h, options);
     std::cout << r.output;
+    if (!gfx.empty() && !r.gfx.empty()) {  // the digest of the graphics (D25)
+        std::ofstream digest(gfx + ".txt");
+        digest << r.gfx;
+    }
     if (!r.ok) {
         std::cerr << path << ":" << r.line << ": runtime error";
         if (r.error >= 0) std::cerr << " " << r.error;
@@ -216,11 +222,20 @@ int main(int argc, char** argv) {
         return emitLir(args[1]);
     }
     if (args[0] == "--run") {
-        if (args.size() != 2 && !(args.size() == 4 && args[2] == "--seed")) {
+        std::uint32_t seed = 1;
+        std::string gfx;
+        bool ok = args.size() >= 2;
+        for (std::size_t i = 2; ok && i < args.size(); i += 2) {
+            if (i + 1 >= args.size()) ok = false;
+            else if (args[i] == "--seed") seed = static_cast<std::uint32_t>(std::stoul(args[i + 1]));
+            else if (args[i] == "--gfx") gfx = args[i + 1];
+            else ok = false;
+        }
+        if (!ok) {
             usage(std::cerr);
             return 2;
         }
-        return run(args[1], args.size() == 4 ? static_cast<std::uint32_t>(std::stoul(args[3])) : 1u);
+        return run(args[1], seed, gfx);
     }
     std::string target, input, output;
     for (std::size_t i = 0; i < args.size(); ++i) {

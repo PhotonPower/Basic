@@ -378,3 +378,41 @@ Am Original geprüft und übernommen:
 - **`RINSTR(a$,b$[,x])`** (auch `RINSTR(x,a$,b$)`): das letzte b$, das vor Position x endet, also die
   Suche in `LEFT$(a$,x-1)`; ohne x die ganze Zeichenkette. Ein leeres a$ ergibt 0
   (`RINSTR("","")` = 0), `RINSTR("abc","")` = 4.
+
+<a id="d25"></a>
+## D25 – Grafik und Fenster, Stufe 1: Bildschirmmodell und Rasterregeln vom Original
+
+Grafik (Kapitel 8) und Fenster (Kapitel 9) kommen in Stufen: 1. Interpreter und C++-Ziel über ein
+Bildschirmmodell in `platform/pc/rt_gfx` (Screens und Fenster als Felder von Farbnummern); 2. das
+Amiga-Ziel über `graphics.library`/`intuition.library`, geprüft mit Bildschirmfotos; 3. dieselben
+Rasterregeln für m68k-test. Danach `ALERT`, Menüs, `FILESELECT`, `FORM INPUT`, Füllmuster, `FILL`,
+`GET`/`PUT`, `DRAW` mit Turtle-Befehlen.
+
+Am Original gemessen (probe22–24, `POINT` liest die Raster zurück; `tests/test_gfx.cpp` vergleicht
+sie Pixel für Pixel):
+
+- **Fenster 0** ist beim Start offen: der HiRes-Screen 640 × 256 mit 2 Bitplanes, das Fenster
+  640 × 245 mit Rändern 4 (links) und 11 (oben); Koordinaten beginnen an der Innenfläche, außerhalb
+  wird abgeschnitten, `POINT` außerhalb ergibt −1. Palette des Kickstart 1.x: `05A FFF 002 F80`.
+- **Ein Stift:** `COLOR` und `DEFFILL` setzen beide die Zeichenfarbe (`DEFFILL 3` färbt auch das
+  folgende `BOX`). `BOUNDARY` ist am Anfang aus; ist es an, bekommen `PBOX`, `PCIRCLE`, `PELLIPSE`
+  den Umriss in der Randfarbe (dritter Wert von `COLOR`).
+- **`LINE`:** entlang der längeren Achse, der Versatz der anderen ist i·d/n gerundet, ein
+  Gleichstand zum Endpunkt hin. Linienmuster mit Bit 15 zuerst; bei `GRAPHMODE 1` die 0-Bits in der
+  Hintergrundfarbe. `GRAPHMODE 2` invertiert die Bitplanes; eine Linie lässt dann ihren ersten Punkt
+  aus, außer direkt nach `GRAPHMODE` (`FRST_DOT` der `graphics.library`).
+- **`ELLIPSE`** ist das Mittelpunktverfahren (5,5 und 6,3 exakt). **`CIRCLE x,y,r`** ist eine Ellipse
+  mit ry = ⌊4r/9⌋ (das Seitenverhältnis von HiRes; die Höhe stimmt für r = 1…40). Einzelne Punkte am
+  Übergang der beiden Bereiche weichen vom ROM ab (r = 4, 9, 17), das genaue `DrawEllipse` des
+  Kickstart ist nicht bekannt. Gefüllte Formen füllen jede Zeile zwischen den äußeren Umrisspunkten.
+  `BOX`/`PBOX` nehmen die Ecken in beliebiger Reihenfolge.
+- **`TEXT x,y,s`**: y ist die Grundlinie (ein „H“ belegt y−6…y). Den Topaz-Font des ROM bilden wir
+  nicht nach: Texte werden als Liste (Position, Farbe, Text) festgehalten und im Bild als Kästchen
+  gezeigt; `POINT` sieht sie nicht. `CLS` löscht Text und Grafik des Fensters.
+
+Annahmen, noch nicht am Original geprüft: die vordefinierten Linienmuster 2–6, die Innenmaße anderer
+Fenster als 0, Screens mit anderer Auflösung (Seitenverhältnis von `CIRCLE`), `GRAPHMODE 4`.
+
+Ergebnis: Mit `basicc --run p.lst --gfx bild` (Interpreter) bzw. `BASIC_GFX_OUT=bild` (C++-Ziel)
+entstehen `bild.ppm` und `bild.txt`, eine Zusammenfassung je Fenster (Größe, Zahl und FNV-Prüfsumme
+der Pixel, Texte) und je Screen (Palette). Testprogramme halten sie in `<name>.gfx` fest.

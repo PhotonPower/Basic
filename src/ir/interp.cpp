@@ -3,9 +3,12 @@
 #include <cstring>
 #include <map>
 #include <memory>
+#include <set>
+#include <string>
 #include <utility>
 #include <vector>
 
+#include "rt_gfx.hpp"
 #include "rt_pc.hpp"
 #include "rt_ref.h"
 
@@ -152,6 +155,10 @@ public:
             r.message = f.message;
         }
         r.output = std::move(out_.buf);
+        if (gfx_.used()) {
+            r.gfx = gfx_.digest();
+            if (!opt_.gfxPicture.empty()) gfx_.writePpm(opt_.gfxPicture);
+        }
         return r;
     }
 
@@ -163,6 +170,7 @@ private:
     brt::Files files_;
     brt::Keyboard kbd_;
     brt::Memory mem_;
+    brt::Gfx gfx_;
     int line_ = 0;
     std::uint64_t steps_ = 0;
     int err_ = 0;
@@ -535,6 +543,7 @@ private:
             return I(brt::rinstr(s(1), s(2), f(0)));
         }
         if (n == "POS") return I(out_.pos());
+        if (n == "POINT") return I(gfx_.point(toI32(fp_trunc(f(0))), toI32(fp_trunc(f(1)))));
         if (n == "CRSCOL") return I(out_.crsCol);
         if (n == "CRSLIN") return I(out_.crsLin);
         if (n == "TIMER") return I(brt::timer());
@@ -854,6 +863,20 @@ private:
         exec(s.elseBody);
     }
 
+    // ---- graphics (D25): the arguments from left to right, then brt::Gfx ------------------------
+    bool gfxCommand(const hir::Stmt& s) {
+        if (!brt::Gfx::isCommand(s.name)) return false;
+        std::vector<std::int32_t> v;
+        std::string str;
+        for (const auto& x : s.args) {
+            const Value a = eval(*x);
+            if (a.type == Type::Str) str = a.s;
+            else v.push_back(toI32(fp_trunc(num(a))));
+        }
+        gfx_.command(s.name, v, str, s.mode);
+        return true;
+    }
+
     // the next DATA item as a number (MAT READ)
     f64 readNumber() {
         if (dataPos_ >= p_.data.size()) throw RuntimeError{kErrOutOfData};
@@ -1040,8 +1063,10 @@ private:
         }
         if (n == "CLS") {
             out_.cls();
+            gfx_.cls();
             return;
         }
+        if (gfxCommand(s)) return;
         if (n == "LOCATE") {
             const f64 c = eval(*s.args[0]).f;
             out_.locate(c, eval(*s.args[1]).f);

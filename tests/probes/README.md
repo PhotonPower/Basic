@@ -20,6 +20,9 @@ Ausführen mit `tools/gfa/gfa_run.py`, Einrichtung und Regeln in [docs/gfa-origi
 | `probe20.lst` | `POS` nach LF/CR/BS, `CRSCOL`/`CRSLIN`, `PRINT AT`, `LOCATE`, `HTAB`/`VTAB`, `TAB` nach `AT`, `TIMER`, `RINSTR` – ausgewertet (2026-11-07) |
 | `probe21.lst` | Wovon die Zone des Kommas in `PRINT` abhängt (Anfang der Anweisung) – ausgewertet (2026-11-07) |
 | `probe15.lst` | `INPUT`/`LINE INPUT` mit Eingaben über `--after`: ungültige Zahl, Folgezeilen, überzählige Werte, Leerzeichen – ausgewertet (2026-11-07), das Programm aktiviert dafür sein Ausgabefenster |
+| `probe22.lst` | Grafik: Rasterregeln über `POINT` (Linien, Rechtecke, Kreise, Ellipsen, XOR, Linienmuster, Clipping, `TEXT`-Grundlinie, `CLS`), Fenster 0 – ausgewertet (2026-11-07) |
+| `probe23.lst` | Grafik: Seitenverhältnis von `CIRCLE` (r = 1…40), Gleichstand bei `LINE`, Stiftmodell, erster Punkt bei XOR – ausgewertet (2026-11-07) |
+| `probe24.lst` | Grafik: Raster von `CIRCLE`, `PCIRCLE`/`PELLIPSE` mit und ohne `BOUNDARY`, `PBOX` mit Rand – ausgewertet (2026-11-07) |
 | `probe10.lst` | `VAR`-Parameter: Geltung für folgende Parameter, Referenz oder Kopie, unzulässige Argumente – ausgewertet (2026-11-07) |
 
 Ergebnisse: `results/<name>.txt` (erzeugt am Original).
