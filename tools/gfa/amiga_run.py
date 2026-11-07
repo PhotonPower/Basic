@@ -7,8 +7,9 @@ FS-UAE and collects what they print. Standard library only; uses the helpers of 
 How it works (docs/gfa-original.md):
   1. The programs are copied into the shared directory (DH0: on the Amiga).
   2. FS-UAE is (re)started; the GFA-BASIC disk boots into a shell with the prompt "1>".
-  3. For every program the command `dh0:<name> >dh0:<name>.txt` is typed; the shell runs them one
-     after the other.
+  3. For every program `dh0:<name> >dh0:<name>.txt`; the shell runs them one after the other.
+     The current directory stays the boot disk (the GFA disk has no CD command): a program that
+     writes files must name them with DH0:, otherwise they land on the disk image.
   4. The script waits until every result file exists and has not changed for a few seconds.
   5. "1" starts GFA-BASIC again (the boot menu), so that gfa_run.py finds its editor.
 """

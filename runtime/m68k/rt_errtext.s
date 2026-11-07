@@ -75,6 +75,10 @@ rt_errtext__more:
         DC.L    rt_errtext__t67
         DC.W    68
         DC.L    rt_errtext__t68
+        DC.W    202
+        DC.L    rt_errtext__t202
+        DC.W    205
+        DC.L    rt_errtext__t205
         DC.W    -1
 rt_errtext__t45:
         DC.B    19,'too many parameters'
@@ -82,6 +86,10 @@ rt_errtext__t67:
         DC.B    15,'asin/acos error'
 rt_errtext__t68:
         DC.B    17,'var-type mismatch'
+rt_errtext__t202:
+        DC.B    13,'object in use'
+rt_errtext__t205:
+        DC.B    16,'object not found'
         EVEN
 
 rt_errtext__tab:

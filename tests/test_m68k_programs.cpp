@@ -59,6 +59,13 @@ int main() {
         for (const M68kTarget target : {M68kTarget::Test, M68kTarget::Amiga}) {
             const bool amiga = target == M68kTarget::Amiga;
             const std::string label = name + (amiga ? " (amiga)" : " (m68k-test)");
+            // the OS emulation of the sister project has no files (docs/toolchain.md): programs of the
+            // group file-seq run on amiga only in FS-UAE (tools/gfa/amiga_run.py)
+            if (amiga && read(entry.path()).find("file-seq") != std::string::npos) {
+                std::cout << label << ": skipped (no files in the OS emulation)\n";
+                ++skipped;
+                continue;
+            }
             bool unsupported = false;
             std::string message;
             const std::string source = compile(read(entry.path()), target, unsupported, message);

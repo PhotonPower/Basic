@@ -78,6 +78,9 @@ basicc --target amiga tests/programs/numbers.lst -o build/numbers
 python3 tools/gfa/amiga_run.py build/numbers --out-dir build/amiga-results
 ```
 
+Das aktuelle Verzeichnis bleibt die Startdiskette (auf der GFA-Diskette fehlt `CD`): Programme,
+die Dateien schreiben, brauchen Namen mit `DH0:`, sonst landen die Dateien im Disketten-Image.
+
 Stand 2026-11-07: alle Programme unter `tests/programs` laufen so unter Kickstart 1.2 und geben Byte
 für Byte die erwartete Ausgabe aus. Gefunden dabei: Die Shell gibt einem Programm nur 4000 Bytes
 Stapel; die Plattform holt sich deshalb einen eigenen (`platform/amiga/plat_start.s`).

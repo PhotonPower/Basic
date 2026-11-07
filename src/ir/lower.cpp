@@ -585,6 +585,16 @@ private:
     }
 
     void print(const hir::Stmt& s) {
+        if (s.channel) {  // PRINT #n: the output goes to the file for this statement (rt_file)
+            rtcallVoid("rt_file_select", {toI(expr(*s.channel))});
+            printItems(s);
+            rtcallVoid("rt_file_deselect", {});
+            return;
+        }
+        printItems(s);
+    }
+
+    void printItems(const hir::Stmt& s) {
         if (s.usingFmt) return printUsing(s);
         char last = 0;
         for (const hir::PrintItem& it : s.items) {
@@ -789,6 +799,44 @@ private:
             Reg target = t.op == Op::Load ? load(t.var) : strAt(elemAddr(t));
             Reg b = expr(*s.value);
             rtcallVoid(n == "LSET" ? "rt_str_lset" : "rt_str_rset", {target, b});
+            return;
+        }
+        if (n == "OPEN") {
+            Reg mode = expr(*s.args[0]);
+            Reg ch = toI(expr(*s.args[1]));
+            Reg name = expr(*s.args[2]);
+            rtcallVoid("rt_file_open", {mode, ch, name});
+            return;
+        }
+        if (n == "CLOSE") {
+            if (s.args.empty()) rtcallVoid("rt_file_close_all", {});
+            else rtcallVoid("rt_file_close", {toI(expr(*s.args[0]))});
+            return;
+        }
+        if (n == "KILL") {
+            rtcallVoid("rt_file_kill", {expr(*s.args[0])});
+            return;
+        }
+        if (n == "INPUT#" || n == "LINE INPUT#") {
+            Reg ch = toI(expr(*s.args[0]));
+            for (const auto& t : s.targets) {
+                const Type ty = var(t->var).type;
+                if (n == "LINE INPUT#") storeTarget(*t, rtcall("rt_file_line", {ch}, VT::Str));
+                else if (ty == Type::Str) storeTarget(*t, rtcall("rt_file_item", {ch}, VT::Str));
+                else storeTarget(*t, convF(rtcall("rt_file_num", {ch}, VT::F64), ty));
+            }
+            return;
+        }
+        if (n == "WRITE" || n == "WRITE#") {  // values separated by commas, strings in quotes
+            const bool file = n == "WRITE#";
+            if (file) rtcallVoid("rt_file_select", {toI(expr(*s.args[0]))});
+            for (std::size_t k = file ? 1 : 0; k < s.args.size(); ++k) {
+                if (k != (file ? 1u : 0u)) emit(Kind::PrintStr).text = ",";
+                Reg v = expr(*s.args[k]);
+                rtcallVoid(v.type == VT::Str ? "rt_write_str" : "rt_print_flt", {v});
+            }
+            rtcallVoid("rt_print_nl", {});
+            if (file) rtcallVoid("rt_file_deselect", {});
             return;
         }
         if (n == "MODE") {
@@ -1037,6 +1085,13 @@ private:
         const std::size_t argc = e.args.size();
         if (n == "MIN" || n == "MAX") return minMax(e, n == "MAX");
         if (n == "ERR") return rtcall("rt_err_get", {}, VT::I32);
+        if (n == "EOF") return rtcall("rt_file_eof", {toI(arg(e, 0))}, VT::I32);
+        if (n == "LOF") return rtcall("rt_file_lof", {toI(arg(e, 0))}, VT::I32);
+        if (n == "EXIST") return rtcall("rt_file_exist", {arg(e, 0)}, VT::I32);
+        if (n == "INPUT$") {
+            Reg cnt = toI(arg(e, 0));
+            return rtcall("rt_file_chars", {cnt, toI(arg(e, 1))}, VT::Str);
+        }
         if (n == "ERR$") return rtcall("rt_err_text", {toI(arg(e, 0))}, VT::Str);
         if (n == "VAL") return rtcall("rt_str_val", {arg(e, 0)}, VT::F64);
         if (n == "VAL?") return rtcall("rt_str_valq", {arg(e, 0)}, VT::I32);

@@ -58,7 +58,7 @@ public:
         // (error handling with ON ERROR is left out: the stub replaces rt_error; tested by programs)
         std::vector<link::Module> mods;
         for (link::Module& m : link::loadModules(std::string(BASIC_SOURCE_DIR) + "/runtime/m68k", d))
-            if (m.name != "rt_err" && m.name != "rt_onerr" && m.name != "rt_resume") mods.push_back(std::move(m));
+            if (m.name != "rt_err" && m.name != "rt_onerr" && m.name != "rt_resume" && m.name != "rt_file") mods.push_back(std::move(m));
         std::vector<std::string> all;
         for (const link::Module& m : mods) all.insert(all.end(), m.provides.begin(), m.provides.end());
         for (link::Module& m : link::loadModules(std::string(BASIC_SOURCE_DIR) + "/platform/m68k-test", d))

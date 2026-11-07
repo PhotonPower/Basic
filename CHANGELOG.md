@@ -42,8 +42,9 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
   Wartezeiten für den Merge-Dialog und das Einlesen.
 - Sequentielle Dateien nach dem Original (probe14): `OPEN` (`I`, `O`, `A`), `CLOSE`, `PRINT #`,
   `WRITE #`/`WRITE`, `INPUT #`, `LINE INPUT #`, `INPUT$(n,#c)`, `EOF`, `LOF`, `EXIST`, `KILL`, mit
-  den Fehlern des Originals (21–26, −51, −54). Interpreter und C++-Ziel; `""` in Strings.
-  Testprogramm `files`.
+  den Fehlern des Originals (21–26, −51, −54). Interpreter, C++-Ziel und 68000 (`rt_file`;
+  Plattform: RAM-Platte für `m68k-test`, `dos.library` für den Amiga, dort im FS-UAE mit der
+  Ausgabe des Originals); `""` in Strings. Testprogramm `files`.
 - MC68000: Registerplätze im Rahmen werden nach Lebensdauer geteilt (auch über Schleifen und die
   Rücksprünge von `RESUME`); der größte Rahmen der Testprogramme schrumpft von mehreren KB auf
   104 Bytes (`main` von `arrays`; `main` von `arith` von 2880 auf 40 Bytes).

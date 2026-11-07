@@ -1,5 +1,5 @@
 ;! module    rt_err
-;! provides  rt_error rt_err_code rt_err_get rt_err_ctx rt_err_log rt_err_handler rt_err_fin rt_err_at rt_err_frame
+;! provides  rt_error rt_err_hook rt_err_code rt_err_get rt_err_ctx rt_err_log rt_err_handler rt_err_fin rt_err_at rt_err_frame
 ;! requires  plat_error
 ;! group     core
 ;! clobbers  D0-D3/A0-A1
@@ -15,6 +15,13 @@
 ; variables saved on the stack (LOCAL, parameters) so that RESUME can restore them.
 
 rt_error:
+        TST.L   rt_err_hook             ; first undo a running PRINT # (rt_file): output to the screen
+        BEQ     .nohook
+        MOVE.L  D0,-(SP)
+        MOVE.L  rt_err_hook,A0
+        JSR     (A0)
+        MOVE.L  (SP)+,D0
+.nohook:
         TST.L   rt_err_handler
         BNE     .trap
         JMP     plat_error
@@ -39,6 +46,8 @@ rt_err_get:
 
 ;! section data
 rt_err_handler:
+        DC.L    0
+rt_err_hook:
         DC.L    0
 rt_err_fin:
         DC.L    0
