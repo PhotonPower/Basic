@@ -10,16 +10,17 @@
 ;      For 0: all digits '0', d = 0.
 ; As runtime/ref/rt_flt_dec.c: q = floor(|x| * 10^s), s = digits-1-d, with 10^(digits-1) <= q < 10^digits.
 
-rt_flt_dec__N   EQU 40                  ; longs per big integer (1280 bits)
+rt_flt_dec__N   EQU 40                  ; room for the big integers (1280 bits); used: rt_flt_dec__NN
 rt_flt_dec__NUM EQU -160
 rt_flt_dec__DEN EQU -320
 rt_flt_dec__DSH EQU -480
 rt_flt_dec__Q   EQU -488                ; quotient, 64 bit
 rt_flt_dec__PHI EQU -496                ; 10^digits
 rt_flt_dec__PLO EQU -504                ; 10^(digits-1)
+rt_flt_dec__NN  EQU -508                ; longs actually used (from the sizes of num and den)
 
 rt_flt_dec:
-        LINK    A6,#-504
+        LINK    A6,#-508
         MOVEM.L D2-D7/A2-A5,-(SP)
         MOVE.L  A0,A5                   ; A5 = buffer
         MOVE.W  D2,D7                   ; D7 = digits
@@ -66,14 +67,18 @@ rt_flt_dec:
 .again: MOVE.L  D7,D4                   ; s = digits - 1 - d
         SUBQ.L  #1,D4
         SUB.L   D5,D4
-        MOVE.W  #rt_flt_dec__N,D2
+        BSR     rt_flt_dec__size        ; D2.W = longs for this s and e (exact result for any size)
         LEA     rt_flt_dec__NUM(A6),A0  ; num = m, den = 1
         BSR     ix_bn_zero
-        MOVE.L  A2,(rt_flt_dec__N-2)*4(A0)
-        MOVE.L  A3,(rt_flt_dec__N-1)*4(A0)
+        MOVE.W  D2,D0
+        LSL.W   #2,D0
+        MOVE.L  A2,-8(A0,D0.W)
+        MOVE.L  A3,-4(A0,D0.W)
         LEA     rt_flt_dec__DEN(A6),A0
         BSR     ix_bn_zero
-        MOVE.L  #1,(rt_flt_dec__N-1)*4(A0)
+        MOVE.W  D2,D0
+        LSL.W   #2,D0
+        MOVE.L  #1,-4(A0,D0.W)
         TST.L   D4                      ; num *= 10^s or den *= 10^-s
         BMI     .sneg
         LEA     rt_flt_dec__NUM(A6),A0
@@ -136,7 +141,7 @@ rt_flt_dec:
         BRA     .again
 .found: LEA     rt_flt_dec__NUM(A6),A0  ; remainder * 2 >= den: round half away from 0
         MOVEQ   #1,D0
-        MOVE.W  #rt_flt_dec__N,D2
+        MOVE.W  rt_flt_dec__NN(A6),D2
         BSR     ix_bn_shl
         LEA     rt_flt_dec__DEN(A6),A1
         BSR     ix_bn_cmp
@@ -188,6 +193,42 @@ rt_flt_dec:
         MOVE.L  A4,D1
 .out:   MOVEM.L (SP)+,D2-D7/A2-A5
         UNLK    A6
+        RTS
+
+; D4 = s, D6 = e -> D2.W = rt_flt_dec__NN = longs for num = m 10^s 2^e and den << 50 (bits:
+; num <= 53 + 3.375 max(s,0) + max(e,0), den << 50 <= 52 + 3.375 max(-s,0) + max(-e,0)), with two
+; longs to spare; at most 37 for any binary64 value. Keeps D3-D7.
+rt_flt_dec__size:
+        MOVE.L  D3,-(SP)
+        MOVEQ   #54,D1
+        MOVE.L  D4,D0
+        BLE     .ns
+        MULS    #27,D0
+        ASR.L   #3,D0
+        ADDQ.L  #1,D0
+        ADD.L   D0,D1
+.ns:    TST.L   D6
+        BLE     .ne
+        ADD.L   D6,D1
+.ne:    MOVEQ   #53,D3
+        MOVE.L  D4,D0
+        NEG.L   D0
+        BLE     .ds
+        MULS    #27,D0
+        ASR.L   #3,D0
+        ADDQ.L  #1,D0
+        ADD.L   D0,D3
+.ds:    TST.L   D6
+        BPL     .de
+        SUB.L   D6,D3
+.de:    CMP.L   D3,D1
+        BGE     .mx
+        MOVE.L  D3,D1
+.mx:    ADD.L   #64,D1
+        LSR.L   #5,D1
+        MOVE.W  D1,D2
+        MOVE.W  D1,rt_flt_dec__NN(A6)
+        MOVE.L  (SP)+,D3
         RTS
 
 ; D0:D1 (high:low) *= 10

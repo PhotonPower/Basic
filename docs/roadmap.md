@@ -52,7 +52,8 @@ Wurzel, Vergleiche, Konvertierungen, Rundungsfunktionen, Zufall), ✔ Zahlenausg
 laufen in der OS-Emulation (`test_m68k_programs`) und unter Kickstart 1.2 im FS-UAE
 (`tools/gfa/amiga_run.py`) mit der Ausgabe des Originals.
 ✔ Transzendente Funktionen (`runtime/ref/rt_math.c`, 68000 bitgleich, probe13).
-Weiter: schnellere Zahlenausgabe, Registerzuteilung im Backend, dann die Gruppen `input` und Dateien.
+✔ Zahlenausgabe 2,6-mal schneller (Länge der großen Zahlen nach Bedarf).
+Weiter: Registerzuteilung im Backend, dann die Gruppen `input` und Dateien.
 
 - Quelltext-Linker (`src/link`) mit Map-Datei und Label-Prüfung.
 - LIR → 68000-Assembler, `runtime/m68k` (Integer, Strings, Ausgabe, Fließkomma-Kern), `platform/amiga`
