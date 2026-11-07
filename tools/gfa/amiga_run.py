@@ -7,7 +7,8 @@ FS-UAE and collects what they print. Standard library only; uses the helpers of 
 How it works (docs/gfa-original.md):
   1. The programs are copied into the shared directory (DH0: on the Amiga).
   2. FS-UAE is (re)started; the GFA-BASIC disk boots into a shell with the prompt "1>".
-  3. For every program `dh0:<name> >dh0:<name>.txt`; the shell runs them one after the other.
+  3. For every program `dh0:<name> >dh0:<name>.txt`, the next one only after the result of the
+     previous one is complete (a graphics program has an active window of its own).
      The current directory stays the boot disk (the GFA disk has no CD command): a program that
      writes files must name them with DH0:, otherwise they land on the disk image.
   4. The script waits until every result file exists and has not changed for a few seconds.
@@ -69,16 +70,17 @@ def main(argv: list[str] | None = None) -> int:
     g.start_fs_uae(args.config, args.app)
     time.sleep(args.boot_wait)
 
-    steps = []
-    for name in names:
-        steps += [f"type:dh0:{name} >dh0:{name}.txt", "key:return", "wait:0.5"]
-    run = subprocess.run(["osascript", "-"], input=g.build_script(steps, args.amiga_layout, args.app, {}),
-                         text=True, capture_output=True)
-    if run.returncode != 0:
-        print("amiga_run: osascript failed or FS-UAE lost the focus:\n" + run.stderr, file=sys.stderr)
-        return 3
-
-    ok = wait_stable(results, args.timeout, args.quiet)
+    # one program after the other: a program with graphics opens an active window of its own, keys
+    # typed ahead would go there instead of to the shell
+    ok = True
+    for name, res in zip(names, results):
+        steps = [f"type:dh0:{name} >dh0:{name}.txt", "key:return", "wait:0.5"]
+        run = subprocess.run(["osascript", "-"], input=g.build_script(steps, args.amiga_layout, args.app, {}),
+                             text=True, capture_output=True)
+        if run.returncode != 0:
+            print("amiga_run: osascript failed or FS-UAE lost the focus:\n" + run.stderr, file=sys.stderr)
+            return 3
+        ok = wait_stable([res], args.timeout, args.quiet) and ok
     # back to GFA-BASIC for gfa_run.py
     subprocess.run(["osascript", "-"], input=g.build_script(["type:1", "key:return"], args.amiga_layout, args.app, {}),
                    text=True, capture_output=True)

@@ -419,6 +419,17 @@ Fenster als 0, Screens mit anderer Auflösung (Seitenverhältnis von `CIRCLE`), 
 `$00FF0010`, der Testtreiber führt sie mit `brt::Gfx` aus: dieselben Regeln, dieselbe
 Zusammenfassung, damit testet `test_m68k_programs` auch das Lowering und die Laufzeit der Grafik.
 
+Amiga (Stufe 2): `platform/amiga/plat_gfx.s` zeichnet mit `intuition.library` und
+`graphics.library`. Der erste Grafikbefehl öffnet Screen 0 (640 × 256 HiRes, 2 Bitplanes, Palette
+des Kickstart 1.x) und darauf Fenster 0 (GIMMEZEROZERO); `plat_exit` schließt Fenster, Screens,
+TmpRas und Bibliotheken. `CIRCLE`/`ELLIPSE` sind `DrawEllipse` (ry = 4r/9), gefüllte Formen
+`AreaEllipse`/`RectFill`, `BOUNDARY` das Flag `AREAOUTLINE`. Die Stiftposition setzen wir direkt
+(`cp_x`/`cp_y`) statt mit `Move`: `Move` setzt `FRST_DOT`, und dann zeichnet eine XOR-Linie ihren ersten
+Punkt, was das Original nicht tut (unter Kickstart 1.2 im FS-UAE gesehen). Mit dieser Änderung gibt
+`gfx1` auf dem echten Amiga genau `gfx1.out` aus, also die am Original bestätigten `POINT`-Werte.
+Die OS-Emulation des Schwesterprojekts kennt `intuition.library` nicht; `test_m68k_programs`
+überspringt Grafikprogramme dort, geprüft wird mit `tools/gfa/amiga_run.py`.
+
 Ergebnis: Mit `basicc --run p.lst --gfx bild` (Interpreter) bzw. `BASIC_GFX_OUT=bild` (C++-Ziel)
 entstehen `bild.ppm` und `bild.txt`, eine Zusammenfassung je Fenster (Größe, Zahl und FNV-Prüfsumme
 der Pixel, Texte) und je Screen (Palette). Testprogramme halten sie in `<name>.gfx` fest.

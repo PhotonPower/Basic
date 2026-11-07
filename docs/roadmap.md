@@ -69,7 +69,9 @@ laufen in der OS-Emulation (`test_m68k_programs`) und unter Kickstart 1.2 im FS-
 Anfang der Anweisung (probe20, probe21, D24).
 ✔ Grafik Stufe 1 (D25): Bildschirmmodell und Rasterregeln vom Original im Interpreter und C++-Ziel.
 ✔ Grafik auf m68k-test (Ports, der Testtreiber zeichnet mit `brt::Gfx`).
-Weiter: Grafik Stufe 2 (Amiga über `graphics.library`), dann `ALERT`, Menüs,
+✔ Grafik Stufe 2: Amiga über `intuition.library`/`graphics.library`; `gfx1` unter Kickstart 1.2 mit
+den Werten des Originals.
+Weiter: `ALERT`, Menüs,
 `FILESELECT`, `FORM INPUT`; `ABSOLUTE` mit dem vollen Speicherabbild nach D6; weitere Optimierungen (Variablen in Registern innerhalb von Schleifen ohne Aufrufe, Fließkomma inline).
 
 - Quelltext-Linker (`src/link`) mit Map-Datei und Label-Prüfung.

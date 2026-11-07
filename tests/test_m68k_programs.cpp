@@ -64,9 +64,10 @@ int main() {
             const std::string label = name + (amiga ? " (amiga)" : " (m68k-test)");
             // the OS emulation of the sister project has no files (docs/toolchain.md): programs of the
             // group file-seq run on amiga only in FS-UAE (tools/gfa/amiga_run.py)
-            // graphics on the amiga: stage 2 of D25 (intuition/graphics.library) follows
+            // graphics on the amiga (D25): the OS emulation has no intuition.library; checked in FS-UAE
+            // with tools/gfa/amiga_run.py
             if (amiga && read(entry.path()).find("graphics") != std::string::npos) {
-                std::cout << label << ": skipped (graphics on the amiga follows)\n";
+                std::cout << label << ": skipped (no intuition.library in the OS emulation)\n";
                 ++skipped;
                 continue;
             }

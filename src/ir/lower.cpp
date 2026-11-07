@@ -1090,6 +1090,12 @@ private:
             rtcallVoid(n == "HTAB" ? "rt_print_htab" : "rt_print_vtab", {toI(expr(*s.args[0]))});
             return;
         }
+        if (n == "PAUSE" || n == "DELAY") {  // ticks of 1/50 s: PAUSE n, DELAY x seconds
+            Reg v = expr(*s.args[0]);
+            if (n == "DELAY") v = rtcall("fp_mul", {v, constF(0x4049000000000000u)}, VT::F64);  // 50.0
+            rtcallVoid("plat_pause", {toI(v)});
+            return;
+        }
         if (n == "PAUSE" || n == "DELAY" || n == "TRON" || n == "TROFF" || n == "VSYNC") {
             for (const auto& a : s.args) expr(*a);
             return;

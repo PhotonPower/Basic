@@ -74,6 +74,13 @@ Einrichtungsfehler, `3` FS-UAE hat während der Tastenfolge den Fokus verloren.
   öffnen (probe17–20, Prozedur `flush`). FS-UAE vor jedem Lauf beenden, ein liegengebliebener
   Zustand lässt GFA-BASIC beim Start abstürzen.
 
+## Grafikprogramme auf dem Amiga
+
+`tools/gfa/amiga_run.py` startet die Programme nacheinander: Ein Grafikprogramm öffnet ein aktives
+Fenster und bekäme sonst die vorab getippten Befehle. Wer ein Bild prüfen will, lässt das Programm
+am Ende mit `PAUSE` warten (die Ausgabe erscheint erst am Programmende in der Datei) und macht das
+Bildschirmfoto in dieser Zeit.
+
 ## Tokenisierte Programme in Listings umwandeln
 
 `tools/gfa/gfa2lst.py prog.gfa … --out-dir <verzeichnis>` lädt `.GFA`-Dateien (Kennung „GFA-AMIGAB“)
