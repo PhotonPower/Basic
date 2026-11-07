@@ -17,7 +17,8 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
   Label-Hygiene), Plattform `m68k-test`, Konformanz-Harness (Routinen direkt im Emulator gegen
   `runtime/ref`), Fließkomma-Kern in 68000-Assembler: Grundrechenarten, `fp_sqrt`, Vergleiche, `==`,
   Konvertierungen, `TRUNC`/`INT`/`FRAC`/`CINT`/`ROUND`, Zufallsgenerator – bitgenau gegen die
-  Referenz bei jeweils 50 000 Zufallsfällen.
+  Referenz bei jeweils 50 000 Zufallsfällen; Zahlenausgabe `rt_fmt_flt` mit Big-Integer-Arithmetik
+  (`ix_bn`, `rt_flt_dec`), ebenfalls bitgenau.
 - C++-Ziel `pc` (`basicc --target pc`): lesbarer C++17-Code aus der HIR; gemeinsame
   Laufzeitschicht `platform/pc` für Interpreter und erzeugte Programme; Differenztests `pc_<name>`
   übersetzen alle Golden-Tests und vergleichen mit den Ausgaben des Originals.

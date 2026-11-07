@@ -336,6 +336,46 @@ void randomTest(Runtime& rt) {
     }
 }
 
+// rt_fmt_flt writes the text to memory at $70000.
+void formatTest(Runtime& rt, int cases) {
+    Rng r;
+    int failures = 0;
+    std::uint64_t instr = 0;
+    int calls = 0;
+    auto one = [&](f64 x, int digits) {
+        char expect[RT_FMT_FLT_MAX];
+        rt_fmt_flt(expect, fp_canon(x), digits);
+        M68kRegs in;
+        in.d = {static_cast<std::uint32_t>(x >> 32), static_cast<std::uint32_t>(x), static_cast<std::uint32_t>(digits), 0, 0x44444444,
+                0x55555555, 0x66666666, 0x77777777};
+        in.a = {0x70000, 0, 0xA2A2A2A2, 0xA3A3A3A3, 0xA4A4A4A4, 0xA5A5A5A5, 0xA6A6A6A6};
+        const auto res = rt.rt().call("rt_fmt_flt", in, 10'000'000);
+        ++g_checks;
+        std::string got;
+        for (std::uint32_t k = 0; k < 40 && rt.rt().read8(0x70000 + k) != 0; ++k) got += static_cast<char>(rt.rt().read8(0x70000 + k));
+        bool ok = res.ok && got == expect && res.regs.d[0] == got.size();
+        for (int k = 4; k < 8; ++k) ok = ok && res.regs.d[static_cast<std::size_t>(k)] == in.d[static_cast<std::size_t>(k)];
+        for (int k = 2; k < 7; ++k) ok = ok && res.regs.a[static_cast<std::size_t>(k)] == in.a[static_cast<std::size_t>(k)];
+        instr += res.instructions;
+        ++calls;
+        if (!ok) {
+            ++g_failures;
+            if (++failures <= 10)
+                std::fprintf(stderr, "rt_fmt_flt(%016llX, %d): \"%s\" (%u), expected \"%s\" %s\n", static_cast<unsigned long long>(x), digits,
+                             got.c_str(), res.regs.d[0], expect, res.error.c_str());
+        }
+    };
+    const f64 golden[] = {0x3FE0000000000000u, 0xBFE0000000000000u, 0x3FD5555555555555u, 0x4040AAAAAAAAAAABu,
+                          0x3EE4F8B588E368F1u, 0x4341C37937E08000u, 0x54B249AD2594C37Du, 0x8B2C3EC03E1F0D2Au,
+                          0x400921FB54442D18u, 0x41E0000000000000u, F64_ONE,  0x42D6BCC41E900000u, 0x42F2309CE5400000u,
+                          0x7FEFFFFFFFFFFFFFu, 0x0010000000000000u, 0x3EB0C6F7A0B5ED8Du, 0x3E7AD7F29ABCAF48u};
+    for (f64 x : golden)
+        for (int digits : {13, 4, 3, 2}) one(x, digits);
+    for (int i = 0; i < cases; ++i) one(randomF64(r, i % 2 == 0 ? 1 : 1000, i % 2 == 0 ? 2046 : 1090), i % 5 == 0 ? r.range(1, 14) : 13);
+    for (std::int32_t v = -2000; v <= 2000; v += 7) one(fp_from_i32(v), 13);  // integers
+    std::cout << "rt_fmt_flt: " << (calls ? instr / static_cast<std::uint64_t>(calls) : 0) << " instructions per call on average\n";
+}
+
 std::int64_t refToI32(f64 x) { return fp_to_i32(x); }
 std::int64_t refToI16(f64 x) { return fp_to_i16(x); }
 std::int64_t refToU8(f64 x) { return fp_to_u8(x); }
@@ -369,6 +409,7 @@ int main() {
     unary(rt, "fp_sqrt", fp_sqrt, cases);
     roundTest(rt, cases);
     randomTest(rt);
+    formatTest(rt, cases / 4);
     std::cout << "68000 instructions executed: " << rt.instructions() << "\n";
     return report("conformance_m68k");
 }

@@ -24,5 +24,11 @@ Für die Grundoperationen genügt es, das **exakte** Ergebnis und ein korrektes 
 | `fp_round_int`, `fp_round` | `TRUNC`, `INT`, `FRAC`, `CINT`, `ROUND` |
 | `fp_approx_eq`, `fp_canon` | `==` (28 Bit, Hälfte von 0 weg); Wert aus dem Speicher normalisieren |
 | `rt_rnd` | xorshift32: `rt_randomize`, `rt_rnd_next`, `rt_rnd`, `rt_rand` |
+| `ix_bn` | Big-Integer fester Länge (Langwörter, höchstwertiges zuerst): Multiplikation mit 16-Bit-Faktoren, Schieben, Vergleich, Subtraktion |
+| `rt_flt_dec`, `rt_fmt_flt` | Dezimalziffern des exakten Binärwerts; `PRINT`/`STR$`-Form mit `DEFNUM` |
+
+Offen: `rt_fmt_flt` braucht im Mittel rund 35 000 Befehle je Zahl (Big-Integer-Division über 51
+Quotientenbits). Ein schneller Weg für gewöhnliche Werte kommt später; die Konformanztests sichern
+ihn ab.
 
 Sprünge werden ohne `.S` geschrieben, siehe [docs/toolchain.md](../../docs/toolchain.md).
