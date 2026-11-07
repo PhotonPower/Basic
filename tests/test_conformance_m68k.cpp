@@ -193,6 +193,153 @@ void compare(Runtime& rt, int cases) {
     }
 }
 
+// Unary f64 -> f64 routines (TRUNC, INT, ...).
+void unary(Runtime& rt, const char* name, f64 (*ref)(f64), int cases) {
+    Rng r;
+    int failures = 0;
+    auto one = [&](f64 a) {
+        g_error = -1;
+        const f64 expect = ref(fp_canon(a));
+        const int expectErr = g_error;
+        const auto [got, err] = rt.callF(name, a);
+        ++g_checks;
+        if (got != expect || err != expectErr) {
+            ++g_failures;
+            if (++failures <= 10)
+                std::fprintf(stderr, "%s(%016llX): %016llX err %d, expected %016llX err %d\n", name, static_cast<unsigned long long>(a),
+                             static_cast<unsigned long long>(got), err, static_cast<unsigned long long>(expect), expectErr);
+        }
+    };
+    for (f64 a : edgeCases()) one(a);
+    for (int k = -3; k <= 60; ++k)  // around integers and halves
+        for (std::int32_t i : {0, 1, 2, 3, 7, -1, -2, -3})
+            for (f64 half : {f64{0}, f64{0x3FE0000000000000u}}) {
+                const f64 x = fp_add(fp_from_i32(i), half);
+                one(fp_mul(x, k >= 0 ? fp_from_i32(1 << (k % 30)) : 0x3FE0000000000000u));
+            }
+    for (int i = 0; i < cases; ++i) one(randomF64(r, i % 3 == 0 ? 0 : 990, i % 3 == 0 ? 2046 : 1090));
+}
+
+// f64 -> int32 conversions (D0), with range errors.
+void toInt(Runtime& rt, const char* name, std::int64_t (*ref)(f64), int cases) {
+    Rng r;
+    int failures = 0;
+    auto one = [&](f64 a) {
+        g_error = -1;
+        const std::int64_t expect = ref(fp_canon(a));
+        const int expectErr = g_error;
+        const auto [got, err] = rt.callF(name, a);
+        const std::int32_t g = static_cast<std::int32_t>(got >> 32);
+        ++g_checks;
+        if (g != expect || err != expectErr) {
+            ++g_failures;
+            if (++failures <= 10)
+                std::fprintf(stderr, "%s(%016llX): %d err %d, expected %lld err %d\n", name, static_cast<unsigned long long>(a), g, err,
+                             static_cast<long long>(expect), expectErr);
+        }
+    };
+    for (f64 a : edgeCases()) one(a);
+    for (std::int64_t v : {-2147483648LL, 2147483647LL, 2147483648LL, -2147483649LL, 32767LL, 32768LL, -32768LL, -32769LL, 255LL, 256LL, -1LL}) {
+        const f64 x = fp_add(fp_mul(fp_from_i32(static_cast<std::int32_t>(v >> 16)), fp_from_i32(65536)), fp_from_i32(static_cast<std::int32_t>(v & 0xFFFF)));
+        one(x);
+        one(fp_add(x, 0x3FE0000000000000u));
+        one(fp_sub(x, 0x3FE0000000000000u));
+    }
+    for (int i = 0; i < cases; ++i) one(randomF64(r, i % 3 == 0 ? 0 : 1000, i % 3 == 0 ? 2046 : 1060));
+}
+
+void fromInt(Runtime& rt, int cases) {
+    Rng r;
+    int failures = 0;
+    auto one = [&](std::int32_t v) {
+        const f64 expect = fp_from_i32(v);
+        const auto [got, err] = rt.callF("fp_from_i32", static_cast<f64>(static_cast<std::uint32_t>(v)) << 32);
+        ++g_checks;
+        if (got != expect || err != -1) {
+            ++g_failures;
+            if (++failures <= 10) std::fprintf(stderr, "fp_from_i32(%d): %016llX\n", v, static_cast<unsigned long long>(got));
+        }
+    };
+    for (std::int32_t v : {0, 1, -1, 2, INT32_MIN, INT32_MAX, 65535, -65536}) one(v);
+    for (int i = 0; i < cases; ++i) one(static_cast<std::int32_t>(r.next() >> (r.next() % 32)));
+}
+
+void approxEq(Runtime& rt, int cases) {
+    Rng r;
+    int failures = 0;
+    auto one = [&](f64 a, f64 b) {
+        const int expect = fp_approx_eq(fp_canon(a), fp_canon(b));
+        const auto [got, err] = rt.callF("fp_approx_eq", a, b);
+        const int g = static_cast<std::int32_t>(got >> 32);
+        ++g_checks;
+        if (g != expect || err != -1) {
+            ++g_failures;
+            if (++failures <= 10)
+                std::fprintf(stderr, "fp_approx_eq(%016llX, %016llX): %d, expected %d\n", static_cast<unsigned long long>(a),
+                             static_cast<unsigned long long>(b), g, expect);
+        }
+    };
+    const f64 g29 = 0x3E20000000000000u, h28 = 0x3E30000000000000u;  // 2^-29, 2^-28 (probe3)
+    for (f64 base : {F64_ONE, f64{0x3FF8000000000000u}, f64{0xBFF0000000000000u}, f64{0x408F400000000000u}})
+        for (f64 d : {g29, h28, fp_neg(g29), fp_neg(h28), fp_add(g29, h28), fp_mul(g29, 0x3FF8000000000000u)}) {
+            one(base, fp_add(base, fp_mul(base, d)));
+            one(fp_add(base, fp_mul(base, d)), base);
+        }
+    for (f64 a : edgeCases())
+        for (f64 b : edgeCases()) one(a, b);
+    for (int i = 0; i < cases; ++i) {
+        const f64 a = randomF64(r, 1, 2046);
+        one(a, i % 2 == 0 ? a ^ (r.next() & ((std::uint64_t{1} << (20 + r.range(0, 12))) - 1)) : randomF64(r, 1, 2046));
+    }
+}
+
+void roundTest(Runtime& rt, int cases) {
+    Rng r;
+    int failures = 0;
+    auto one = [&](f64 x, std::int32_t n) {
+        g_error = -1;
+        const f64 expect = fp_round(fp_canon(x), n);
+        const int expectErr = g_error;
+        const auto [got, err] = rt.callF("fp_round", x, static_cast<f64>(static_cast<std::uint32_t>(n)) << 32);
+        ++g_checks;
+        if (got != expect || err != expectErr) {
+            ++g_failures;
+            if (++failures <= 10)
+                std::fprintf(stderr, "fp_round(%016llX, %d): %016llX, expected %016llX\n", static_cast<unsigned long long>(x), n,
+                             static_cast<unsigned long long>(got), static_cast<unsigned long long>(expect));
+        }
+    };
+    for (std::int32_t n : {0, 1, 2, -1, -2, 10, 40, 400, -400})
+        for (f64 x : edgeCases()) one(x, n);
+    one(0x4004000000000000u, 0);   // 2.5
+    one(0xC004000000000000u, 0);   // -2.5
+    one(0x3FC0000000000000u, 2);   // 0.125
+    one(0x4093480000000000u, -2);  // 1234.5 (approximately)
+    for (int i = 0; i < cases / 10; ++i) one(randomF64(r, 1000, 1080), r.range(-12, 12));
+}
+
+void randomTest(Runtime& rt) {
+    for (std::uint32_t seed : {1u, 0u, 12345u, 0xDEADBEEFu}) {
+        rt_randomize(seed);
+        M68kRegs in;
+        in.d[0] = seed;
+        CHECK(rt.rt().call("rt_randomize", in).ok);
+        for (int i = 0; i < 300; ++i) {
+            const int kind = i % 3;
+            in.d[0] = static_cast<std::uint32_t>(i * 977 + 13);
+            const auto res = rt.rt().call(kind == 0 ? "rt_rnd_next" : kind == 1 ? "rt_rnd" : "rt_rand", in);
+            CHECK(res.ok);
+            if (kind == 0) CHECK_EQ(res.regs.d[0], rt_rnd_next());
+            if (kind == 1) CHECK_EQ((static_cast<f64>(res.regs.d[0]) << 32) | res.regs.d[1], rt_rnd());
+            if (kind == 2) CHECK_EQ(static_cast<std::int32_t>(res.regs.d[0]), rt_rand(static_cast<std::int32_t>(in.d[0])));
+        }
+    }
+}
+
+std::int64_t refToI32(f64 x) { return fp_to_i32(x); }
+std::int64_t refToI16(f64 x) { return fp_to_i16(x); }
+std::int64_t refToU8(f64 x) { return fp_to_u8(x); }
+
 }  // namespace
 
 extern "C" void rt_error(int code) {
@@ -206,6 +353,22 @@ int main() {
     binary(rt, "fp_add", fp_add, cases);
     binary(rt, "fp_sub", fp_sub, cases);
     compare(rt, cases);
+    binary(rt, "fp_mul", fp_mul, cases);
+    binary(rt, "fp_div", fp_div, cases);
+    unary(rt, "fp_neg", fp_neg, cases);
+    unary(rt, "fp_trunc", fp_trunc, cases);
+    unary(rt, "fp_int", fp_int, cases);
+    unary(rt, "fp_frac", fp_frac, cases);
+    unary(rt, "fp_cint", fp_cint, cases);
+    unary(rt, "fp_canon", [](f64 x) { return x; }, cases);
+    toInt(rt, "fp_to_i32", refToI32, cases);
+    toInt(rt, "fp_to_i16", refToI16, cases);
+    toInt(rt, "fp_to_u8", refToU8, cases);
+    fromInt(rt, cases);
+    approxEq(rt, cases);
+    unary(rt, "fp_sqrt", fp_sqrt, cases);
+    roundTest(rt, cases);
+    randomTest(rt);
     std::cout << "68000 instructions executed: " << rt.instructions() << "\n";
     return report("conformance_m68k");
 }

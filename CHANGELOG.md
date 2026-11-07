@@ -15,8 +15,9 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 ### Hinzugefügt
 - MC68000, erster Teil: Quelltext-Linker `src/link` (Modulköpfe, Hülle über `requires`,
   Label-Hygiene), Plattform `m68k-test`, Konformanz-Harness (Routinen direkt im Emulator gegen
-  `runtime/ref`), erste Runtime-Module `fp_round_pack`, `fp_add`/`fp_sub`/`fp_neg`, `fp_cmp` –
-  bitgenau bei 100 000 Zufallsfällen.
+  `runtime/ref`), Fließkomma-Kern in 68000-Assembler: Grundrechenarten, `fp_sqrt`, Vergleiche, `==`,
+  Konvertierungen, `TRUNC`/`INT`/`FRAC`/`CINT`/`ROUND`, Zufallsgenerator – bitgenau gegen die
+  Referenz bei jeweils 50 000 Zufallsfällen.
 - C++-Ziel `pc` (`basicc --target pc`): lesbarer C++17-Code aus der HIR; gemeinsame
   Laufzeitschicht `platform/pc` für Interpreter und erzeugte Programme; Differenztests `pc_<name>`
   übersetzen alle Golden-Tests und vergleichen mit den Ausgaben des Originals.
