@@ -714,6 +714,19 @@ int main() {
     roundTest(rt, cases);
     randomTest(rt);
     bitsTest(rt, cases);
+    // transcendental functions (runtime/m68k/rt_math.s, generated): the same bits as rt_math.c
+    unary(rt, "rt_exp", rt_exp, cases);
+    unary(rt, "rt_log", rt_log, cases);
+    unary(rt, "rt_log10", rt_log10, cases);
+    unary(rt, "rt_sin", rt_sin, cases);
+    unary(rt, "rt_cos", rt_cos, cases);
+    unary(rt, "rt_tan", rt_tan, cases);
+    unary(rt, "rt_atn", rt_atn, cases);
+    unary(rt, "rt_asin", rt_asin, cases);
+    unary(rt, "rt_acos", rt_acos, cases);
+    unary(rt, "rt_deg", rt_deg, cases);
+    unary(rt, "rt_rad", rt_rad, cases);
+    binary(rt, "rt_powf", rt_powf, cases / 4);
     valTest(rt, cases);
     usingTest(rt, cases);
     formatTest(rt, cases / 4);

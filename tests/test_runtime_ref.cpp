@@ -5,6 +5,7 @@
 // printf for the conversions. Expected values that come from the original GFA-BASIC 3.5 are marked
 // with the probe test (tests/probes/results).
 
+#include <algorithm>
 #include <cfloat>
 #include <cmath>
 #include <cstdint>
@@ -617,7 +618,71 @@ extern "C" void rt_error(int code) {
     g_error = code;
 }
 
+// Transcendental functions (rt_math.c): not correctly rounded, but within a few units of the last
+// place of the host libm (measured: at most 3); errors as on the original (probe13).
+void testMath() {
+    struct Fn {
+        const char* name;
+        f64 (*ref)(f64);
+        double (*host)(double);
+        double lo, hi;
+    };
+    const Fn fns[] = {{"exp", rt_exp, [](double x) { return std::exp(x); }, -700, 700},
+                      {"log", rt_log, [](double x) { return std::log(x); }, 1e-300, 1e300},
+                      {"log10", rt_log10, [](double x) { return std::log10(x); }, 1e-30, 1e30},
+                      {"sin", rt_sin, [](double x) { return std::sin(x); }, -1e8, 1e8},
+                      {"cos", rt_cos, [](double x) { return std::cos(x); }, -100, 100},
+                      {"tan", rt_tan, [](double x) { return std::tan(x); }, -1.5, 1.5},
+                      {"atn", rt_atn, [](double x) { return std::atan(x); }, -1e3, 1e3},
+                      {"asin", rt_asin, [](double x) { return std::asin(x); }, -1, 1},
+                      {"acos", rt_acos, [](double x) { return std::acos(x); }, -1, 1}};
+    Rng r;
+    for (const Fn& f : fns) {
+        double worst = 0;
+        for (int i = 0; i < 20000; ++i) {
+            const double u = static_cast<double>(r.next() >> 11) / 9007199254740992.0;
+            double x = f.lo + (f.hi - f.lo) * u;
+            if (f.lo > 0) x = std::exp(std::log(f.lo) + (std::log(f.hi) - std::log(f.lo)) * u);
+            const double want = f.host(x), got = dbl(f.ref(bits(x)));
+            if (want == 0) continue;
+            const double ulp = std::nextafter(std::fabs(want), INFINITY) - std::fabs(want);
+            worst = std::max(worst, std::fabs(got - want) / ulp);
+        }
+        ++g_checks;
+        if (worst > 4) {
+            ++g_failures;
+            std::fprintf(stderr, "rt_%s: %.1f ulp from the host libm\n", f.name, worst);
+        }
+    }
+    auto err = [](f64 (*fn)(f64), double x) {
+        g_error = -1;
+        fn(bits(x));
+        return g_error;
+    };
+    CHECK_EQ(err(rt_log, -1), 6);
+    CHECK_EQ(err(rt_log10, 0), 6);
+    CHECK_EQ(err(rt_asin, 2), 67);
+    CHECK_EQ(err(rt_acos, -1.5), 67);
+    CHECK_EQ(err(rt_exp, 710), 1);
+    CHECK_EQ(err(rt_exp, -30000), -1);
+    CHECK_EQ(rt_exp(bits(-30000)), F64_ZERO);
+    CHECK_EQ(rt_exp(F64_ZERO), F64_ONE);
+    CHECK_EQ(rt_log(F64_ONE), F64_ZERO);
+    CHECK_EQ(rt_sin(F64_ZERO), F64_ZERO);
+    CHECK_EQ(rt_cos(F64_ZERO), F64_ONE);
+    CHECK(std::fabs(dbl(rt_sin(bits(1e300)))) <= 1);  // huge arguments: inaccurate, but a sine
+    CHECK(std::fabs(dbl(rt_sin(bits(1e10))) - std::sin(1e10)) < 1e-12);
+    g_error = -1;
+    rt_powf(F64_ZERO, bits(-0.5));
+    CHECK_EQ(g_error, 0);  // 0^-0.5: divide by zero
+    CHECK_EQ(rt_powf(F64_ZERO, bits(0.5)), F64_ZERO);
+    g_error = -1;
+    rt_powf(bits(-8), bits(1.0 / 3));
+    CHECK_EQ(g_error, 6);  // (-8)^(1/3): LOG of a negative number (probe13 T8)
+}
+
 int main() {
+    testMath();
     testArithmetic();
     testCanon();
     testIntegers();

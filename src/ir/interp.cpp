@@ -372,6 +372,19 @@ private:
         if (n == "CFLOAT") return F(f(0));
         if (n == "ROUND") return F(brt::round(f(0), argc > 1 ? brt::toInt(f(1)) : 0));
         if (n == "SQR") return F(brt::sqr(f(0)));
+        if (n == "EXP") return F(brt::expf(f(0)));
+        if (n == "LOG") return F(brt::logf(f(0)));
+        if (n == "LOG10") return F(brt::log10f(f(0)));
+        if (n == "SIN") return F(brt::sinf(f(0)));
+        if (n == "COS") return F(brt::cosf(f(0)));
+        if (n == "TAN") return F(brt::tanf(f(0)));
+        if (n == "ATN") return F(brt::atnf(f(0)));
+        if (n == "ASIN") return F(brt::asinf(f(0)));
+        if (n == "ACOS") return F(brt::acosf(f(0)));
+        if (n == "DEG") return F(brt::degf(f(0)));
+        if (n == "RAD") return F(brt::radf(f(0)));
+        if (n == "SINQ") return F(brt::sinq(f(0)));
+        if (n == "COSQ") return F(brt::cosq(f(0)));
         if (n == "ODD") return I(brt::odd(f(0)));
         if (n == "EVEN") return I(brt::even(f(0)));
         if (n == "MIN" || n == "MAX") {

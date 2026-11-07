@@ -330,7 +330,10 @@ private:
             {"BYTE", "brt::byteOf"},   {"CARD", "brt::cardOf"},   {"WORD", "brt::wordOf"},  {"LEN", "brt::len"},
             {"SPACE$", "brt::space"},  {"CHR$", "brt::chr"},      {"ASC", "brt::asc"},      {"VAL", "brt::val"},
             {"VAL?", "brt::valCount"}, {"UPPER$", "brt::upper"},  {"TRIM$", "brt::trim"},   {"#PACK", "brt::pack"},
-            {"STRING$", "brt::stringOf"},
+            {"STRING$", "brt::stringOf"}, {"EXP", "brt::expf"},  {"LOG", "brt::logf"},       {"LOG10", "brt::log10f"},
+            {"SIN", "brt::sinf"},      {"COS", "brt::cosf"},      {"TAN", "brt::tanf"},     {"ATN", "brt::atnf"},
+            {"ASIN", "brt::asinf"},    {"ACOS", "brt::acosf"},    {"DEG", "brt::degf"},     {"RAD", "brt::radf"},
+            {"SINQ", "brt::sinq"},     {"COSQ", "brt::cosq"},
         };
         if (const auto it = simple.find(n); it != simple.end()) return call(it->second, e);
         if (n == "CFLOAT") return a(0);

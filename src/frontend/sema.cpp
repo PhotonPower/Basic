@@ -43,9 +43,8 @@ hir::ExprPtr constFloat(f64 v) {
     return e;
 }
 
-// Builtins the runtime does not provide yet (transcendental functions, input, files ...).
+// Builtins the runtime does not provide yet (input, files ...).
 const std::set<std::string, std::less<>> kNotYet = {
-    "EXP", "LOG", "LOG10", "SIN", "COS", "TAN", "ASIN", "ACOS", "ATN", "SINQ", "COSQ", "DEG", "RAD",
     "INKEY$", "TIMER", "MKI$", "MKL$", "MKS$", "MKD$", "CVI", "CVL", "CVS", "CVD", "AT", "POS", "RINSTR",
 };
 

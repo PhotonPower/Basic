@@ -88,7 +88,31 @@ von Grundoperationen.
 - Die Funktionen sind nur aus Grundoperationen zusammengesetzt. Sind die Grundoperationen bitgenau,
   sind es die Funktionen damit automatisch, auch wenn ein Port sie in Assembler nachschreibt.
 - `SINQ`/`COSQ` werden exakt als `SIN(RAD(g))` bzw. `COS(RAD(g))` gerechnet (laut Referenz erlaubt).
+  Das Argument muss im Ganzzahlbereich liegen, sonst Fehler 2 wie im Original (probe13 T21).
 - `DEG`/`RAD` sind `x*180/PI` bzw. `x*PI/180` in genau dieser Reihenfolge.
+
+Umsetzung (`runtime/ref/rt_math.c`, 68000-Port `runtime/m68k/rt_math.s`, erzeugt von
+`tools/gen/gen_rt_math.py`, im Konformanztest bitgleich):
+
+| Funktion | Verfahren | Abstand zur libm (gemessen) |
+|---|---|---|
+| `EXP` | x = k·ln 2 + r (ln 2 in zwei Teilen), Taylor bis r¹³/13!, Skalieren mit 2ᵏ | ≤ 1 ulp |
+| `LOG`, `LOG10` | x = 2ᵉ·m, √½ < m ≤ √2; log m = f − s(f − R) mit s = f/(2+f), Reihe in s² bis 2/23 | ≤ 1 bzw. 2 ulp |
+| `SIN`, `COS`, `TAN` | Reduktion x = n·π/2 + r mit π/2 in vier Teilen (drei zu 26 Bit), Taylor bis r¹⁷/17! bzw. r¹⁶/16! | ≤ 3 ulp |
+| `ATN` | 1/x über 1, π/6-Verschiebung über tan(π/12), Reihe bis z¹⁴/29 | ≤ 3 ulp |
+| `ASIN`, `ACOS` | atan(x/√((1−x)(1+x))); `ACOS` über 0,5 als Halbwinkel 2·asin(√((1−x)/2)) | ≤ 3 ulp |
+| `^` (Exponent keine Ganzzahl) | EXP(y·LOG(x)) | |
+
+Die Reduktion nimmt je Durchgang die oberen 26 Bit von n, so dass alle Produkte n·Teil exakt sind.
+Bis |x| ≈ 10⁸ genügt ein Durchgang; darüber folgen weitere, das Ergebnis bleibt trotzdem sehr genau
+(`SIN(1E10)` auf etwa 14 Stellen, `SIN(1E20)` = −0,6452512 statt −0,6452513). Das Original ist bei
+großen Argumenten ungenau (`SIN(1E10)` = −0,491963 statt −0,487506, `SIN(1E20)` = 1; probe13 T12,
+T13) und hat ein ungenaues `PI` (`TAN(PI/2)` = 70368744177660); beides bilden wir nicht nach (D11).
+
+Ränder wie im Original (probe13): `EXP` unter etwa −745 ist 0 ohne Fehler, ein Überlauf Fehler 1;
+`LOG`/`LOG10` von x ≤ 0 und `(-8)^(1/3)` Fehler 6; `ASIN`/`ACOS` außerhalb von [−1, 1] Fehler 67
+„asin/acos error“; `0^-1` Fehler 0, `0^0` = 1, `0^0.5` = 0. Das Testprogramm `tests/programs/math.lst`
+gibt Werte auf 8 Stellen gerundet aus und stimmt so mit dem Original überein.
 
 ## Ganzzahlen
 

@@ -64,6 +64,12 @@ std::string errorText(int code) {
         "out of data",                                                      // 34
         "data not numeric",                                                 // 35
     };
+    switch (code & 0xFF) {  // further texts seen on the original
+        case 45: return "too many parameters";  // probe10
+        case 67: return "asin/acos error";      // probe13 T5
+        case 68: return "var-type mismatch";    // probe10
+        default: break;
+    }
     const int c = code & 0xFF;  // ERR$(-56) = "unknown error 200" (probe9 T6)
     if (c < static_cast<int>(sizeof texts / sizeof texts[0])) return texts[c];
     return "unknown error " + std::to_string(c);
@@ -127,10 +133,14 @@ f64 div(f64 a, f64 b) {
 }
 
 // x^y: integer exponents by repeated multiplication (exact for small powers such as 2^-26);
-// other exponents need EXP/LOG, which the runtime does not provide yet.
+// other exponents through rt_powf.
 f64 power(f64 x, f64 y) {
     const f64 t = fp_trunc(y);
-    if (fp_cmp(t, y) != 0) throw Error{RT_ERR_OVERFLOW};  // TODO: EXP(y*LOG(x)) with EXP and LOG
+    if (fp_cmp(t, y) != 0) {  // not an integer: EXP(y*LOG(x)) (probe13 T8-T10, T19)
+        const f64 r = rt_powf(x, y);
+        check();
+        return r;
+    }
     const f64 lim = 0x41DFFFFFFFC00000u;                    // 2^31-1
     if (fp_cmp(t & ~(std::uint64_t{1} << 63), lim) > 0) throw Error{RT_ERR_OVERFLOW};
     std::int64_t n = toInt(t);
@@ -202,6 +212,69 @@ f64 sqr(f64 x) {
     const f64 r = fp_sqrt(x);
     check();
     return r;
+}
+f64 expf(f64 x) {
+    const f64 r = rt_exp(x);
+    check();
+    return r;
+}
+f64 logf(f64 x) {
+    const f64 r = rt_log(x);
+    check();
+    return r;
+}
+f64 log10f(f64 x) {
+    const f64 r = rt_log10(x);
+    check();
+    return r;
+}
+f64 sinf(f64 x) {
+    const f64 r = rt_sin(x);
+    check();
+    return r;
+}
+f64 cosf(f64 x) {
+    const f64 r = rt_cos(x);
+    check();
+    return r;
+}
+f64 tanf(f64 x) {
+    const f64 r = rt_tan(x);
+    check();
+    return r;
+}
+f64 atnf(f64 x) {
+    const f64 r = rt_atn(x);
+    check();
+    return r;
+}
+f64 asinf(f64 x) {
+    const f64 r = rt_asin(x);
+    check();
+    return r;
+}
+f64 acosf(f64 x) {
+    const f64 r = rt_acos(x);
+    check();
+    return r;
+}
+f64 degf(f64 x) {
+    const f64 r = rt_deg(x);
+    check();
+    return r;
+}
+f64 radf(f64 x) {
+    const f64 r = rt_rad(x);
+    check();
+    return r;
+}
+f64 sinq(f64 x) {
+    toInt(x);
+    return sinf(radf(x));
+}
+f64 cosq(f64 x) {
+    toInt(x);
+    return cosf(radf(x));
 }
 std::int32_t odd(f64 x) { return (toInt(x) & 1) != 0 ? -1 : 0; }
 std::int32_t even(f64 x) { return (toInt(x) & 1) == 0 ? -1 : 0; }

@@ -1,9 +1,9 @@
 ;! module    rt_power
 ;! provides  rt_power
-;! requires  fp_trunc fp_cmp fp_mul fp_div fp_to_i32 rt_error
+;! requires  fp_trunc fp_cmp fp_mul fp_div fp_to_i32 rt_error rt_powf
 ;! group     float
 ;! clobbers  D0-D3/A0-A1
-;! doc       x^y for integer y by repeated multiplication (as platform/pc power); otherwise error 1.
+;! doc       x^y: integer y by repeated multiplication, otherwise rt_powf (as platform/pc power).
 
 ; D0:D1 = x, D2:D3 = y -> D0:D1
 
@@ -20,7 +20,7 @@ rt_power:
         MOVE.L  D5,D3
         JSR     fp_cmp
         TST.L   D0
-        BNE     .err
+        BNE     .frac
         MOVE.L  D4,D0                   ; |y| <= 2^31 - 1
         BCLR    #31,D0
         MOVE.L  D5,D1
@@ -69,7 +69,13 @@ rt_power:
         MOVEQ   #0,D1
         JSR     fp_div
         BRA     .done
-.err:   MOVEQ   #1,D0                   ; RT_ERR_OVERFLOW (non-integer exponent: no EXP/LOG yet)
+.frac:  MOVE.L  A2,D0                   ; not an integer: EXP(y*LOG(x))
+        MOVE.L  A3,D1
+        MOVE.L  D4,D2
+        MOVE.L  D5,D3
+        JSR     rt_powf
+        BRA     .done
+.err:   MOVEQ   #1,D0                   ; RT_ERR_OVERFLOW (|y| >= 2^31)
         JSR     rt_error
         MOVEQ   #0,D0
         MOVEQ   #0,D1

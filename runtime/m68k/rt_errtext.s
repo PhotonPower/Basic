@@ -16,7 +16,17 @@ rt_err_text:
         MOVEQ   #0,D0
         MOVE.B  (A0)+,D0
         BRA     rt_errtext__copy
-.unk:   LINK    A6,#-20                 ; "unknown error " + number (1-3 digits)
+.unk:   LEA     rt_errtext__more,A0     ; further texts seen on the original
+.mo:    MOVE.W  (A0)+,D1
+        BMI     .num
+        MOVE.L  (A0)+,A1
+        CMP.W   D0,D1
+        BNE     .mo
+        MOVE.L  A1,A0
+        MOVEQ   #0,D0
+        MOVE.B  (A0)+,D0
+        BRA     rt_errtext__copy
+.num:   LINK    A6,#-20                 ; "unknown error " + number (1-3 digits)
         LEA     -20(A6),A1
         LEA     rt_errtext__t7+1,A0
         MOVEQ   #13,D1
@@ -56,6 +66,23 @@ rt_errtext__copy:
         BPL     .l
         MOVE.L  D1,A0
         RTS
+
+; (number, text) for numbers above 35, ended by -1
+rt_errtext__more:
+        DC.W    45
+        DC.L    rt_errtext__t45
+        DC.W    67
+        DC.L    rt_errtext__t67
+        DC.W    68
+        DC.L    rt_errtext__t68
+        DC.W    -1
+rt_errtext__t45:
+        DC.B    19,'too many parameters'
+rt_errtext__t67:
+        DC.B    15,'asin/acos error'
+rt_errtext__t68:
+        DC.B    17,'var-type mismatch'
+        EVEN
 
 rt_errtext__tab:
         DC.L    rt_errtext__t0

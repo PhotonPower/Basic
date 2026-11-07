@@ -937,6 +937,16 @@ private:
         static const std::map<std::string, std::string> f2f = {
             {"INT", "fp_int"}, {"TRUNC", "fp_trunc"}, {"FIX", "fp_trunc"}, {"FRAC", "fp_frac"}, {"SQR", "fp_sqrt"}, {"ABS", "fp_abs"}};
         if (const auto it = f2f.find(n); it != f2f.end()) return rtcall(it->second, {arg(e, 0)}, VT::F64);
+        static const std::map<std::string, std::string> math = {
+            {"EXP", "rt_exp"}, {"LOG", "rt_log"}, {"LOG10", "rt_log10"}, {"SIN", "rt_sin"}, {"COS", "rt_cos"},
+            {"TAN", "rt_tan"}, {"ATN", "rt_atn"}, {"ASIN", "rt_asin"}, {"ACOS", "rt_acos"}, {"DEG", "rt_deg"},
+            {"RAD", "rt_rad"}};
+        if (const auto it = math.find(n); it != math.end()) return rtcall(it->second, {arg(e, 0)}, VT::F64);
+        if (n == "SINQ" || n == "COSQ") {  // SIN(RAD(x)); x must be in the integer range (probe13 T21)
+            Reg x = arg(e, 0);
+            rtcall("fp_to_i32", {x}, VT::I32);
+            return rtcall(n == "SINQ" ? "rt_sin" : "rt_cos", {rtcall("rt_rad", {x}, VT::F64)}, VT::F64);
+        }
         if (n == "CFLOAT") return arg(e, 0);
         if (n == "SGN") return rtcall("fp_cmp", {arg(e, 0), constF(0)}, VT::I32);
         if (n == "CINT") return rtcall("fp_to_i32", {rtcall("fp_cint", {arg(e, 0)}, VT::F64)}, VT::I32);

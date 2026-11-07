@@ -40,6 +40,12 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 - `RESUME` setzt `ERR` auf 0 (probe12 T1); damit ist `errors2` am Original gleich.
 - `gfa_run.py`: Startmenü der Diskette nach einem Kaltstart (`boot` in `keys.json`), längere
   Wartezeiten für den Merge-Dialog und das Einlesen.
+- Transzendente Funktionen `EXP`, `LOG`, `LOG10`, `SIN`, `COS`, `TAN`, `ATN`, `ASIN`, `ACOS`,
+  `SINQ`, `COSQ`, `DEG`, `RAD` und `x^y` mit gebrochenem Exponenten: deterministisch aus den
+  Grundoperationen (`runtime/ref/rt_math.c`, höchstens 3 ulp von der libm), im Interpreter, im
+  C++-Ziel und auf dem 68000 (erzeugt von `tools/gen/gen_rt_math.py`, im Konformanztest bitgleich).
+  Ränder und Fehler wie im Original (probe13, neuer Fehler 67 „asin/acos error“); Testprogramm
+  `math`.
 - Amiga-Ziel: `basicc --target amiga` schreibt ein AmigaDOS-Programm (Hunk). `platform/amiga`:
   `dos.library`, gepufferte Ausgabe über `Write()`, eigener Stapel von 64 KiB, Speicher über
   `AllocMem`, Ende aus jeder Tiefe. String-Heap und Array-Bereich kommen jetzt von `plat_alloc`

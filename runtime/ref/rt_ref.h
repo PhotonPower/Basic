@@ -30,7 +30,8 @@ enum {
     RT_ERR_LOG = 6,       /* logarithm only for|numbers greater zero */
     RT_ERR_STR_LONG = 10, /* string too long|max. 32767 chars */
     RT_ERR_INDEX = 16,    /* array index out of range */
-    RT_ERR_NOT_OPEN = 24  /* file not open */
+    RT_ERR_NOT_OPEN = 24, /* file not open */
+    RT_ERR_ASIN = 67      /* asin/acos error (probe13 T5, T6) */
 };
 
 void rt_error(int code);
@@ -65,6 +66,20 @@ f64 fp_round(f64 x, int32_t n);    /* ROUND(x,n): INT(x*10^n+0.5)/10^n (ties upw
 f64 fp_round_pack(int neg, int32_t e, uint64_t m, int *overflow);
 /* The same, but overflow raises error 1. */
 f64 fp_finish(int neg, int32_t e, uint64_t m);
+
+/* ---- transcendental functions (rt_math.c): deterministic, not correctly rounded ------------- */
+f64 rt_exp(f64 x);                 /* overflow -> error 1, very small -> 0 */
+f64 rt_log(f64 x);                 /* x <= 0 -> error 6 */
+f64 rt_log10(f64 x);
+f64 rt_sin(f64 x);
+f64 rt_cos(f64 x);
+f64 rt_tan(f64 x);
+f64 rt_atn(f64 x);
+f64 rt_asin(f64 x);                /* |x| > 1 -> error 67 */
+f64 rt_acos(f64 x);
+f64 rt_powf(f64 x, f64 y);         /* x^y for a non-integer y */
+f64 rt_deg(f64 x);
+f64 rt_rad(f64 x);
 
 /* ---- number <-> text (rt_*) --------------------------------------------------------------- */
 #define RT_FMT_FLT_MAX 32          /* buffer size for rt_fmt_flt, including the terminating 0 */

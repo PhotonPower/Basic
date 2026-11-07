@@ -111,6 +111,7 @@ Diese Punkte sind aus dem Handbuch nicht sicher zu entnehmen und werden am Origi
   | 18 | wrong # of indices | (Text aus `ERR$`, probe9 T8) |
   | 34 | out of data | (Text aus `ERR$`, probe9 T9) |
   | 35 | data not numeric | `READ x` bei `DATA abc`; der Datenzeiger bleibt stehen (probe9 T1, T2) |
+  | 67 | asin/acos error | `ASIN(2)`, `ACOS(-1.5)` (probe13 T5, T6) |
   | 24 | file not open | `PRINT #1` nach einem abgefangenen Fehler, siehe unten |
 
   `|` trennt im Original die Zeilen der Fehlermeldung. Alle Texte 0–35 stehen in

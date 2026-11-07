@@ -75,6 +75,20 @@ f64 frac(f64 x);
 std::int32_t cint(f64 x);
 f64 round(f64 x, std::int32_t n);
 f64 sqr(f64 x);
+f64 expf(f64 x);
+f64 logf(f64 x);
+f64 log10f(f64 x);
+f64 sinf(f64 x);
+f64 cosf(f64 x);
+f64 tanf(f64 x);
+f64 atnf(f64 x);
+f64 asinf(f64 x);
+f64 acosf(f64 x);
+f64 degf(f64 x);
+f64 radf(f64 x);
+f64 sinq(f64 x);  // SIN(RAD(x)); x must be in the integer range (error 2, probe13 T21)
+f64 cosq(f64 x);
+
 std::int32_t odd(f64 x);
 std::int32_t even(f64 x);
 f64 rnd();

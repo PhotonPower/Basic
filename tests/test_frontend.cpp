@@ -189,7 +189,7 @@ void testSema() {
     CHECK_EQ(hir("p(1)\nPROCEDURE p(VAR a)\nRETURN"), std::string("error 1: var-type mismatch: VAR parameter needs a variable\n"));
     CHECK_EQ(hir("GOTO x"), std::string("error 1: label 'X' not found\n"));
     CHECK_EQ(hir("GOTO x\nPROCEDURE p\nx:\nRETURN"), std::string("error 1: GOTO into or out of a procedure\n"));
-    CHECK_EQ(hir("x=SIN(1)"), std::string("error 1: SIN is not supported yet\n"));
+    CHECK_EQ(hir("x=TIMER"), std::string("error 1: TIMER is not supported yet\n"));
     CHECK_EQ(hir("x=LEFT$(1)"), std::string("error 1: LEFT$ expects a string here\n"));
     CHECK_EQ(hir("SELECT 1\nCASE \"abcde\"\nENDSELECT"), std::string("error 2: CASE strings have at most 4 characters\n"));
 }
