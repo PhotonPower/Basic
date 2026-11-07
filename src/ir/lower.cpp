@@ -660,7 +660,45 @@ private:
             return rtcall("fp_to_i32", {rtcall("fp_int", {rtcall("fp_mul", {r, x}, VT::F64)}, VT::F64)}, VT::I32);
         }
         if (n == "RAND") return rtcall("rt_rand", {rtcall("fp_to_i32", {arg(e, 0)}, VT::I32)}, VT::I32);
+        if (Reg r; intBuiltin(e, r)) return r;
         return stringBuiltin(e);
+    }
+
+    // integer and bit functions: arguments as 32-bit integers (error 2 out of range)
+    bool intBuiltin(const hir::Expr& e, Reg& out) {
+        const std::string& n = e.sval;
+        auto ia = [&](std::size_t k) { return toI(arg(e, k)); };
+        static const std::map<std::string, std::string> two = {
+            {"MUL", "rt_imul"}, {"DIV", "rt_idiv"}, {"MOD", "rt_imod"},   {"BTST", "rt_btst"},
+            {"BCLR", "rt_bclr"}, {"BSET", "rt_bset"}, {"BCHG", "rt_bchg"}};
+        static const std::map<std::string, std::string> one = {
+            {"SWAP", "rt_swap"}, {"WORD", "rt_word"}, {"CARD", "rt_card"}, {"BYTE", "rt_byte"}};
+        static const std::map<std::string, std::string> ops = {
+            {"ADD", "add"}, {"SUB", "sub"}, {"AND", "and"}, {"OR", "or"}, {"XOR", "xor"}};
+        if (e.type == Type::Str) return false;
+        if (const auto it = ops.find(n); it != ops.end() && e.args.size() == 2) {
+            Reg a = ia(0);
+            out = op(it->second.c_str(), a, ia(1));
+            return true;
+        }
+        if (const auto it = two.find(n); it != two.end() && e.args.size() == 2) {
+            Reg a = ia(0);
+            out = rtcall(it->second, {a, ia(1)}, VT::I32);
+            return true;
+        }
+        if (const auto it = one.find(n); it != one.end()) {
+            out = rtcall(it->second, {ia(0)}, VT::I32);
+            return true;
+        }
+        if (n.size() >= 3 && (n.rfind("SHL", 0) == 0 || n.rfind("SHR", 0) == 0 || n.rfind("ROL", 0) == 0 || n.rfind("ROR", 0) == 0)) {
+            const int width = n.size() == 3 ? 32 : n[3] == '&' ? 16 : 8;
+            const int kind = (n[0] == 'R' ? 2 : 0) + (n[2] == 'R' ? 1 : 0);
+            Reg x = ia(0);
+            Reg c = ia(1);
+            out = rtcall("rt_shift", {x, c, constI(width), constI(kind)}, VT::I32);
+            return true;
+        }
+        return false;
     }
 
     Reg toI(Reg v) { return v.type == VT::F64 ? rtcall("fp_to_i32", {v}, VT::I32) : v; }

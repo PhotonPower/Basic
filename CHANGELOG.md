@@ -19,6 +19,9 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
   Emulator mit derselben Ausgabe wie der Interpreter; `test_m68k_programs` vergleicht.
 - MC68000: Strings nach D18 (Deskriptoren, Rückverweise, Zusammenschieben, Zwischenergebnisse je
   Anweisung) mit den wichtigsten String-Funktionen; `control` läuft im Emulator.
+- MC68000: Bit- und Ganzzahlfunktionen (`ADD`/`SUB`/`MUL`/`DIV`/`MOD`, `SHL`/`SHR`/`ROL`/`ROR` in
+  8/16/32 Bit, `BTST`/`BCLR`/`BSET`/`BCHG`, `SWAP`, `WORD`, `CARD`, `BYTE`) in `rt_bits`, im
+  Konformanztest gegen die Semantik von `platform/pc` geprüft; `arith` läuft im Emulator.
 - Testprogramm `strheap` für den String-Heap; dabei behoben: `rt_str_set_ret` erwartete den
   Deskriptor in A1 statt A0, das Ergebnis von String-Funktionen ging verloren (Fehler 8).
 - MC68000, erster Teil: Quelltext-Linker `src/link` (Modulköpfe, Hülle über `requires`,

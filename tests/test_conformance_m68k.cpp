@@ -127,6 +127,26 @@ public:
         return {r, static_cast<int>(rt_->read32(kErrorCell))};
     }
 
+    // Calls a routine with integer arguments in D0-D3; returns D0 (or -2 on a failed call).
+    std::uint32_t callI(const std::string& name, std::uint32_t d0, std::uint32_t d1 = 0, std::uint32_t d2 = 0,
+                        std::uint32_t d3 = 0) {
+        M68kRegs in;
+        in.d = {d0, d1, d2, d3, 0x44444444, 0x55555555, 0x66666666, 0x77777777};
+        in.a = {0xA0A0A0A0, 0xA1A1A1A1, 0xA2A2A2A2, 0xA3A3A3A3, 0xA4A4A4A4, 0xA5A5A5A5, 0xA6A6A6A6};
+        const auto res = rt_->call(name, in);
+        ++g_checks;
+        bool preserved = true;
+        for (int k = 4; k < 8; ++k) preserved = preserved && res.regs.d[static_cast<std::size_t>(k)] == in.d[static_cast<std::size_t>(k)];
+        for (int k = 2; k < 7; ++k) preserved = preserved && res.regs.a[static_cast<std::size_t>(k)] == in.a[static_cast<std::size_t>(k)];
+        if (!res.ok || !preserved) {
+            ++g_failures;
+            std::cerr << name << ": " << (res.ok ? "registers not preserved" : res.error) << "\n";
+            return 0xFFFFFFFEu;
+        }
+        instructions_ += res.instructions;
+        return res.regs.d[0];
+    }
+
     std::uint64_t instructions() const { return instructions_; }
 
 private:
@@ -390,6 +410,55 @@ extern "C" void rt_error(int code) {
     if (g_error < 0) g_error = code;
 }
 
+// Bit functions against the semantics of platform/pc (brt::shift, brt::bitOp; that library cannot
+// be linked here because it defines rt_error itself).
+std::uint32_t refShift(std::uint32_t x, std::uint32_t count, int width, int kind) {
+    std::uint32_t n = count & 31;
+    const std::uint32_t mask = width == 32 ? 0xFFFFFFFFu : (1u << width) - 1;
+    std::uint32_t v = x & mask;
+    if (kind >= 2) {
+        n %= static_cast<std::uint32_t>(width);
+        const bool left = kind == 2;
+        if (n != 0) v = left ? ((v << n) | (v >> (width - static_cast<int>(n)))) & mask : ((v >> n) | (v << (width - static_cast<int>(n)))) & mask;
+    } else {
+        v = n >= static_cast<std::uint32_t>(width) ? 0 : (kind == 0 ? (v << n) & mask : v >> n);
+    }
+    if (width == 16) return static_cast<std::uint32_t>(static_cast<std::int32_t>(static_cast<std::int16_t>(static_cast<std::uint16_t>(v))));
+    return v;
+}
+
+void bitsTest(Runtime& rt, int cases) {
+    Rng r;
+    int failures = 0;
+    auto check = [&](const char* name, std::uint32_t got, std::uint32_t expect, std::uint32_t x, std::uint32_t n, int w) {
+        if (got == expect) return;
+        ++g_failures;
+        if (++failures <= 10) std::fprintf(stderr, "%s(%08X, %u) width %d: %08X, expected %08X\n", name, x, n, w, got, expect);
+    };
+    const char* kinds[] = {"SHL", "SHR", "ROL", "ROR"};
+    auto one = [&](std::uint32_t x, std::uint32_t n) {
+        for (int w : {8, 16, 32})
+            for (int k = 0; k < 4; ++k)
+                check(kinds[k], rt.callI("rt_shift", x, n, static_cast<std::uint32_t>(w), static_cast<std::uint32_t>(k)), refShift(x, n, w, k), x, n, w);
+        const std::uint32_t bit = 1u << (n & 31);
+        check("BTST", rt.callI("rt_btst", x, n), (x & bit) != 0 ? 0xFFFFFFFFu : 0, x, n, 32);
+        check("BCLR", rt.callI("rt_bclr", x, n), x & ~bit, x, n, 32);
+        check("BSET", rt.callI("rt_bset", x, n), x | bit, x, n, 32);
+        check("BCHG", rt.callI("rt_bchg", x, n), x ^ bit, x, n, 32);
+        check("SWAP", rt.callI("rt_swap", x), (x << 16) | (x >> 16), x, 0, 32);
+        check("WORD", rt.callI("rt_word", x), static_cast<std::uint32_t>(static_cast<std::int32_t>(static_cast<std::int16_t>(x & 0xFFFF))), x, 0, 32);
+        check("CARD", rt.callI("rt_card", x), x & 0xFFFF, x, 0, 32);
+        check("BYTE", rt.callI("rt_byte", x), x & 0xFF, x, 0, 32);
+        check("MUL", rt.callI("rt_imul", x, n), x * n, x, n, 32);
+    };
+    for (std::uint32_t x : {0u, 1u, 0x80u, 0x81u, 0x8000u, 0xFFFFu, 0x80000000u, 0xFFFFFFFFu, 0x12345678u})
+        for (std::uint32_t n : {0u, 1u, 7u, 8u, 9u, 15u, 16u, 17u, 31u, 32u, 33u, 0xFFFFFFFFu, 0x80000000u}) one(x, n);
+    for (int i = 0; i < cases / 8; ++i) {
+        const auto x = static_cast<std::uint32_t>(r.next());
+        one(x, i % 2 == 0 ? static_cast<std::uint32_t>(r.range(0, 40)) : static_cast<std::uint32_t>(r.next() >> 16));
+    }
+}
+
 int main() {
     Runtime rt;
     if (g_failures != 0) return report("conformance_m68k");
@@ -413,6 +482,7 @@ int main() {
     unary(rt, "fp_sqrt", fp_sqrt, cases);
     roundTest(rt, cases);
     randomTest(rt);
+    bitsTest(rt, cases);
     formatTest(rt, cases / 4);
     std::cout << "68000 instructions executed: " << rt.instructions() << "\n";
     return report("conformance_m68k");
