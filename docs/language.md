@@ -68,19 +68,46 @@ Geplanter Umfang (✓ geplant, – nicht vorgesehen, (✓) mit Einschränkung):
 ## Offene Sprachfragen
 
 Diese Punkte sind aus dem Handbuch nicht sicher zu entnehmen und werden am Original geklärt
-(`tests/probes/probe1.lst`, Ablauf in [gfa-original.md](gfa-original.md)). Ergebnisse werden als
-Testprogramme unter `tests/programs` festgehalten.
+(`tests/probes/*.lst`, Ablauf in [gfa-original.md](gfa-original.md), Ergebnisse unter
+`tests/probes/results`). Bestätigtes wird als Testprogramm unter `tests/programs` festgehalten.
 
-- **Arithmetik in Ausdrücken:** Rechnet GFA `a%=b%+c%` in Integer oder in Float, und gibt es eine
-  Überlaufprüfung? (Befehle `ADD`/`INC` sind laut Referenz ohne Prüfung.)
-- **`FOR … NEXT`:** Laut Handbuch wird die Schleife mindestens einmal durchlaufen, die Endbedingung am
-  `NEXT` geprüft (Anhang C, Punkt 15). Werden Endwert und Schrittweite einmal oder bei jedem Durchlauf
-  ausgewertet? Wert der Laufvariablen nach der Schleife?
-- **Zahlenausgabe:** genaue Regeln von `PRINT` für Floats (Exponentdarstellung, führendes Leerzeichen,
-  `0.5` vs. `.5`) und die Wirkung von `DEFNUM` und `MODE`.
-- **`CINT`:** Rundung bei genau ,5.
-- **Fehlernummern:** Das Handbuch enthält keine vollständige Tabelle der GFA-Fehlermeldungen
-  (Anhang C, Punkt 17); Nummern für Überlauf, Division durch 0 usw. sind zu ermitteln.
+- ~~**Arithmetik in Ausdrücken:**~~ Überlauf bei der Zuweisung an `%`/`&` ist ein Laufzeitfehler (2
+  bzw. 4), die Zielvariable bleibt unverändert; `INC` bricht ohne Fehler um (probe1 T1–T6, Details in
+  [numerics.md](numerics.md#ganzzahlen)). Offen: Wird im Ausdruck in Integer oder in Float gerechnet
+  (probe2)?
+- **`FOR … NEXT`** (probe1 T18–T21), entgegen dem Handbuch (Anhang C, Punkt 15):
+  - `FOR i%=5 TO 1` läuft **nicht** (0 Durchläufe); die Laufvariable hat danach den Startwert 5. Die
+    Bedingung wird also vor dem ersten Durchlauf geprüft.
+  - Nach `FOR i%=1 TO 3` ist `i%` = 4 (Endwert + Schrittweite).
+  - Der Endwert wird **einmal** beim Eintritt ausgewertet: Eine Änderung von `e%` in der Schleife
+    ändert die Zahl der Durchläufe nicht.
+  - `FOR x=0 TO 1 STEP 0.1` läuft 10-mal (Folge der 48-Bit-Mantisse, siehe
+    [numerics.md](numerics.md#fließkommaformat)).
+  - Offen (probe2): negative Schrittweite, Schrittweite einmal oder jedes Mal ausgewertet, Überlauf der
+    Laufvariablen am Bereichsende.
+- **Zahlenausgabe:** Grundregeln sind geklärt (kein Leerzeichen vor positiven Zahlen, `0.5`, 13
+  Stellen, `1.0E+15`, Kommazonen zu 16 Spalten; [numerics.md](numerics.md#zahl--text)). Offen:
+  Schwellen der Exponentdarstellung, `DEFNUM`, `MODE` (probe2).
+- ~~**`CINT`:**~~ rundet bei genau ,5 von 0 weg (probe1 T16).
+- **Fehlernummern** (Anhang C, Punkt 17), am Original ermittelt, Text wie von `ERR$` geliefert:
+
+  | Nr. | `ERR$` | Auslöser |
+  |---|---|---|
+  | 0 | divide by zero | `1/0`, `1 DIV 0` (probe1 T14, T15) |
+  | 2 | no integer\|-2147483648 .. 2147483647 | Überlauf bei Zuweisung an `%` (probe1 T1) |
+  | 4 | no word\|-32768 .. 32767 | Überlauf bei Zuweisung an `&` (probe1 T4) |
+  | 5 | no negative squareroot | `SQR(-1)` (probe1 T51) |
+  | 6 | logarithm only for\|numbers greater zero | `LOG(0)` (probe1 T52) |
+  | 16 | array index out of range | `f%(10)` bei `DIM f%(5)` (probe1 T53) |
+  | 24 | file not open | `PRINT #1` nach einem abgefangenen Fehler, siehe unten |
+
+  `|` trennt im Original die Zeilen der Fehlermeldung.
+- **Dateikanäle nach einem Fehler:** Nach einem mit `ON ERROR GOSUB` abgefangenen Fehler ist ein
+  offener Kanal unbrauchbar: `PRINT #1` meldet Fehler 24 „file not open“, `OPEN "A",#1` dagegen
+  „file already open“. Erst `CLOSE #1` und erneutes `OPEN "A"` machen ihn wieder nutzbar; was vorher
+  geschrieben wurde, bleibt erhalten (Versuche beim Lauf von probe1, siehe
+  [gfa-original.md](gfa-original.md#regeln-für-prüfprogramme)). Ob das auch ohne `ON ERROR` oder nur
+  für bestimmte Fehler gilt, ist offen.
 - **`SELECT` mit Mehrzeichen-Strings:** Packung der Zeichen (Anhang C, Punkt 8).
 - **Ausgabe auf dem Amiga:** Ein GFA-Programm gibt in ein Fenster aus (öffnet es bei Bedarf). Für
   den ersten Stand schreibt das kompilierte Programm auf `Output()` der Shell; Fensterausgabe folgt mit

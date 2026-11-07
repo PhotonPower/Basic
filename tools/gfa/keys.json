@@ -1,21 +1,26 @@
 {
   "_comment": [
     "Key sequence that gfa_run.py sends to the GFA-BASIC editor in FS-UAE.",
-    "Steps: key:<name> (with shift+/ctrl+/alt+/cmd+), type:<text>, wait:<seconds>.",
+    "Steps: key:<name> (with shift+/ctrl+/alt+/cmd+, optional *count), type:<text>, wait:<seconds>.",
     "{file} is replaced by the Amiga path of the program, e.g. dh0:probe1.lst.",
-    "Not yet verified on the real setup - check the first run with --screenshot",
-    "and adjust (docs/gfa-original.md)."
+    "Checked on the original (GFA-BASIC 3.5 English, US keymap): New (Shift+F4) always asks",
+    "'NEW - Kill program?' (Return = Kill); the Merge requester (F2) has its file field preset to",
+    "the disk name with the cursor at the start, so it is cleared with Del before typing.",
+    "The first Return closes the alert ('Program End' or an error) left by the previous run."
   ],
   "run": [
     "key:return",
     "wait:1",
     "key:shift+f4",
     "wait:1",
+    "key:return",
+    "wait:1",
     "key:f2",
-    "wait:1.5",
+    "wait:2",
+    "key:delete*40",
     "type:{file}",
     "key:return",
-    "wait:3",
+    "wait:6",
     "key:shift+f10"
   ]
 }

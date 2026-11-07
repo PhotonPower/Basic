@@ -14,14 +14,15 @@ eingecheckt werden nur die Ergebnisse.
    Festplatte `DH0:` ein.
 2. **Konfiguration:** `tools/gfa/gfa.fs-uae.example` nach `tools/gfa/gfa.fs-uae` kopieren (wird von
    git ignoriert) und anpassen: Pfad zum Kickstart-ROM, `floppy_drive_0` auf
-   `~/Documents/FS-UAE/GFABasic35.adf`. Die Boot-Priorität `-128` für `DH0:` sorgt dafür, dass
+   die GFA-BASIC-Diskette (hier `~/Documents/FS-UAE/Floppies/GFABasic35.adf`). Die Boot-Priorität `-128` für `DH0:` sorgt dafür, dass
    weiter von der Diskette gestartet wird. Alternativ mit `--config` bzw. `GFA_FSUAE_CONFIG` auf eine
    eigene Konfiguration zeigen.
 3. **Bedienungshilfen:** In den Systemeinstellungen unter *Datenschutz & Sicherheit → Bedienungshilfen*
    dem Terminal (bzw. der App, aus der Claude Code läuft) erlauben, den Computer zu steuern. Sonst
    lehnt `osascript` die Tastendrücke ab. Für Bildschirmfotos zusätzlich *Bildschirmaufnahme*.
-4. **Tastaturbelegung:** `--amiga-layout de` (Standard) oder `us`, passend zur Tastaturbelegung, die
-   auf dem Amiga eingestellt ist. Das Skript tippt nur Buchstaben, Ziffern, `.` und `:`.
+4. **Tastaturbelegung:** `--amiga-layout us` (Standard) oder `de`, passend zur Tastaturbelegung, die
+   auf dem Amiga eingestellt ist. Die vorhandene Diskette (GFA-BASIC 3.5 englisch) startet mit der
+   US-Belegung; mit `de` kommt `:` als `>` an. Das Skript tippt nur Buchstaben, Ziffern, `.` und `:`.
 5. **Erster Lauf von Hand beobachten:**
    ```sh
    python3 tools/gfa/gfa_run.py tests/probes/probe1.lst --screenshot
@@ -36,10 +37,16 @@ eingecheckt werden nur die Ergebnisse.
 gfa_run.py probe1.lst
   ├─ probe1.lst → ~/Documents/FS-UAE/gfa-share/probe1.lst   (datei$ → "DH0:probe1.txt")
   ├─ FS-UAE starten, falls es nicht läuft; --boot-wait Sekunden warten
-  ├─ osascript: Return, New (Shift+F4), Merge (F2), "dh0:probe1.lst", Return, Run (Shift+F10)
+  ├─ osascript: Return (schließt die Meldung „Program End“ oder einen Fehler des letzten Laufs),
+  │            New (Shift+F4), Return („NEW - Kill program?“ → Kill), Merge (F2),
+  │            40 × Del (das Dateifeld ist mit dem Diskettennamen vorbelegt, Cursor am Anfang),
+  │            "dh0:probe1.lst", Return, Run (Shift+F10)
   ├─ warten, bis gfa-share/probe1.txt eine Zeile "ende" enthält (--timeout)
   └─ Ergebnis ausgeben (--out kopiert es zusätzlich); bei Zeitüberschreitung Bildschirmfoto probe1.png
 ```
+
+Das FS-UAE-Menü (F12) darf nicht offen sein, sonst gehen die Tastendrücke dorthin; Escape schließt
+es.
 
 Rückgabewert: `0` Ergebnis vollständig, `1` Zeitüberschreitung (Bildschirmfoto ansehen), `2`
 Einrichtungsfehler.
@@ -51,6 +58,9 @@ Einrichtungsfehler.
 - Letzte Zeile der Ergebnisdatei ist `ende` (daran erkennt das Skript das Ende).
 - Fehler fängt eine `ON ERROR GOSUB`-Prozedur ab, schreibt `ERR` und `ERR$(ERR)` und setzt mit
   `RESUME NEXT` fort; sie muss `ON ERROR GOSUB` erneut setzen (Handbuch).
+- Nach einem abgefangenen Fehler ist der Ausgabekanal unbrauchbar („file not open“). Die
+  Fehlerprozedur merkt sich deshalb zuerst `ERR`, schließt den Kanal und öffnet ihn mit `OPEN "A"`
+  neu (siehe `probe1.lst`, Prozedur `fehler`).
 - Jeder Test hat eine Kennung (`T1`, `T2` …), damit Ergebnisse eindeutig zugeordnet werden können.
 
 ## Auswertung

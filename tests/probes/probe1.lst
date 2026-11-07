@@ -137,7 +137,12 @@ PRINT "fertig: ";datei$
 END
 '
 PROCEDURE fehler
-  PRINT #1,"   -> ERR ";ERR;" ";ERR$(ERR)
+  ' Original: after an error channel #1 is unusable (ERR 24 file not open)
+  ' until it is closed and opened again
+  e%=ERR
+  CLOSE #1
+  OPEN "A",#1,datei$
+  PRINT #1,"   -> ERR ";e%;" ";ERR$(e%)
   ON ERROR GOSUB fehler
   RESUME NEXT
 RETURN

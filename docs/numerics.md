@@ -20,17 +20,40 @@ Bewusst vereinfachte Semantik, damit die Z80-Implementierung klein bleibt:
 |---|---|
 | Rundung | nur „round to nearest, ties to even“ |
 | denormalisierte Zahlen | gibt es nicht: Ergebnisse unterhalb von 2⁻¹⁰²² werden zu 0 |
-| ±Unendlich, NaN | gibt es nicht: Überlauf löst einen GFA-Laufzeitfehler aus |
-| Division durch 0 | GFA-Laufzeitfehler |
+| ±Unendlich, NaN | gibt es nicht: Überlauf löst einen GFA-Laufzeitfehler aus (Original: **kein** Fehler bei `1E300*1E300` und `EXP(1000)`, probe1 T48, T50; Ergebnis noch unbekannt) |
+| Unterlauf | Ergebnis 0 ohne Fehler (wie Original, probe1 T49) |
+| Division durch 0 | GFA-Laufzeitfehler (Original: Fehler 0 „divide by zero“, probe1 T15) |
 | −0 | gibt es nicht: Ergebnisse 0 haben immer positives Vorzeichen |
-| `SQR`, `LOG` außerhalb des Definitionsbereichs | GFA-Laufzeitfehler (z. B. #5 bei `SQR` negativ) |
+| `SQR`, `LOG` außerhalb des Definitionsbereichs | GFA-Laufzeitfehler: 5 bei `SQR` negativ, 6 bei `LOG(0)` (probe1 T51, T52) |
 
 Wird eine Zahl aus dem Speicher gelesen (`DOUBLE{}`, `CVD`, Datei), die denormalisiert, unendlich oder
 NaN ist, wird sie beim Laden normalisiert (Denormale → 0) bzw. löst einen Fehler aus.
 
 `SINGLE{}` und `MKS$`/`CVS` (4-Byte-Format) sowie das GFA-eigene 8-Byte-Format von `FLOAT{}` und
-`MKD$`/`CVD` werden nur an diesen Schnittstellen konvertiert. Die genaue Bitbelegung des GFA-Formats
-ist noch zu klären ([roadmap.md](roadmap.md#offene-fragen)).
+`MKD$`/`CVD` werden nur an diesen Schnittstellen konvertiert.
+
+**GFA-eigenes 8-Byte-Format** (am Original ermittelt, probe1 T42–T45): 6 Byte Mantisse, dann 2 Byte
+Exponent, beide Big-Endian.
+
+- Mantisse: 48 Bit **mit** führender 1 (kein verstecktes Bit), normalisiert auf 0,5 ≤ m < 1.
+- Exponent: Bias `$3FE`, Wert = m · 2^(e − `$3FE`).
+- Vorzeichen: Bei negativen Zahlen ist das Exponentwort negiert (Zweierkomplement), die Mantisse
+  bleibt positiv.
+- 0 ist `00 00 00 00 00 00 00 00`.
+
+| Wert | Bytes |
+|---|---|
+| 1 | `80 00 00 00 00 00 03 FF` |
+| −2,5 | `A0 00 00 00 00 00 FC 00` (`$FC00` = −`$0400`) |
+| 0,1 | `CC CC CC CC CC CD 03 FB` |
+
+`MKS$` lieferte für 1 und 0,1 gleichermaßen `FF FF FF 7F` (probe1 T46, T47); das 4-Byte-Format ist
+damit noch nicht verstanden (probe2).
+
+> **Abweichung vom Original:** GFA-BASIC 3.5 rechnet mit 48 Bit Mantisse, nicht mit den 53 Bit von
+> binary64. Das ist im Ergebnis sichtbar: `FOR x=0 TO 1 STEP 0.1` läuft im Original 10-mal (probe1
+> T21), mit binary64 11-mal (0,1 zehnmal addiert ergibt 1,000000000000007 bzw. 0,9999999999999999).
+> Ob die Festlegung [D4](decisions.md#d4) bleibt, ist offen ([roadmap.md](roadmap.md#offene-fragen)).
 
 ## Grundoperationen
 
@@ -54,18 +77,21 @@ von Grundoperationen.
 
 ## Ganzzahlen
 
-| Thema | Festlegung (Vorschlag, gegen GFA zu prüfen) |
+| Thema | Festlegung (✔ = am Original bestätigt) |
 |---|---|
 | Darstellung | Zweierkomplement; `%` 32 Bit, `&` 16 Bit, `\|` 8 Bit ohne Vorzeichen, `!` 0/−1 |
-| `INC`, `DEC`, `ADD x,y`, `SUB`, `MUL` (Befehle), `ADD()` … (Funktionen) | ohne Überlaufprüfung, Umbruch modulo 2ⁿ der Zielbreite (Referenz: `INC a\|` von 255 → 0) |
-| `+ - *` in Ausdrücken | offen: GFA rechnet gemischte Ausdrücke vermutlich in Float; zu klären |
-| `DIV`, `MOD`, `\` | Division mit Abschneiden Richtung 0, Rest mit dem Vorzeichen des Dividenden (wie `DIVS`) |
-| Division durch 0 | GFA-Laufzeitfehler |
+| `INC`, `DEC`, `ADD x,y`, `SUB`, `MUL` (Befehle), `ADD()` … (Funktionen) | ohne Überlaufprüfung, Umbruch modulo 2ⁿ der Zielbreite (Referenz: `INC a\|` von 255 → 0). ✔ für `INC a%` (2147483647 → −2147483648) und `INC w&` (32767 → −32768), probe1 T3, T5 |
+| `+ - *` in Ausdrücken, Zuweisung an Ganzzahlvariable | ✔ mit Überlaufprüfung: `b%=a%+1`, `b%=a%*2`, `b%=3E9` → Fehler 2 „no integer\|-2147483648 .. 2147483647“; `w&=w&+1` → Fehler 4 „no word\|-32768 .. 32767“. Die Zielvariable bleibt unverändert (probe1 T1, T2, T4, T6). Ob im Ausdruck in Integer oder Float gerechnet und erst bei der Zuweisung geprüft wird, klärt probe2 |
+| Float → Ganzzahl (Zuweisung) | ✔ Abschneiden Richtung 0: 2,5 → 2, 3,5 → 3, −2,5 → −2, 2,7 → 2, −2,7 → −2, `7/2` → 3 (probe1 T7–T12) |
+| `DIV`, `MOD`, `\` | ✔ Abschneiden Richtung 0, Rest mit dem Vorzeichen des Dividenden: `-7 DIV 2` = −3, `-7 MOD 2` = −1, `7 MOD -2` = 1 (probe1 T13) |
+| Division durch 0 | ✔ Fehler 0 „divide by zero“, auch bei `DIV` (probe1 T14) |
 | Schiebebefehle | wie in der Referenz (`SHL&`, `SHR\|` mit Breite, Bitnummer `AND 31`) |
-| Float → Ganzzahl außerhalb des Bereichs | GFA-Laufzeitfehler |
+| Float → Ganzzahl außerhalb des Bereichs | ✔ Fehler 2 bzw. 4 (probe1 T6) |
 
-`INT` rundet ab (floor), `TRUNC`/`FIX` schneidet Richtung 0 ab, `FRAC(x) = x − TRUNC(x)`.
-`CINT` rundet; die Rundungsart bei genau ,5 ist noch zu klären.
+`INT` rundet ab (floor, ✔ `INT(-0.5)` = −1, probe1 T17), `TRUNC`/`FIX` schneidet Richtung 0 ab,
+`FRAC(x) = x − TRUNC(x)`. `CINT` rundet bei genau ,5 **von 0 weg** (✔ 0,5 → 1, 1,5 → 2, 2,5 → 3,
+−0,5 → −1, −1,5 → −2, probe1 T16). `ROUND` ebenso: `ROUND(2.5)` = 3, `ROUND(0.125,2)` = 0,13
+(probe1 T17; 0,125 ist exakt darstellbar).
 
 ## Ungefähre Gleichheit `==`
 
@@ -73,6 +99,12 @@ Die Referenz sagt: `==` vergleicht etwa 28 Bit der Mantisse. Festlegung: Beide O
 „round to nearest even“ auf 28 Bit signifikante Mantisse gerundet und dann exakt verglichen. Das ist
 präzise definiert und auf allen Zielen gleich; ob es in Grenzfällen genau dem Original entspricht,
 ist zu prüfen.
+
+Am Original (probe1 T41): `1==1+2^-29` ist wahr (−1), `1==1+2^-28` ist falsch (0), ebenso für
+2^-27 und 2^-26. Bei 1 (Mantisse `$800000000000`) liegt 2^-29 auf Bit 18, 2^-28 auf Bit 19 der
+48-Bit-Mantisse; Unterschiede in den unteren 19 Bit werden also ignoriert. Die 28-Bit-Rundung oben
+ergibt für 2^-28 dagegen „gleich“ (genau halbe Stelle, gerade Rundung) und muss angepasst werden;
+die genaue Regel (Abschneiden oder Differenz, absolut oder relativ) klärt probe2.
 
 ## Zahl ↔ Text
 
@@ -83,9 +115,20 @@ Differenztests Ausgaben vergleichen.
   Bitmuster berechnet (exakte Ganzzahlarithmetik auf der Mantisse, keine Fließkomma-Zwischenschritte).
 - `DEFNUM n` (Anzahl signifikanter Stellen) und `MODE` (Dezimal- und Tausendertrennzeichen) gehören
   zur Formatierung und werden in `rt_fmt_flt` bzw. `PRINT USING` berücksichtigt.
-- Formatregeln (wann Exponentdarstellung, Leerzeichen vor positiven Zahlen, `.5` statt `0.5`) werden
-  aus dem Handbuch bzw. am Original bestimmt und als Golden-Tests festgehalten.
-- `VAL` liest Dezimal, `&H`/`$`, `&X`/`%`, `&O` und ist korrekt gerundet (Text → nächstgelegene
+- Formatregeln am Original (probe1 T22–T40), `PRINT` und `STR$` geben gleich aus:
+  - **kein** Leerzeichen vor positiven Zahlen (`[1][-1][-12]`), führende Null (`0.5`, `-0.5`);
+  - 13 signifikante Stellen, nachfolgende Nullen entfallen (`0.3333333333333`, `0.6666666666667`,
+    `33.33333333333`, `0.3` für `0.1+0.2`);
+  - ganze Zahlen bis mindestens 13 Stellen ohne Exponent (`1234567890123`, `2147483648`), `1E15` als
+    `1.0E+15`; Exponentdarstellung mit mindestens einer Nachkommastelle und Vorzeichen im Exponenten
+    (`1.0E+100`, `-1.0E-100`); `1E-5` als `0.00001`. Die genauen Schwellen klärt probe2;
+  - `PI` gibt `3.141592653591` aus. Korrekt auf 13 Stellen gerundet wäre `3.14159265359` (sowohl aus
+    binary64 als auch aus dem auf 48 Bit gerundeten Wert). Die Umwandlung im Original ist also nicht
+    korrekt gerundet oder die Konstante weicht ab (probe2);
+  - Komma in `PRINT` springt auf die nächste Spalte, die ein Vielfaches von 16 ist (probe1 T39).
+- Werden die Formatregeln bestätigt, kommen sie als Golden-Tests nach `tests/programs`.
+- `VAL` liest Dezimal, `&H`/`$`, `&X`/`%`, `&O` (✔ `VAL("1.5E3")` = 1500, `VAL("&HFF")` = 255,
+  `VAL("%101")` = 5, `VAL(".5x")` = 0,5 – Lesen endet am ersten ungültigen Zeichen, probe1 T54) und ist korrekt gerundet (Text → nächstgelegene
   darstellbare Zahl), damit `VAL(STR$(x))` stabil ist.
 
 ## Zufallszahlen

@@ -41,6 +41,15 @@ class Steps(unittest.TestCase):
         lines = gfa_run.parse_step("key:shift+f10", "de")
         self.assertIn("key code 109 using {shift down}", lines[0])
 
+    def test_key_repeat(self):
+        lines = gfa_run.parse_step("key:delete*3", "us")
+        self.assertEqual(sum("key code 117" in line for line in lines), 3)
+
+    def test_default_layout_is_us(self):
+        # The GFA-BASIC 3.5 disk boots with the US keymap (checked on the original: ':' typed
+        # with the German table arrived as '>').
+        self.assertEqual(gfa_run.DEFAULT_LAYOUT, "us")
+
     def test_wait(self):
         self.assertEqual(gfa_run.parse_step("wait:1.5", "de"), ["delay 1.5"])
 

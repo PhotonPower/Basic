@@ -38,6 +38,8 @@ HERE = Path(__file__).resolve().parent
 DEFAULT_SHARE = Path.home() / "Documents" / "FS-UAE" / "gfa-share"
 DEFAULT_CONFIG = HERE / "gfa.fs-uae"
 DEFAULT_KEYS = HERE / "keys.json"
+# The GFA-BASIC 3.5 disk boots with the US keymap.
+DEFAULT_LAYOUT = "us"
 
 # ---- key codes ---------------------------------------------------------------------------------
 # macOS virtual key codes are positions on an ANSI keyboard (the same position on an ISO German
@@ -95,6 +97,7 @@ def parse_step(step: str, layout: str) -> list[str]:
     """One entry of keys.json -> AppleScript lines.
 
     "key:f2", "key:shift+f10"   named key, optional modifiers (shift, ctrl, alt, cmd)
+    "key:delete*30"             the same key pressed 30 times
     "type:dh0:probe1.lst"       characters through the layout table
     "wait:1.5"                  pause in seconds
     """
@@ -102,13 +105,15 @@ def parse_step(step: str, layout: str) -> list[str]:
     if kind == "wait":
         return [f"delay {float(arg)}"]
     if kind == "key":
+        arg, _, count = arg.partition("*")
         *mods, name = arg.lower().split("+")
         if name not in NAMED_KEYS:
             raise ValueError(f"unknown key {name!r}")
         mod_map = {"shift": "shift down", "ctrl": "control down", "alt": "option down", "cmd": "command down"}
         using = ", ".join(mod_map[m] for m in mods)
         suffix = f" using {{{using}}}" if using else ""
-        return [f'tell application "System Events" to key code {NAMED_KEYS[name]}{suffix}', "delay 0.15"]
+        press = [f'tell application "System Events" to key code {NAMED_KEYS[name]}{suffix}', "delay 0.15"]
+        return press * int(count or 1)
     if kind == "type":
         lines = []
         for code, shift in key_events(arg, layout):
@@ -180,7 +185,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--config", type=Path, default=Path(os.environ.get("GFA_FSUAE_CONFIG", DEFAULT_CONFIG)),
                    help="FS-UAE configuration")
     p.add_argument("--keys", type=Path, default=DEFAULT_KEYS, help="key sequence (JSON)")
-    p.add_argument("--amiga-layout", choices=sorted(LAYOUTS), default=os.environ.get("GFA_LAYOUT", "de"))
+    p.add_argument("--amiga-layout", choices=sorted(LAYOUTS), default=os.environ.get("GFA_LAYOUT", DEFAULT_LAYOUT))
     p.add_argument("--app", default="FS-UAE", help="name of the macOS application")
     p.add_argument("--boot-wait", type=float, default=25.0,
                    help="seconds to wait after starting FS-UAE until the GFA editor is ready")
