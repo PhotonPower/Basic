@@ -24,6 +24,7 @@ struct Token {
     std::string text;
     int col = 0;  // 1-based
     bool spaceBefore = false;
+    bool lower = false;  // Ident: written without upper case letters (LIST writes user names so)
 };
 
 struct SourceLine {

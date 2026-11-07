@@ -178,6 +178,13 @@ Diese Punkte sind aus dem Handbuch nicht sicher zu entnehmen und werden am Origi
   `OUT #n,b,...` lesen/schreiben Bytes. `NAME a$ AS b$` auf ein vorhandenes Ziel: −53 „object
   already exists“ (203). `ERR$(50)` ist im Original verstümmelt („file isn4fields greater than
   record“); wir liefern „fields greater than record“.
+- **Namen** (an Listings des Originals): Bezeichner dürfen Latin-1-Buchstaben enthalten (`straße$`,
+  `menü`, `löschen`; Groß-/Kleinschreibung zählt nicht) und Prozedurnamen mit Ziffern beginnen
+  (`2d_display`). Variablen und Prozeduren haben getrennte Namen; ein Builtin-Name ohne `(` ist eine
+  Variable (`DIM a$(max)`). `LIST` schreibt Schlüsselwörter groß und eigene Namen klein: Ein klein
+  geschriebener Prozedurname am Anfang einer Anweisung ist ein Aufruf, auch wenn er wie ein
+  Schlüsselwort heißt (`exit`, `write(…)`). Eine zugeklappte Prozedur steht als `> PROCEDURE name`.
+  `VSYNC` wird übergangen (keine Grafik); `FRE` folgt mit dem Speichermodell (D6).
 - **Fehlerroutine ohne `RESUME`** (probe12 T2): Endet die Routine von `ON ERROR GOSUB` mit `RETURN`
   ohne `RESUME`, gilt der Fehler als nicht abgefangen; das Original zeigt die Meldung und hält an. Wir
   beenden das Programm mit der Fehlermeldung. `RESUME` löscht `ERR` (probe12 T1, T3, T4).

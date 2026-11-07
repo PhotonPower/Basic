@@ -1079,7 +1079,7 @@ private:
             rtcallVoid(n == "HTAB" ? "rt_print_htab" : "rt_print_vtab", {toI(expr(*s.args[0]))});
             return;
         }
-        if (n == "PAUSE" || n == "DELAY" || n == "TRON" || n == "TROFF") {
+        if (n == "PAUSE" || n == "DELAY" || n == "TRON" || n == "TROFF" || n == "VSYNC") {
             for (const auto& a : s.args) expr(*a);
             return;
         }

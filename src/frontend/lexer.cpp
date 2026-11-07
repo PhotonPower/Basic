@@ -6,12 +6,18 @@ namespace basic {
 
 namespace {
 
+// Latin-1 letters (listings of the Amiga: straße$, menü, löschen), not the signs x and ÷
+bool isLatin1Letter(char c) {
+    const auto u = static_cast<unsigned char>(c);
+    return u >= 0xC0 && u != 0xD7 && u != 0xF7;
+}
+
 bool isIdentStart(char c) {
-    return std::isalpha(static_cast<unsigned char>(c)) != 0;
+    return std::isalpha(static_cast<unsigned char>(c)) != 0 || isLatin1Letter(c);
 }
 
 bool isIdentChar(char c) {
-    return std::isalnum(static_cast<unsigned char>(c)) != 0 || c == '_' || c == '.';
+    return std::isalnum(static_cast<unsigned char>(c)) != 0 || c == '_' || c == '.' || isLatin1Letter(c);
 }
 
 bool isDigit(char c) {
@@ -24,7 +30,11 @@ bool isHexDigit(char c) {
 
 std::string upper(std::string_view s) {
     std::string r(s);
-    for (char& c : r) c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+    for (char& c : r) {
+        const auto u = static_cast<unsigned char>(c);
+        if (u >= 0xE0 && u <= 0xFE && u != 0xF7) c = static_cast<char>(u - 0x20);  // Latin-1: ü -> Ü (ß stays)
+        else c = static_cast<char>(std::toupper(u));
+    }
     return r;
 }
 
@@ -56,6 +66,9 @@ std::vector<Token> lexLine(std::string_view s, int lineNumber, Diagnostics& diag
         if (isIdentStart(c)) {
             while (i < s.size() && isIdentChar(s[i])) ++i;
             std::string name = upper(s.substr(start, i - start));
+            bool lowerCase = true;
+            for (std::size_t k = start; k < i; ++k)
+                if (std::isupper(static_cast<unsigned char>(s[k])) != 0) lowerCase = false;
             if (out.empty() && name == "REM") break;
             if (out.empty() && name == "DATA") {  // raw contents, no '!' comment
                 add(Tok::Ident, name, start);
@@ -82,6 +95,7 @@ std::vector<Token> lexLine(std::string_view s, int lineNumber, Diagnostics& diag
                 }
             }
             add(Tok::Ident, name, start);
+            out.back().lower = lowerCase;
             continue;
         }
         if (isDigit(c) || (c == '.' && i + 1 < s.size() && isDigit(s[i + 1]))) {

@@ -23,7 +23,7 @@ struct SyntaxError {
 
 // Commands with the generic syntax "NAME [expr {, expr}]" (reference chapters 2, 4, 5, 7).
 const std::set<std::string, std::less<>> kCommands = {
-    "INC",    "DEC",       "ADD",    "SUB",    "MUL",    "DIV",    "SWAP",   "CLR",     "ERASE",    "ABSOLUTE",
+    "INC",    "DEC",       "ADD",    "SUB",    "MUL",    "DIV",    "SWAP",   "CLR",     "ERASE",    "ABSOLUTE", "VSYNC",
     "DEFNUM", "MODE",      "RANDOMIZE", "ERROR", "QUIT", "SYSTEM", "STOP",   "END",     "EDIT",
     "CLEAR",  "LSET",      "RSET",   "DEFINT", "DEFFLT", "DEFSTR", "DEFBIT", "DEFBYT",  "DEFWRD",
     "DEFSNG", "DEFDBL",    "PAUSE",  "DELAY",  "CLS",    "NEW",    "ARRAYFILL", "INSERT", "DELETE",
@@ -34,7 +34,25 @@ const std::set<std::string, std::less<>> kCommands = {
 
 class Parser {
 public:
-    Parser(const SourceLine& line, Diagnostics& diags) : line_(line), toks_(line.tokens), diags_(diags) {}
+    Parser(const SourceLine& line, Diagnostics& diags, const std::set<std::string>* procs = nullptr)
+        : line_(line), toks_(line.tokens), diags_(diags), procs_(procs) {}
+
+    // "2d_display": a number directly followed by a name is one name (procedure names may start
+    // with digits); else a plain identifier
+    static bool atDigitName(const std::vector<Token>& t, std::size_t i) {
+        if (i + 1 >= t.size() || t[i].kind != Tok::Number || t[i + 1].kind != Tok::Ident || t[i + 1].spaceBefore) return false;
+        for (char c : t[i].text)
+            if (c < '0' || c > '9') return false;
+        return true;
+    }
+
+    std::string procName(const char* what) {
+        if (atDigitName(toks_, i_)) {
+            std::string n = take().text;
+            return n + take().text;
+        }
+        return expectIdent(what);
+    }
 
     bool parse(Stmt& out) {
         try {
@@ -51,6 +69,7 @@ private:
     const SourceLine& line_;
     const std::vector<Token>& toks_;
     Diagnostics& diags_;
+    const std::set<std::string>* procs_ = nullptr;
     std::size_t i_ = 0;
 
     // ---- token helpers ----------------------------------------------------------------------
@@ -252,7 +271,9 @@ private:
         }
         if (t.kind == Tok::Ident) {
             std::string name = take().text;
-            if (findBuiltin(name) != nullptr) {
+            const Builtin* b = findBuiltin(name);
+            // a builtin that needs arguments, written without '(': a variable of that name (max)
+            if (b != nullptr && !(b->minArgs > 0 && !atPunct("("))) {
                 auto e = make(ExprKind::Call, p, std::move(name));
                 if (acceptPunct("(")) argList(*e);
                 return e;
@@ -385,7 +406,34 @@ private:
     }
 
     Stmt statement() {
+        // a folded procedure as LIST writes it: "> PROCEDURE name"
+        if (atPunct(">") && (atWord("PROCEDURE", 1) || atWord("FUNCTION", 1))) take();
         const ast::Pos p = pos();
+        // a procedure called with its bare name: one starting with digits, or one named like a
+        // keyword and written in lower case (LIST writes keywords in upper case, user names in lower)
+        if (procs_ != nullptr) {
+            std::string name;
+            if (atDigitName(toks_, i_)) name = toks_[i_].text + toks_[i_ + 1].text;
+            else if (at(Tok::Ident) && peek().lower) name = peek().text;
+            const std::size_t after = name.size() > peek().text.size() ? 2 : 1;  // tokens of the name
+            bool assignment = false;  // an array of the same name: menü(1)=39
+            if (atPunct("(", after)) {
+                std::size_t k = i_ + after, depth = 0;
+                for (; k < toks_.size() && toks_[k].kind != Tok::End; ++k) {
+                    if (toks_[k].kind == Tok::Punct && toks_[k].text == "(") ++depth;
+                    if (toks_[k].kind == Tok::Punct && toks_[k].text == ")" && --depth == 0) break;
+                }
+                assignment = k + 1 < toks_.size() && toks_[k + 1].kind == Tok::Punct && toks_[k + 1].text == "=";
+            }
+            if (!name.empty() && !assignment && procs_->count(name) != 0 && (peek(after).kind == Tok::End || atPunct("(", after))) {
+                take();
+                if (name.size() > toks_[i_ - 1].text.size()) take();
+                Stmt s = stmt(StmtKind::Call, p);
+                s.name = name;
+                callArgs(s);
+                return s;
+            }
+        }
         if (atMemAccess()) {  // BYTE{x}=y: command "BYTE{}" address, value
             ExprPtr target = memAccess();
             Stmt s = stmt(StmtKind::Command, p);
@@ -404,7 +452,7 @@ private:
         }
         if (acceptPunct("@")) {
             Stmt s = stmt(StmtKind::Call, p);
-            s.name = expectIdent("procedure name");
+            s.name = procName("procedure name");
             callArgs(s);
             return s;
         }
@@ -521,7 +569,7 @@ private:
         if (word == "PROCEDURE" || (word == "SUB" && !topLevelCommaAfter(1))) {
             take();
             Stmt s = stmt(StmtKind::Procedure, p);
-            s.name = expectIdent("procedure name");
+            s.name = procName("procedure name");
             s.params = params();
             return s;
         }
@@ -549,7 +597,7 @@ private:
         if (word == "GOSUB") {
             take();
             Stmt s = stmt(StmtKind::Call, p);
-            s.name = expectIdent("procedure name");
+            s.name = procName("procedure name");
             callArgs(s);
             return s;
         }
@@ -604,18 +652,18 @@ private:
                 s.name = "ON";
                 if (acceptWord("BREAK")) {
                     s.name = "ON BREAK";
-                    if (acceptWord("GOSUB")) s.args.push_back(makeName(expectIdent("procedure name")));
+                    if (acceptWord("GOSUB")) s.args.push_back(makeName(procName("procedure name")));
                     else if (acceptWord("CONT")) s.variant = 1;
                     return s;
                 }
                 s.args.push_back(expr());
                 expectWord("GOSUB");
-                do s.args.push_back(makeName(expectIdent("procedure name")));
+                do s.args.push_back(makeName(procName("procedure name")));
                 while (acceptPunct(","));
                 return s;
             }
             Stmt s = stmt(StmtKind::OnError, p);
-            if (acceptWord("GOSUB")) s.name = expectIdent("procedure name");
+            if (acceptWord("GOSUB")) s.name = procName("procedure name");
             return s;
         }
         if (word == "RESUME") {
@@ -806,9 +854,20 @@ private:
 ast::Program parseProgram(std::string_view source, Diagnostics& diags) {
     ast::Program program;
     const std::vector<SourceLine> lines = lexSource(source, diags);
+    // the names of all procedures first: a bare call may come before the PROCEDURE line
+    std::set<std::string> procs;
+    for (const SourceLine& line : lines) {
+        const std::vector<Token>& t = line.tokens;
+        std::size_t k = 0;
+        if (k < t.size() && t[k].kind == Tok::Punct && t[k].text == ">") ++k;
+        if (k + 1 < t.size() && t[k].kind == Tok::Ident && t[k].text == "PROCEDURE") {
+            if (Parser::atDigitName(t, k + 1)) procs.insert(t[k + 1].text + t[k + 2].text);
+            else if (t[k + 1].kind == Tok::Ident) procs.insert(t[k + 1].text);
+        }
+    }
     for (const SourceLine& line : lines) {
         if (line.tokens.empty()) continue;
-        Parser parser(line, diags);
+        Parser parser(line, diags, &procs);
         Stmt s;
         if (parser.parse(s)) program.stmts.push_back(std::move(s));
     }

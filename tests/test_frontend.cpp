@@ -59,6 +59,8 @@ void testLexer() {
     CHECK_EQ(tokens("x$=\"abc"), std::string("X$ = \"abc\" !unterminated string"));
     CHECK_EQ(tokens("PRINT a'b"), std::string("PRINT A ' B"));
     CHECK_EQ(tokens("x=VAL?(a$)+DIM?(b())"), std::string("X = VAL? ( A$ ) + DIM? ( B ( ) )"));
+    // Latin-1 letters in names (listings of the original: straße$(), menü, löschen); case does not count
+    CHECK_EQ(tokens("stra\xDF" "e$=men\xFC+L\xD6schen"), std::string("STRA\xDF" "E$ = MEN\xDC + L\xD6SCHEN"));
 }
 
 void testExpressions() {
@@ -193,6 +195,19 @@ void testSema() {
     CHECK_EQ(hir("GOTO x\nPROCEDURE p\nx:\nRETURN"), std::string("error 1: GOTO into or out of a procedure\n"));
     CHECK_EQ(hir("x=LPOS(0)"), std::string("error 1: LPOS is not supported yet\n"));
     CHECK_EQ(hir("x=LEFT$(1)"), std::string("error 1: LEFT$ expects a string here\n"));
+    // procedures named like keywords, called with the bare name in lower case (as LIST writes user
+    // names); upper case stays the keyword. Names may start with digits (2d_display).
+    CHECK_EQ(hir("exit\nPRINT 2\nPROCEDURE exit\nPRINT 1\nRETURN").find("call EXIT"), std::size_t{0});
+    CHECK(hir("write(1,2)\nWRITE 3\nPROCEDURE write(a,b)\nRETURN").find("call WRITE 1# 2#\ncmd WRITE 3#") != std::string::npos);
+    CHECK(hir("DIM menu(2)\nmenu(1)=39\nmenu\nPROCEDURE menu\nRETURN").find("MENU#(1) = 39#\ncall MENU") != std::string::npos);
+    CHECK_EQ(hir("2d_display\n@2d_display\nGOSUB 2d_display\n> PROCEDURE 2d_display\nRETURN").find("call 2D_DISPLAY\ncall 2D_DISPLAY\ncall 2D_DISPLAY"), std::size_t{0});
+    // names of builtins without '(' are variables (DIM a$(max)); variables and procedures have
+    // separate names (new.colors(farbe) with PROCEDURE farbe)
+    CHECK_EQ(hir("max=3\nDIM a(max)\nPRINT MAX(max,2)"), std::string("MAX# = 3#\ncmd DIM A#((toint MAX#))\nprint [MAX(MAX#,2#):float]\n"));
+    CHECK(hir("x=farbe\nfarbe\nPROCEDURE farbe\nRETURN").find("X# = FARBE#\ncall FARBE") != std::string::npos);
+    // a folded procedure as LIST writes it: "> PROCEDURE name"
+    CHECK_EQ(hir("@p\n> PROCEDURE p\nPRINT 1\nRETURN").rfind("error", 0), std::string::npos);
+    CHECK_EQ(hir("men\xFC=1\nMEN\xDC=MEN\xDC+1\nPRINT men\xFC"), std::string("MEN\xDC# = 1#\nMEN\xDC# = (add MEN\xDC# 1#)\nprint [MEN\xDC#]\n"));
     CHECK_EQ(hir("SELECT 1\nCASE \"abcde\"\nENDSELECT"), std::string("error 2: CASE strings have at most 4 characters\n"));
     // MALLOC always has two arguments (probe19: MALLOC(16) is error 15 at the original)
     CHECK_EQ(hir("m%=MALLOC(16)").rfind("error 1: ", 0), std::size_t{0});

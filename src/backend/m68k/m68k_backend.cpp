@@ -4,6 +4,7 @@
 #include "link/embedded.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <map>
 #include <set>
 
@@ -200,8 +201,17 @@ private:
     std::string fname(int routine) const {
         if (routine < 0) return "main";
         std::string n = "u_";
-        for (char c : p_.hir->routines[static_cast<std::size_t>(routine)].name)
-            n += (c == '$' || c == '%' || c == '&' || c == '|' || c == '!' || c == '#') ? '_' : c;
+        for (char c : p_.hir->routines[static_cast<std::size_t>(routine)].name) {
+            const auto u = static_cast<unsigned char>(c);
+            if (c == '$' || c == '%' || c == '&' || c == '|' || c == '!' || c == '#') {
+                n += '_';
+            } else if (std::isalnum(u) != 0 || c == '_' || c == '.') {
+                n += c;
+            } else {  // a Latin-1 letter: _xHH
+                static const char* hexd = "0123456789ABCDEF";
+                n += std::string("_x") + hexd[u >> 4] + hexd[u & 15];
+            }
+        }
         return n;
     }
 

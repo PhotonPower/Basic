@@ -40,6 +40,11 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 - `RESUME` setzt `ERR` auf 0 (probe12 T1); damit ist `errors2` am Original gleich.
 - `gfa_run.py`: Startmenü der Diskette nach einem Kaltstart (`boot` in `keys.json`), längere
   Wartezeiten für den Merge-Dialog und das Einlesen.
+- Frontend nach echten Amiga-Listings: Latin-1-Buchstaben in Namen, Prozedurnamen mit Ziffern am
+  Anfang, zugeklappte Prozeduren (`> PROCEDURE`), klein geschriebene Prozeduraufrufe mit dem Namen
+  eines Schlüsselworts, Builtin-Namen ohne `(` als Variablen, getrennte Namen für Variablen und
+  Prozeduren; `VSYNC` wird übergangen. Testprogramm `umlaut`. Werkzeug `tools/gfa/gfa2lst.py`
+  (`.GFA` → `.LST` mit dem Original).
 - Behoben (probe12 T2 am Original): Eine Fehlerroutine, die ohne `RESUME` endet, setzte das Programm
   nach der Anweisung fort; jetzt endet es mit der Fehlermeldung, in allen Ausführungen. Die
   Testtreiber kennen dafür `<name>.err` (erwarteter Fehler am Ende); Testprogramm `errret`.

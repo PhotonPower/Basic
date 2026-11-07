@@ -1,0 +1,16 @@
+' test: groups core print
+' Namen mit Umlauten (Latin-1, wie in Listings des Originals): Variablen, Felder, Prozeduren,
+' Funktionen; Gross- und Kleinschreibung zaehlt nicht. Eine zugeklappte Prozedur ("> PROCEDURE").
+menü%=3
+MENÜ%=MENÜ%+1
+DIM straße$(2)
+straße$(1)="Hauptstraße"
+@löschen(menü%)
+PRINT menü%;" ";LEN(straße$(1));" ";@größe(2)
+END
+> PROCEDURE löschen(ä%)
+  PRINT "löschen ";ä%
+RETURN
+FUNCTION größe(x)
+  RETURN x*x
+ENDFUNC

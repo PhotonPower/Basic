@@ -44,13 +44,13 @@ hir::ExprPtr constFloat(f64 v) {
 }
 
 // Builtins the runtime does not provide yet (input, files ...).
-const std::set<std::string, std::less<>> kNotYet = { "LPOS",
+const std::set<std::string, std::less<>> kNotYet = { "LPOS", "FRE",
 };
 
 // Commands handled by the interpreter with their argument forms.
 const std::set<std::string, std::less<>> kSimpleCommands = {
     "END", "STOP", "QUIT", "SYSTEM", "EDIT", "DEFNUM", "MODE", "RANDOMIZE", "ERROR", "CLS", "PAUSE", "DELAY",
-    "OPTION BASE", "NEW", "CLEAR", "TRON", "TROFF", "LOCATE", "HTAB", "VTAB",
+    "OPTION BASE", "NEW", "CLEAR", "TRON", "TROFF", "LOCATE", "HTAB", "VTAB", "VSYNC",
 };
 
 class Sema {
@@ -973,8 +973,7 @@ private:
             }
             case ExprKind::Var: {
                 if (e.wholeArray) fail(e.pos, "array element expected");
-                if (routines_.count(e.text) != 0 && e.args.empty() && !vars_.count(e.text))
-                    fail(e.pos, "'" + e.text + "' is a procedure or function; call functions with @ or FN");
+                // variables and procedures have separate names (new.colors(farbe) with PROCEDURE farbe)
                 auto v = makeExpr(e.args.empty() ? Op::Load : Op::LoadElem, typeOf(e.text));
                 v->var = varId(e.text, !e.args.empty());
                 for (const auto& ix : e.args) v->args.push_back(toInt(expr(*ix), ix->pos));
