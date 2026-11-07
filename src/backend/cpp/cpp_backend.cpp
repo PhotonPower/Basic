@@ -431,6 +431,16 @@ private:
             return argc > 1 ? call(fn, e) : fn + "(" + a(0) + ", F64_ONE)";
         }
         if (n == "MID$") return call("brt::mid", e);
+        if (n == "RINSTR") {
+            if (e.args[0]->type == Type::Str) return argc > 2 ? call("brt::rinstr", e) : "brt::rinstr(" + a(0) + ", " + a(1) + ")";
+            return ordered({e.args[0].get(), e.args[1].get(), e.args[2].get()}, [](const std::vector<std::string>& x) {
+                return "brt::rinstr(" + x[1] + ", " + x[2] + ", " + x[0] + ")";
+            });
+        }
+        if (n == "POS") return "brt::rt.out.pos()";
+        if (n == "CRSCOL") return "brt::rt.out.crsCol";
+        if (n == "CRSLIN") return "brt::rt.out.crsLin";
+        if (n == "TIMER") return "brt::timer()";
         if (n == "INSTR") {
             if (e.args[0]->type == Type::Str) return argc > 2 ? call("brt::instr", e) : "brt::instr(" + a(0) + ", " + a(1) + ", F64_ONE)";
             return ordered({e.args[0].get(), e.args[1].get(), e.args[2].get()}, [](const std::vector<std::string>& x) {
@@ -680,8 +690,16 @@ private:
             }
             line(in, "u_.end();");
         } else {
+            bool comma = false;
+            for (const hir::PrintItem& it : s.items) comma = comma || it.sep == ',';
+            if (comma) line(in, "o_.begin();");
             for (const hir::PrintItem& it : s.items) {
-                if (it.expr) {
+                if (it.expr && it.kind == hir::PrintItem::At) {
+                    line(in, "{");
+                    line(in + 1, "const f64 c_ = " + expr(*it.expr) + ";");
+                    line(in + 1, "o_.at(c_, " + expr(*it.expr2) + ");");
+                    line(in, "}");
+                } else if (it.expr) {
                     const char* fn = it.kind == hir::PrintItem::Tab ? "tab" : it.kind == hir::PrintItem::Spc ? "spc" : "value";
                     line(in, std::string("o_.") + fn + "(" + expr(*it.expr) + ");");
                 }
@@ -805,6 +823,15 @@ private:
         const std::string& n = s.name;
         auto arg = [&](std::size_t k) { return expr(*s.args[k]); };
         if (n.rfind("MAT ", 0) == 0) return mat(s, in);
+        if (n == "CLS") return line(in, "brt::rt.out.cls();");
+        if (n == "LOCATE") {
+            line(in, "{");
+            line(in + 1, "const f64 c_ = " + arg(0) + ";");
+            line(in + 1, "brt::rt.out.locate(c_, " + arg(1) + ");");
+            line(in, "}");
+            return;
+        }
+        if (n == "HTAB" || n == "VTAB") return line(in, "brt::rt.out." + std::string(n == "HTAB" ? "htab(" : "vtab(") + arg(0) + ");");
         if (n == "INC" || n == "DEC") {
             const hir::Expr& t = *s.targets[0];
             line(in, "{");

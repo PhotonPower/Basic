@@ -40,6 +40,10 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 - `RESUME` setzt `ERR` auf 0 (probe12 T1); damit ist `errors2` am Original gleich.
 - `gfa_run.py`: Startmenü der Diskette nach einem Kaltstart (`boot` in `keys.json`), längere
   Wartezeiten für den Merge-Dialog und das Einlesen.
+- Textausgabe nach probe20/probe21 (D24): `POS`, `CRSCOL`, `CRSLIN`, `PRINT AT`, `LOCATE`, `HTAB`, `VTAB`,
+  `CLS` (ANSI-Folgen), `TIMER` (Amiga über `DateStamp`, unter Kickstart 1.2 geprüft), `RINSTR` in allen
+  Ausführungen. Behoben: Das Komma in `PRINT` zählt seine Zonen ab dem Anfang der Anweisung, nicht ab
+  der Spalte; `CRSCOL`, `CRSLIN` und `LPOS` galten bisher als Variablen. Testprogramm `console`.
 - `ARRPTR`/`*x`, `SWAP *p,a()`, `TYPE(p)` in allen Ausführungen (probe19 am Original). Die Felder des
   68000 haben jetzt die Speicherform des Originals (Deskriptor: Blockadresse und Dimensionen; im
   Block die Ausdehnungen vor den Elementen); Interpreter und C++-Ziel bilden dieselben Bytes nach.

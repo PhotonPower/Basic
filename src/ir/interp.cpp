@@ -525,6 +525,14 @@ private:
         if (n == "LEFT$") return S(brt::left(s(0), argc > 1 ? f(1) : F64_ONE));
         if (n == "RIGHT$") return S(brt::right(s(0), argc > 1 ? f(1) : F64_ONE));
         if (n == "MID$") return S(argc > 2 ? brt::mid(s(0), f(1), f(2)) : brt::mid(s(0), f(1)));
+        if (n == "RINSTR") {
+            if (a[0].type == Type::Str) return I(argc > 2 ? brt::rinstr(s(0), s(1), f(2)) : brt::rinstr(s(0), s(1)));
+            return I(brt::rinstr(s(1), s(2), f(0)));
+        }
+        if (n == "POS") return I(out_.pos());
+        if (n == "CRSCOL") return I(out_.crsCol);
+        if (n == "CRSLIN") return I(out_.crsLin);
+        if (n == "TIMER") return I(brt::timer());
         if (n == "INSTR") {
             if (a[0].type == Type::Str) return I(brt::instr(s(0), s(1), argc > 2 ? f(2) : F64_ONE));
             return I(brt::instr(s(1), s(2), f(0)));
@@ -981,11 +989,16 @@ private:
         if (s.usingFmt) {
             printUsing(s, out);
         } else {
+            out.begin();
             char last = 0;
             for (const hir::PrintItem& it : s.items) {
                 if (it.expr) {
                     if (it.kind == hir::PrintItem::Value) putValue(eval(*it.expr), out);
                     else if (it.kind == hir::PrintItem::Spc) out.spc(eval(*it.expr).f);
+                    else if (it.kind == hir::PrintItem::At) {
+                        const f64 c = eval(*it.expr).f;
+                        out.at(c, eval(*it.expr2).f);
+                    }
                     else out.tab(eval(*it.expr).f);
                 }
                 last = it.sep;
@@ -1016,6 +1029,21 @@ private:
         const std::string& n = s.name;
         if (n.rfind("MAT ", 0) == 0) {
             mat(s);
+            return;
+        }
+        if (n == "CLS") {
+            out_.cls();
+            return;
+        }
+        if (n == "LOCATE") {
+            const f64 c = eval(*s.args[0]).f;
+            out_.locate(c, eval(*s.args[1]).f);
+            return;
+        }
+        if (n == "HTAB" || n == "VTAB") {
+            const f64 v = eval(*s.args[0]).f;
+            if (n == "HTAB") out_.htab(v);
+            else out_.vtab(v);
             return;
         }
         if (n == "INC" || n == "DEC") {

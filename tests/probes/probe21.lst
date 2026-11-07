@@ -1,0 +1,51 @@
+' probe21 - Wovon haengt die Zone des Kommas in PRINT ab: POS, Cursorspalte oder Anfang der Anweisung?
+' (GFA-BASIC 3.5, Amiga). Ergebnisdatei: DH0:probe21.txt; die Ausgaben gehen auf den Bildschirm.
+'
+datei$="DH0:probe21.txt"
+OPEN "O",#1,datei$
+PRINT #1,"probe21"
+CLS
+' T1 zwei Anweisungen in einer Zeile
+PRINT "abc";
+PRINT "d",
+p1%=POS(0)
+c1%=CRSCOL
+PRINT
+' T2 innerhalb einer Anweisung
+PRINT "abc";"d",
+p2%=POS(0)
+c2%=CRSCOL
+PRINT
+' T3 ueber 16 Zeichen
+PRINT "abcdefghijklmnopq";
+PRINT "r",
+p3%=POS(0)
+c3%=CRSCOL
+PRINT
+' T4 nach PRINT AT
+PRINT AT(5,10);"ab";
+PRINT "c",
+p4%=POS(0)
+c4%=CRSCOL
+PRINT
+' T5 nach CR
+PRINT "abcdefgh";CHR$(13);
+PRINT "x",
+p5%=POS(0)
+c5%=CRSCOL
+PRINT
+' T6 nach LOCATE
+PRINT "abc";
+LOCATE 30,15
+PRINT "y",
+p6%=POS(0)
+c6%=CRSCOL
+PRINT
+' T7 Datei: Komma nach zwei Anweisungen
+PRINT #1,"ab";
+PRINT #1,"c",
+PRINT #1,"|"
+PRINT #1,"T1 ";p1%;",";c1%;" T2 ";p2%;",";c2%;" T3 ";p3%;",";c3%;" T4 ";p4%;",";c4%;" T5 ";p5%;",";c5%;" T6 ";p6%;",";c6%
+PRINT #1,"ende"
+CLOSE #1
+END

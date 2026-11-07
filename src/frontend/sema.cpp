@@ -44,13 +44,13 @@ hir::ExprPtr constFloat(f64 v) {
 }
 
 // Builtins the runtime does not provide yet (input, files ...).
-const std::set<std::string, std::less<>> kNotYet = { "TIMER", "AT", "POS", "RINSTR",
+const std::set<std::string, std::less<>> kNotYet = { "LPOS",
 };
 
 // Commands handled by the interpreter with their argument forms.
 const std::set<std::string, std::less<>> kSimpleCommands = {
     "END", "STOP", "QUIT", "SYSTEM", "EDIT", "DEFNUM", "MODE", "RANDOMIZE", "ERROR", "CLS", "PAUSE", "DELAY",
-    "OPTION BASE", "NEW", "CLEAR", "TRON", "TROFF",
+    "OPTION BASE", "NEW", "CLEAR", "TRON", "TROFF", "LOCATE", "HTAB", "VTAB",
 };
 
 class Sema {
@@ -630,7 +630,13 @@ private:
             hi.sep = it.sep;
             if (it.expr) {
                 const ast::Expr& e = *it.expr;
-                if (e.kind == ExprKind::Call && !e.user && (e.text == "TAB" || e.text == "SPC")) {
+                if (e.kind == ExprKind::Call && !e.user && e.text == "AT") {  // PRINT AT(column,line) (probe20)
+                    if (h->usingFmt || h->channel) fail(e.pos, "AT is not allowed with USING or a channel");
+                    if (e.args.size() != 2) fail(e.pos, "AT expects 2 arguments");
+                    hi.kind = hir::PrintItem::At;
+                    hi.expr = convertTo(expr(*e.args[0]), Type::Float, e.pos);
+                    hi.expr2 = convertTo(expr(*e.args[1]), Type::Float, e.pos);
+                } else if (e.kind == ExprKind::Call && !e.user && (e.text == "TAB" || e.text == "SPC")) {
                     if (h->usingFmt) fail(e.pos, e.text + " is not allowed with USING");
                     if (e.args.size() != 1) fail(e.pos, e.text + " expects 1 argument");
                     hi.kind = e.text == "TAB" ? hir::PrintItem::Tab : hir::PrintItem::Spc;
@@ -904,7 +910,9 @@ private:
         } else if (n == "ON BREAK") {
             return;  // no break key in compiled programs
         } else if (kSimpleCommands.count(n) != 0) {
-            argc(0, 1);
+            if (n == "LOCATE") argc(2, 2);  // LOCATE column,line (probe20 T3; the reference has it reversed)
+            else if (n == "HTAB" || n == "VTAB") argc(1, 1);
+            else argc(0, 1);
             if (n == "OPTION BASE" && (s.args.size() != 1 || s.args[0]->kind != ExprKind::Number))
                 fail(s.pos, "OPTION BASE expects 0 or 1");
             for (const auto& a : s.args) h->args.push_back(convertTo(expr(*a), Type::Float, a->pos));

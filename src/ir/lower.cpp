@@ -598,11 +598,19 @@ private:
 
     void printItems(const hir::Stmt& s) {
         if (s.usingFmt) return printUsing(s);
+        for (const hir::PrintItem& it : s.items)
+            if (it.sep == ',') {  // ',' counts from the start of the statement (probe21)
+                rtcallVoid("rt_print_begin", {});
+                break;
+            }
         char last = 0;
         for (const hir::PrintItem& it : s.items) {
             if (it.expr) {
                 if (it.kind == hir::PrintItem::Value && it.expr->op == Op::ConstStr) {
                     emit(Kind::PrintStr).text = it.expr->sval;
+                } else if (it.kind == hir::PrintItem::At) {
+                    Reg c = toI(expr(*it.expr));
+                    rtcallVoid("rt_print_at", {c, toI(expr(*it.expr2))});
                 } else if (it.kind == hir::PrintItem::Value) {
                     Reg v = expr(*it.expr);
                     rtcallVoid(v.type == VT::F64 ? "rt_print_flt" : v.type == VT::Str ? "rt_print_sdesc" : "rt_print_int", {v});
@@ -1058,7 +1066,20 @@ private:
             expr(*s.args[0]);
             return;
         }
-        if (n == "CLS" || n == "PAUSE" || n == "DELAY" || n == "TRON" || n == "TROFF") {
+        if (n == "CLS") {
+            rtcallVoid("rt_print_cls", {});
+            return;
+        }
+        if (n == "LOCATE") {
+            Reg c = toI(expr(*s.args[0]));
+            rtcallVoid("rt_print_locate", {c, toI(expr(*s.args[1]))});
+            return;
+        }
+        if (n == "HTAB" || n == "VTAB") {
+            rtcallVoid(n == "HTAB" ? "rt_print_htab" : "rt_print_vtab", {toI(expr(*s.args[0]))});
+            return;
+        }
+        if (n == "PAUSE" || n == "DELAY" || n == "TRON" || n == "TROFF") {
             for (const auto& a : s.args) expr(*a);
             return;
         }
@@ -1476,6 +1497,24 @@ private:
             Reg u = arg(e, 1);
             if (u.type != VT::Str) u = rtcall("rt_str_chr", {toI(u)}, VT::Str);
             return rtcall("rt_str_string", {k, u}, VT::Str);
+        }
+        if (n == "POS") {
+            expr(*e.args[0]);
+            return rtcall("rt_pos", {}, VT::I32);
+        }
+        if (n == "CRSCOL" || n == "CRSLIN") return rtcall(n == "CRSCOL" ? "rt_crscol" : "rt_crslin", {}, VT::I32);
+        if (n == "TIMER") return rtcall("plat_timer", {}, VT::I32);
+        if (n == "RINSTR") {
+            if (e.args[0]->type == Type::Str) {
+                Reg a = arg(e, 0);
+                Reg b = arg(e, 1);
+                if (argc > 2) return rtcall("rt_str_rinstr", {a, b, toI(arg(e, 2))}, VT::I32);
+                Reg x = op("add", rtcall("rt_str_len", {a}, VT::I32), constI(1));
+                return rtcall("rt_str_rinstr", {a, b, x}, VT::I32);
+            }
+            Reg x = toI(arg(e, 0));
+            Reg a = arg(e, 1);
+            return rtcall("rt_str_rinstr", {a, arg(e, 2), x}, VT::I32);
         }
         if (n == "INSTR") {
             if (e.args[0]->type == Type::Str) {

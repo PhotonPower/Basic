@@ -3,6 +3,8 @@
 #include <cctype>
 
 #include <algorithm>
+#include <ctime>
+#include <chrono>
 
 namespace {
 
@@ -382,6 +384,25 @@ std::int32_t instr(const std::string& a, const std::string& b, f64 fromf) {
     return p == std::string::npos ? 0 : static_cast<std::int32_t>(p + 1);
 }
 
+std::int32_t rinstr(const std::string& a, const std::string& b, f64 xf) {
+    const std::int32_t x = toInt(xf);
+    const auto n = static_cast<std::int32_t>(a.size()), m = static_cast<std::int32_t>(b.size());
+    if (n == 0) return 0;
+    for (std::int32_t s = std::min(x - m, n - m + 1); s >= 1; --s)
+        if (a.compare(static_cast<std::size_t>(s - 1), static_cast<std::size_t>(m), b) == 0) return s;
+    return 0;
+}
+
+std::int32_t rinstr(const std::string& a, const std::string& b) { return rinstr(a, b, flt(static_cast<std::int32_t>(a.size()) + 1)); }
+
+std::int32_t timer() {
+    const std::time_t t = std::time(nullptr);
+    std::tm local{};
+    localtime_r(&t, &local);
+    const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count() % 1000;
+    return static_cast<std::int32_t>((local.tm_hour * 3600 + local.tm_min * 60 + local.tm_sec) * 200 + ms / 5);
+}
+
 std::string stringOf(f64 nf, const std::string& unit) {
     const std::int32_t n = toInt(nf);
     if (n < 0 || n > 32767) throw Error{RT_ERR_STR_LONG};
@@ -502,8 +523,50 @@ f64 dataNumber(const std::string& text, bool quoted) {
 void Output::put(const std::string& s) {
     for (char c : s) {
         buf += c;
-        col = c == '\n' ? 0 : col + 1;
+        if (c == '\n') {
+            col = zone = 0;
+            crsCol = 1;
+            ++crsLin;
+        } else if (c == '\b') {
+            if (col > 0) --col;
+            if (zone > 0) --zone;
+            if (crsCol > 1) --crsCol;
+        } else if (c == '\r') {
+            ++col;
+            ++zone;
+            crsCol = 1;
+        } else {
+            ++col;
+            ++zone;
+            ++crsCol;
+        }
     }
+}
+
+namespace {
+
+int clampPos(f64 v) { return std::max<std::int32_t>(1, std::min<std::int32_t>(toInt(fp_trunc(v)), 32767)); }
+
+}  // namespace
+
+void Output::locate(f64 column, f64 line) {
+    crsCol = clampPos(column);
+    crsLin = clampPos(line);
+    buf += "\x1b[" + std::to_string(crsLin) + ";" + std::to_string(crsCol) + "H";
+}
+
+void Output::at(f64 column, f64 line) {
+    locate(column, line);
+    col = 0;
+}
+
+void Output::htab(f64 column) { locate(flt(clampPos(column)), flt(crsLin)); }
+void Output::vtab(f64 line) { locate(flt(crsCol), flt(clampPos(line))); }
+
+void Output::cls() {
+    buf += "\x1b[H\x1b[J";
+    crsCol = crsLin = 1;
+    col = 0;
 }
 
 // TAB(n): spaces up to column n; if the cursor is already beyond it, a new line first.

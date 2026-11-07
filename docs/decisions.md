@@ -353,3 +353,27 @@ C++-Ziel Byte für Byte die des Originals. Die Rechenregeln stehen in `runtime/r
 - Auf dem 68000 liegen `MAT READ`, `MAT INPUT #` und `MAT PRINT` in eigenen Modulen (`rt_matread`,
   `rt_matinput`, `rt_matprint`), damit ein Programm nur die Teile von `rt_data`, `rt_file` und der
   Ausgabe bindet, die es benutzt.
+
+<a id="d24"></a>
+## D24 – Textausgabe: `POS`, Cursor, `PRINT AT`, Komma-Zonen (probe20, probe21)
+
+Am Original geprüft und übernommen:
+
+- **`POS(x)`** zählt die ausgegebenen Zeichen (AND 255): Ein LF setzt auf 0, ein BS zählt eins zurück,
+  jedes andere Zeichen zählt, auch CR (die Referenz vertauscht CR und LF). `PRINT AT` und `CLS`
+  setzen `POS` auf 0, `LOCATE`, `HTAB`, `VTAB` nicht. `TAB(n)` richtet sich nach `POS`.
+- **Komma in `PRINT`:** Leerzeichen bis zum nächsten Vielfachen von 16 Zeichen, gezählt ab dem Anfang
+  der `PRINT`-Anweisung, nicht ab `POS` oder der Cursorspalte (probe21, auch bei Dateien). Für
+  Anweisungen am Zeilenanfang ist das dasselbe wie bisher.
+- **Cursor:** `CRSCOL`/`CRSLIN` zählen ab 1. `LOCATE s,z` setzt Spalte s und Zeile z (die Referenz
+  nennt die Reihenfolge umgekehrt), `HTAB`/`VTAB` nur Spalte bzw. Zeile, `PRINT AT(s,z)` wie
+  `LOCATE` mit `POS` 0. Ein LF setzt die Spalte auf 1 und die Zeile eins weiter, CR die Spalte auf 1,
+  BS eins zurück. Ein Fenster mit fester Höhe bilden wir nicht nach: Die Zeile wächst ohne Grenze.
+- **Ausgabe:** Positioniert wird mit ANSI-Folgen, `ESC [ zeile ; spalte H`, `CLS` ist
+  `ESC [ H ESC [ J`. Die Amiga-Konsole (CON:) und PC-Terminals verstehen beide; die Folgen zählen
+  nicht für `POS`. Das Original schreibt in sein eigenes Fenster (Gruppe `gui`).
+- **`TIMER`:** 1/200 s seit Mitternacht, ganzzahlig (probe20 T5). Amiga: dos `DateStamp`; PC: die
+  Ortszeit; m68k-test hat keine Uhr und zählt bei jedem Aufruf um 1 weiter.
+- **`RINSTR(a$,b$[,x])`** (auch `RINSTR(x,a$,b$)`): das letzte b$, das vor Position x endet, also die
+  Suche in `LEFT$(a$,x-1)`; ohne x die ganze Zeichenkette. Ein leeres a$ ergibt 0
+  (`RINSTR("","")` = 0), `RINSTR("abc","")` = 4.

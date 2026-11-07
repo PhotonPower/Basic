@@ -65,6 +65,8 @@ laufen in der OS-Emulation (`test_m68k_programs`) und unter Kickstart 1.2 im FS-
 ✔ `MAT INPUT #` (probe18).
 ✔ `ARRPTR`/`*x`, Deskriptoren wie im Original (auch die 68000-Speicherform der Felder), `SWAP *p,a()`,
 `TYPE` (probe19).
+✔ `POS`, Cursor, `PRINT AT`, `LOCATE`, `HTAB`/`VTAB`, `CLS`, `TIMER`, `RINSTR`; Komma-Zonen ab dem
+Anfang der Anweisung (probe20, probe21, D24).
 Weiter: `ABSOLUTE` mit dem vollen Speicherabbild nach D6; weitere Optimierungen (Variablen in Registern innerhalb von Schleifen ohne Aufrufe, Fließkomma inline).
 
 - Quelltext-Linker (`src/link`) mit Map-Datei und Label-Prüfung.

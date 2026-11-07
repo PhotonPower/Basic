@@ -115,6 +115,7 @@ public:
                     r += " [";
                     if (it.kind == PrintItem::Tab) r += "tab ";
                     if (it.kind == PrintItem::Spc) r += "spc ";
+                    if (it.kind == PrintItem::At) r += "at " + expr(*it.expr2) + " ";
                     if (it.expr) r += expr(*it.expr);
                     if (it.sep) r += std::string(" ") + it.sep;
                     r += "]";

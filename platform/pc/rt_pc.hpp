@@ -123,6 +123,11 @@ std::string right(const std::string& s, f64 n);
 std::string mid(const std::string& s, f64 from, f64 len);
 std::string mid(const std::string& s, f64 from);
 std::int32_t instr(const std::string& a, const std::string& b, f64 from);
+// RINSTR(a$,b$[,x]): the last b$ that ends before position x (default LEN(a$)+1), i.e. in
+// LEFT$(a$,x-1); an empty a$ gives 0 (probe20 T6)
+std::int32_t rinstr(const std::string& a, const std::string& b, f64 x);
+std::int32_t rinstr(const std::string& a, const std::string& b);
+std::int32_t timer();  // TIMER: 1/200 s since midnight (probe20 T5)
 std::string stringOf(f64 n, const std::string& unit);
 std::string stringOf(f64 n, f64 code);
 std::string space(f64 n);
@@ -161,17 +166,29 @@ f64 dataNumber(const std::string& text, bool quoted);
 // ---- output ------------------------------------------------------------------------------------
 // PRINT: text is collected in `buf` (the pc target writes it to stdout); `col` counts characters
 // since the last line feed (POS).
+// `col` is POS (probe20 T1): a LF sets it to 0, a BS takes one back, every other character (also
+// CR) counts. crsCol/crsLin are the cursor (CRSCOL, CRSLIN, 1-based) of the screen output; PRINT AT,
+// LOCATE, HTAB, VTAB and CLS move it with ANSI sequences (ESC [ line ; column H, ESC [ H ESC [ J).
 struct Output {
     std::string buf;
     int col = 0;
     int defnum = 13;
     int mode = 0;
+    int crsCol = 1, crsLin = 1;
+    int zone = 0;  // characters since the start of the PRINT statement: ',' pads to 16 of these (probe21)
+    void begin() { zone = 0; }
 
     void put(const std::string& s);
+    void at(f64 column, f64 line);      // PRINT AT: POS 0
+    void locate(f64 column, f64 line);  // POS stays
+    void htab(f64 column);
+    void vtab(f64 line);
+    void cls();
+    std::int32_t pos() const { return col & 255; }
     void value(std::int32_t v) { put(str(flt(v), defnum)); }
     void value(f64 v) { put(str(v, defnum)); }
     void value(const std::string& s) { put(s); }
-    void comma() { put(std::string(static_cast<std::size_t>(16 - col % 16), ' ')); }  // zones of 16
+    void comma() { put(std::string(static_cast<std::size_t>(16 - zone % 16), ' ')); }  // zones of 16
     void apostrophe() { put(" "); }
     void newline() { put("\n"); }
     void tab(f64 n);

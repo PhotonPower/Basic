@@ -178,6 +178,9 @@ Diese Punkte sind aus dem Handbuch nicht sicher zu entnehmen und werden am Origi
   `OUT #n,b,...` lesen/schreiben Bytes. `NAME a$ AS b$` auf ein vorhandenes Ziel: −53 „object
   already exists“ (203). `ERR$(50)` ist im Original verstümmelt („file isn4fields greater than
   record“); wir liefern „fields greater than record“.
+- **Textausgabe** (`POS`, `CRSCOL`, `CRSLIN`, `PRINT AT`, `LOCATE`, `HTAB`, `VTAB`, `CLS`, Komma-Zonen,
+  `TIMER`, `RINSTR`): am Original (probe20, probe21), siehe [D24](decisions.md#d24). `LPOS` und
+  `LPRINT` (Drucker) werden abgelehnt.
 - **Zeiger und Deskriptoren** (`ARRPTR`, `*x`, `SWAP *p,a()`, `TYPE`): am Original (probe19), siehe
   [D21](decisions.md#d21). `MALLOC` hat immer zwei Argumente. `ABSOLUTE` ist noch nicht umgesetzt.
 - **Matrixbefehle** (`MAT …`, Kapitel 13): am Original (probe17) und nach [D23](decisions.md#d23).

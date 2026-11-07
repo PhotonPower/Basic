@@ -1,0 +1,136 @@
+' test: groups core print file-seq
+' POS, CRSCOL/CRSLIN, PRINT AT, LOCATE, HTAB/VTAB, CLS, RINSTR, Komma-Zonen (aus probe20/probe21;
+' die Ergebniszeilen "T.." stehen in der Datei R wie am Original). TIMER ist nicht deterministisch.
+OPEN "O",#1,"console.dat"
+'
+'
+' T1 POS nach Ausgaben auf den Bildschirm
+CLS
+PRINT "abc";
+p1%=POS(0)
+PRINT
+p2%=POS(0)
+PRINT "abcd";CHR$(10);
+p3%=POS(0)
+PRINT "ab";CHR$(13);
+p4%=POS(0)
+PRINT "abcde";CHR$(8);
+p5%=POS(0)
+PRINT "x",
+p6%=POS(0)
+PRINT
+PRINT #1,"T1 abc; ";p1%;" PRINT ";p2%;" abcd+LF ";p3%;" ab+CR ";p4%;" abcde+BS ";p5%;" x, ";p6%
+'
+' T2 CRSCOL/CRSLIN
+CLS
+c1%=CRSCOL
+l1%=CRSLIN
+PRINT "abc";
+c2%=CRSCOL
+l2%=CRSLIN
+PRINT
+PRINT
+c3%=CRSCOL
+l3%=CRSLIN
+PRINT #1,"T2 nach CLS ";c1%;",";l1%;" nach abc; ";c2%;",";l2%;" zwei Zeilen tiefer ";c3%;",";l3%
+'
+' T3 PRINT AT, LOCATE, HTAB, VTAB
+PRINT AT(5,3);"xy";
+c1%=CRSCOL
+l1%=CRSLIN
+p1%=POS(0)
+LOCATE 7,10
+c2%=CRSCOL
+l2%=CRSLIN
+p2%=POS(0)
+HTAB 20
+c3%=CRSCOL
+l3%=CRSLIN
+VTAB 4
+c4%=CRSCOL
+l4%=CRSLIN
+PRINT AT(1,1);"z"
+c5%=CRSCOL
+l5%=CRSLIN
+p5%=POS(0)
+PRINT #1,"T3 AT(5,3)xy; ";c1%;",";l1%;" POS ";p1%;" LOCATE 7,10 ";c2%;",";l2%;" POS ";p2%
+PRINT #1,"T3 HTAB 20 ";c3%;",";l3%;" VTAB 4 ";c4%;",";l4%;" AT(1,1)z ";c5%;",";l5%;" POS ";p5%
+'
+' T4 TAB nach PRINT AT
+PRINT AT(10,5);"a";TAB(20);"b";
+c1%=CRSCOL
+p1%=POS(0)
+PRINT #1,"T4 AT(10,5) a TAB(20) b: CRSCOL ";c1%;" POS ";p1%
+'
+' T6 RINSTR
+PRINT #1,"T6 ";RINSTR("abcabc","b");" ";RINSTR("abcabc","b",4);" ";RINSTR(4,"abcabc","b");" ";RINSTR("abcabc","bc");" ";RINSTR("abcabc","x")
+PRINT #1,"T6 leer ";RINSTR("abc","");" ";RINSTR("","");" ";RINSTR("","a");" x=0 ";RINSTR("abcabc","b",0);" x=99 ";RINSTR("abcabc","b",99)
+PRINT #1,"T6 x=2 ";RINSTR("abcabc","b",2);" x=1 ";RINSTR("abcabc","a",1);" bc x=5 ";RINSTR("abcabc","bc",5);" x=6 ";RINSTR("abcabc","bc",6)
+PRINT #1,"T6 INSTR zum Vergleich ";INSTR("abcabc","b",3);" ";INSTR("abc","");" ";INSTR("","")
+'
+' T7 POS nach PRINT TAB und SPC
+CLS
+PRINT TAB(8);"a";
+p1%=POS(0)
+PRINT SPC(3);"b";
+p2%=POS(0)
+PRINT
+PRINT #1,"T7 TAB(8)a ";p1%;" SPC(3)b ";p2%
+
+CLS
+' T1 zwei Anweisungen in einer Zeile
+PRINT "abc";
+PRINT "d",
+p1%=POS(0)
+c1%=CRSCOL
+PRINT
+' T2 innerhalb einer Anweisung
+PRINT "abc";"d",
+p2%=POS(0)
+c2%=CRSCOL
+PRINT
+' T3 ueber 16 Zeichen
+PRINT "abcdefghijklmnopq";
+PRINT "r",
+p3%=POS(0)
+c3%=CRSCOL
+PRINT
+' T4 nach PRINT AT
+PRINT AT(5,10);"ab";
+PRINT "c",
+p4%=POS(0)
+c4%=CRSCOL
+PRINT
+' T5 nach CR
+PRINT "abcdefgh";CHR$(13);
+PRINT "x",
+p5%=POS(0)
+c5%=CRSCOL
+PRINT
+' T6 nach LOCATE
+PRINT "abc";
+LOCATE 30,15
+PRINT "y",
+p6%=POS(0)
+c6%=CRSCOL
+PRINT
+' T7 Datei: Komma nach zwei Anweisungen
+PRINT #1,"ab";
+PRINT #1,"c",
+PRINT #1,"|"
+PRINT #1,"T1 ";p1%;",";c1%;" T2 ";p2%;",";c2%;" T3 ";p3%;",";c3%;" T4 ";p4%;",";c4%;" T5 ";p5%;",";c5%;" T6 ";p6%;",";c6%
+
+t=TIMER
+PRINT #1,"T5 TIMER >=0 ";t>=0;" ganz ";t=INT(t)
+CLOSE #1
+OPEN "I",#1,"console.dat"
+WHILE NOT EOF(#1)
+  LINE INPUT #1,z$
+  r$=r$+z$+"/"
+WEND
+CLOSE #1
+KILL "console.dat"
+PRINT
+PRINT r$
+PRINT "ende"
+END

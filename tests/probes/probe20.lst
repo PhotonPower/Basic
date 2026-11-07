@@ -1,0 +1,110 @@
+' probe20 - POS, CRSCOL/CRSLIN, PRINT AT, LOCATE, HTAB/VTAB, TIMER, RINSTR (GFA-BASIC 3.5, Amiga).
+' Ergebnisdatei: DH0:probe20.txt; die Ausgaben fuer POS & Co. gehen auf den Bildschirm. Nach jedem
+' Abschnitt wird die Datei geschlossen (@flush).
+'
+datei$="DH0:probe20.txt"
+OPEN "O",#1,datei$
+ON ERROR GOSUB fehler
+PRINT #1,"probe20"
+@flush
+'
+' T1 POS nach Ausgaben auf den Bildschirm
+CLS
+PRINT "abc";
+p1%=POS(0)
+PRINT
+p2%=POS(0)
+PRINT "abcd";CHR$(10);
+p3%=POS(0)
+PRINT "ab";CHR$(13);
+p4%=POS(0)
+PRINT "abcde";CHR$(8);
+p5%=POS(0)
+PRINT "x",
+p6%=POS(0)
+PRINT
+PRINT #1,"T1 abc; ";p1%;" PRINT ";p2%;" abcd+LF ";p3%;" ab+CR ";p4%;" abcde+BS ";p5%;" x, ";p6%
+@flush
+'
+' T2 CRSCOL/CRSLIN
+CLS
+c1%=CRSCOL
+l1%=CRSLIN
+PRINT "abc";
+c2%=CRSCOL
+l2%=CRSLIN
+PRINT
+PRINT
+c3%=CRSCOL
+l3%=CRSLIN
+PRINT #1,"T2 nach CLS ";c1%;",";l1%;" nach abc; ";c2%;",";l2%;" zwei Zeilen tiefer ";c3%;",";l3%
+@flush
+'
+' T3 PRINT AT, LOCATE, HTAB, VTAB
+PRINT AT(5,3);"xy";
+c1%=CRSCOL
+l1%=CRSLIN
+p1%=POS(0)
+LOCATE 7,10
+c2%=CRSCOL
+l2%=CRSLIN
+p2%=POS(0)
+HTAB 20
+c3%=CRSCOL
+l3%=CRSLIN
+VTAB 4
+c4%=CRSCOL
+l4%=CRSLIN
+PRINT AT(1,1);"z"
+c5%=CRSCOL
+l5%=CRSLIN
+p5%=POS(0)
+PRINT #1,"T3 AT(5,3)xy; ";c1%;",";l1%;" POS ";p1%;" LOCATE 7,10 ";c2%;",";l2%;" POS ";p2%
+PRINT #1,"T3 HTAB 20 ";c3%;",";l3%;" VTAB 4 ";c4%;",";l4%;" AT(1,1)z ";c5%;",";l5%;" POS ";p5%
+@flush
+'
+' T4 TAB nach PRINT AT
+PRINT AT(10,5);"a";TAB(20);"b";
+c1%=CRSCOL
+p1%=POS(0)
+PRINT #1,"T4 AT(10,5) a TAB(20) b: CRSCOL ";c1%;" POS ";p1%
+@flush
+'
+' T5 TIMER: Einheit ueber PAUSE 50 (1 s)
+t1=TIMER
+PAUSE 50
+t2=TIMER
+PRINT #1,"T5 TIMER Differenz ";t2-t1;" ganz ";t1=INT(t1);" >=0 ";t1>=0
+@flush
+'
+' T6 RINSTR
+PRINT #1,"T6 ";RINSTR("abcabc","b");" ";RINSTR("abcabc","b",4);" ";RINSTR(4,"abcabc","b");" ";RINSTR("abcabc","bc");" ";RINSTR("abcabc","x")
+PRINT #1,"T6 leer ";RINSTR("abc","");" ";RINSTR("","");" ";RINSTR("","a");" x=0 ";RINSTR("abcabc","b",0);" x=99 ";RINSTR("abcabc","b",99)
+PRINT #1,"T6 x=2 ";RINSTR("abcabc","b",2);" x=1 ";RINSTR("abcabc","a",1);" bc x=5 ";RINSTR("abcabc","bc",5);" x=6 ";RINSTR("abcabc","bc",6)
+PRINT #1,"T6 INSTR zum Vergleich ";INSTR("abcabc","b",3);" ";INSTR("abc","");" ";INSTR("","")
+@flush
+'
+' T7 POS nach PRINT TAB und SPC
+CLS
+PRINT TAB(8);"a";
+p1%=POS(0)
+PRINT SPC(3);"b";
+p2%=POS(0)
+PRINT
+PRINT #1,"T7 TAB(8)a ";p1%;" SPC(3)b ";p2%
+PRINT #1,"ende"
+CLOSE #1
+END
+'
+PROCEDURE flush
+  CLOSE #1
+  OPEN "A",#1,datei$
+RETURN
+PROCEDURE fehler
+  e%=ERR
+  CLOSE #1
+  OPEN "A",#1,datei$
+  PRINT #1,"   -> ERR ";e%;" ";ERR$(e%)
+  ON ERROR GOSUB fehler
+  RESUME NEXT
+RETURN

@@ -84,8 +84,9 @@ enum class SKind : std::uint8_t {
 };
 
 struct PrintItem {
-    enum Kind : std::uint8_t { Value, Tab, Spc } kind = Value;
-    ExprPtr expr;  // may be null
+    enum Kind : std::uint8_t { Value, Tab, Spc, At } kind = Value;
+    ExprPtr expr;  // may be null; At: the column
+    ExprPtr expr2;  // At: the line
     char sep = 0;  // ';' ',' '\'' or 0
 };
 
