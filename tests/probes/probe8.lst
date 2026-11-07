@@ -1,0 +1,57 @@
+' probe8 - PRINT USING: Lage des Exponenten (GFA-BASIC 3.5, Amiga)
+' Ergebnisdatei: gfa_run.py setzt datei$ auf DH0:probe8.txt (docs/gfa-original.md).
+'
+datei$="DH0:probe8.txt"
+OPEN "O",#1,datei$
+ON ERROR GOSUB fehler
+PRINT #1,"probe8"
+'
+DATA 0.5,0.05,0.00123,0.000123,1,9.999,16,123,999.9,1234,12345,123456,1234567,1E+10,-16,-0.05
+FOR i%=1 TO 16
+  READ x
+  @us("T1 ###.##^^^^","###.##^^^^",x)
+NEXT i%
+RESTORE
+FOR i%=1 TO 16
+  READ x
+  @us("T2 ##.##^^^^","##.##^^^^",x)
+NEXT i%
+RESTORE
+FOR i%=1 TO 16
+  READ x
+  @us("T3 #.##^^^^","#.##^^^^",x)
+NEXT i%
+RESTORE
+FOR i%=1 TO 16
+  READ x
+  @us("T4 .##^^^^",".##^^^^",x)
+NEXT i%
+RESTORE
+FOR i%=1 TO 16
+  READ x
+  @us("T5 ####.#^^^^","####.#^^^^",x)
+NEXT i%
+@us("T6 -#.## -0.001","-#.##",-0.001)
+@us("T7 #.##- -0.001","#.##-",-0.001)
+'
+PRINT #1,"ende"
+CLOSE #1
+PRINT "fertig: ";datei$
+END
+'
+PROCEDURE fehler
+  ' Original: after an error channel #1 is unusable (ERR 24 file not open)
+  ' until it is closed and opened again
+  e%=ERR
+  CLOSE #1
+  OPEN "A",#1,datei$
+  PRINT #1,"   -> ERR ";e%;" ";ERR$(e%)
+  ON ERROR GOSUB fehler
+  RESUME NEXT
+RETURN
+'
+PROCEDURE us(t$,f$,x)
+  PRINT #1,t$;" ";x;": [";
+  PRINT #1,USING f$,x;
+  PRINT #1,"]"
+RETURN

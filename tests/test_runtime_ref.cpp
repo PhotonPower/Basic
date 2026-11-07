@@ -508,7 +508,54 @@ void testUsing() {
     // several values: the format starts over (D12)
     CHECK_EQ(usingNum("##.#", {1.25, 2.75}), std::string(" 1.3 2.8"));
     CHECK_EQ(usingNum("##.# ", {1.25, 2.75}), std::string(" 1.3  2.8 "));
-    CHECK_EQ(usingNum("A## B## C", {1, 2, 3}), std::string("A 1 B 2 CA 3 B"));
+    CHECK_EQ(usingNum("A## B## C", {1, 2, 3}), std::string("A 1 B 2 CA 3 B## C"));
+    // probe7: the rest of the format after the last value, '?' for a value without a field
+    CHECK_EQ(usingNum("A## B## C", {1}), std::string("A 1 B## C"));
+    CHECK_EQ(usingNum("Summe:", {5}), std::string("Summe:?5"));
+    CHECK_EQ(usingNum("Summe:", {5, 7}), std::string("Summe:?5?7"));
+    CHECK_EQ(usingNum("&", {1.5}), std::string("&?1.5"));
+    CHECK_EQ(usingStr("##", "x"), std::string("##?x"));
+    CHECK_EQ(usingStr("!", ""), std::string(" "));
+    CHECK_EQ(usingNum("##.##", {-0.001}), std::string("-0.00"));
+    CHECK_EQ(usingNum("-#.##", {-0.001}), std::string("-0.00"));
+    CHECK_EQ(usingNum("#.##-", {-0.001}), std::string("0.00-"));
+    CHECK_EQ(usingNum("#.##^^^^", {1e100}), std::string("1.00E+00"));  // exponent digits dropped
+    CHECK_EQ(usingNum("##.##^^^", {5}), std::string(" 5.00E+0"));
+    CHECK_EQ(usingNum("$####", {12}), std::string("  $12"));
+    CHECK_EQ(usingNum("#$##", {12}), std::string(" $12"));
+    CHECK_EQ(usingNum("+#.#", {-0.25}), std::string("-0.3"));
+    CHECK_EQ(usingNum("##.##-", {5}), std::string(" 5.00 "));
+    // probe8: exponent = multiple of the digit positions before the point; minus only with a
+    // sign position
+    struct Exp {
+        const char* f;
+        double x;
+        const char* s;
+    };
+    const Exp exps[] = {
+        {"###.##^^^^", 1, "  1.00E+00"},
+        {"###.##^^^^", 9.999, " 10.00E+00"},    {"###.##^^^^", 123, "123.00E+00"},
+        {"###.##^^^^", 999.9, "999.90E+00"},    {"###.##^^^^", 1234, "  1.23E+03"},
+        {"###.##^^^^", 12345, " 12.35E+03"},    {"###.##^^^^", 123456, "123.46E+03"},
+        {"###.##^^^^", 1234567, "  1.23E+06"},  {"###.##^^^^", 1e10, " 10.00E+09"},
+        {"###.##^^^^", -16, " 16.00E+00"},      {"##.##^^^^", 0.5, "50.00E-02"},
+        {"##.##^^^^", 0.05, " 5.00E-02"},       {"##.##^^^^", 0.00123, "12.30E-04"},
+        {"##.##^^^^", 0.000123, " 1.23E-04"},   {"##.##^^^^", 999.9, "10.00E+02"},
+        {"##.##^^^^", 1234, "12.34E+02"},       {"##.##^^^^", 1e10, " 1.00E+10"},
+        {"##.##^^^^", -16, "16.00E+00"},        {"#.##^^^^", 0.00123, "1.23E-03"},
+        {"#.##^^^^", 9.999, "1.00E+01"},        {"#.##^^^^", 999.9, "1.00E+03"},
+        {"#.##^^^^", -0.05, "5.00E-02"},        {"####.#^^^^", 0.5, "5000.0E-04"},
+        {"####.#^^^^", 0.000123, "   1.2E-04"}, {"####.#^^^^", 1234, "1234.0E+00"},
+        {"####.#^^^^", 1234567, " 123.5E+04"},  {"####.#^^^^", 1e10, " 100.0E+08"},
+        {"####.#^^^^", -16, "  16.0E+00"},
+        // the original differs for 3 digits and |x| < 1 (D14): 0.5 -> "  5.00E-01",
+        // 0.05 -> "500.00E-04", 0.000123 -> "  1.23E-04"
+        {"###.##^^^^", 0.5, "500.00E-03"},      {"###.##^^^^", 0.05, " 50.00E-03"},
+        {"###.##^^^^", 0.000123, "123.00E-06"},
+        // and prints wrong values for formats without a digit before the point
+        {".##^^^^", 16, ".16E+02"},             {".##^^^^", 0.05, ".50E-01"},
+    };
+    for (const Exp& c : exps) CHECK_EQ(usingNum(c.f, {c.x}), std::string(c.s));
     // MODE (probe4 T32)
     CHECK_EQ(usingNum("#,###.##", {1234.5}, 1), std::string("1,234.50"));
     CHECK_EQ(usingNum("#.###,##", {1234.5}, 2), std::string("1.234,50"));
@@ -518,14 +565,10 @@ void testUsing() {
     CHECK_EQ(usingNum("#,###,###", {1234567}), std::string("1,234,567"));
     CHECK_EQ(usingNum("-#.##^^^^", {-1234}), std::string("-1.23E+03"));
     CHECK_EQ(usingNum("#.##^^^^", {0}), std::string("0.00E+00"));
-    CHECK_EQ(usingNum("#.##^^^^", {1e100}), std::string("1.00E+100"));
     CHECK_EQ(usingNum("#.#^^^^", {9.96}), std::string("1.0E+01"));
     CHECK_EQ(usingNum("###.#^^^^", {0.000123}), std::string("123.0E-06"));
-    CHECK_EQ(usingNum("##.##", {-0.001}), std::string(" 0.00"));  // no "-0.00"
     CHECK_EQ(usingNum("**$##.##", {3.5}), std::string("***$3.50"));
-    CHECK_EQ(usingNum("Summe:", {5}), std::string("Summe:5"));  // no field: as by PRINT
     CHECK_EQ(usingNum("###.##", {1e300}).size(), std::size_t{6});
-    CHECK_EQ(usingStr("##", "x"), std::string("x"));
     // STR$(x,y,z) and STR$(x,n): probe4 T33/T34/T32, probe5 T19/T20
     CHECK_EQ(strFmt(123.4567, 6, 2), std::string("123.46"));
     CHECK_EQ(strFmt(pi, 5, 3), std::string("3.142"));

@@ -1,0 +1,55 @@
+' probe7 - PRINT USING: Festlegungen aus D13 pruefen (GFA-BASIC 3.5, Amiga)
+' Ergebnisdatei: gfa_run.py setzt datei$ auf DH0:probe7.txt (docs/gfa-original.md).
+'
+datei$="DH0:probe7.txt"
+OPEN "O",#1,datei$
+ON ERROR GOSUB fehler
+PRINT #1,"probe7"
+'
+@us("T1 ohne Feld","Summe:",5)
+@us("T2 -0.001 ##.##","##.##",-0.001)
+@us("T3 1E100 #.##^^^^","#.##^^^^",1E+100)
+@us("T4 **$##.##","**$##.##",3.5)
+@us("T5 #,### 12","#,###",12)
+@us("T6 #,###,### 1234567","#,###,###",1234567)
+@us("T7 -#.##^^^^ -1234","-#.##^^^^",-1234)
+@us("T8 #.##^^^^ 0","#.##^^^^",0)
+@us("T9 #.#^^^^ 9.96","#.#^^^^",9.96)
+@us("T10 ###.#^^^^ 0.000123","###.#^^^^",0.000123)
+@us("T11 A## B## C","A## B## C",1)
+@us("T12 ##.##- 5","##.##-",5)
+@us("T13 +#.# -0.25","+#.#",-0.25)
+@us("T14 $#### 12","$####",12)
+@us("T15 #$## 12","#$##",12)
+@us("T16 ##.##^^^ 5","##.##^^^",5)
+PRINT #1,"T17 Zahl in &: [";
+PRINT #1,USING "&",1.5;
+PRINT #1,"]"
+PRINT #1,"T18 String in ##: [";
+PRINT #1,USING "##","x";
+PRINT #1,"]"
+PRINT #1,"T19 ! leer: [";
+PRINT #1,USING "!","";
+PRINT #1,"]"
+'
+PRINT #1,"ende"
+CLOSE #1
+PRINT "fertig: ";datei$
+END
+'
+PROCEDURE fehler
+  ' Original: after an error channel #1 is unusable (ERR 24 file not open)
+  ' until it is closed and opened again
+  e%=ERR
+  CLOSE #1
+  OPEN "A",#1,datei$
+  PRINT #1,"   -> ERR ";e%;" ";ERR$(e%)
+  ON ERROR GOSUB fehler
+  RESUME NEXT
+RETURN
+'
+PROCEDURE us(t$,f$,x)
+  PRINT #1,t$;": [";
+  PRINT #1,USING f$,x;
+  PRINT #1,"]"
+RETURN

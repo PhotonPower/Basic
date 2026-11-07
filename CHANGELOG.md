@@ -18,7 +18,9 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
   `DEFNUM`, `VAL`/`VAL?` korrekt gerundet, Zufallsgenerator; Tests gegen die IEEE-Arithmetik des
   Rechners, `strtod`/`printf` und die Ergebnisse am Original (`tests/test_runtime_ref.cpp`).
 - `PRINT USING` (Zahlen- und Stringfelder, `MODE`, Wiederholung des Formats), `STR$(x,n)` und
-  `STR$(x,y,z)` in `runtime/ref`; Festlegungen für vom Original nicht gezeigte Fälle in D13.
+  `STR$(x,y,z)` in `runtime/ref`; Festlegungen für vom Original nicht gezeigte Fälle in D13,
+  nach probe7/probe8 am Original korrigiert (D14): Rest des Formats als Text, `?` für Werte ohne
+  passendes Feld, `-0.00`, Exponentlage und -breite, Minus im Exponentformat.
 - probe6 am Original ausgewertet: `VAL` mit Präfix (32 Bit, kein Vorzeichen davor), Gleichstand bei
   der Ausgabe von 0 weg, `DEFNUM` mindestens 2 Stellen, `ROUND` rundet aufwärts. Entscheidung D13.
 - Abgleich mit dem Original: `tools/gfa/gfa_run.py` führt `.lst`-Programme im echten GFA-BASIC 3.5

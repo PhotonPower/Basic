@@ -122,8 +122,9 @@ static rt_using__field rt_using__parse(const rt_using *u, int32_t i) {
 }
 
 /* Writes literal text from u->pos up to the next field; with `wrap` the format starts over once
- * at its end. Returns 1 if a field starts at u->pos. */
-static int rt_using__literal(rt_using *u, rt_using__out *o, int wrap) {
+ * at its end. With `all` fields are written as text too, up to the end of the format. Returns 1
+ * if a field starts at u->pos. */
+static int rt_using__literal(rt_using *u, rt_using__out *o, int wrap, int all) {
     for (;;) {
         while (u->pos < u->len) {
             const char c = u->f[u->pos];
@@ -132,7 +133,7 @@ static int rt_using__literal(rt_using *u, rt_using__out *o, int wrap) {
                 u->pos += 2;
                 continue;
             }
-            if (rt_using__start(u, u->pos)) return 1;
+            if (!all && rt_using__start(u, u->pos)) return 1;
             rt_using__put(o, c);
             ++u->pos;
         }
@@ -191,7 +192,7 @@ static void rt_using__number(const rt_using *u, rt_using__out *o, const rt_using
     char ds[13], n[RT_USING__NBUF], ip[RT_USING__NBUF + RT_USING__NBUF / 3 + 4];
     int32_t d, e = 0, nlen, ilen, i, first, pad;
     const int32_t dec = fl->dec > RT_USING__MAXDEC ? RT_USING__MAXDEC : fl->dec;
-    int neg, nonzero = 0;
+    int neg;
     neg = rt_flt_dec(x, 13, ds, &d);
     if (fl->carets) {
         /* exponent format: the exponent is a multiple of the digit positions before the point
@@ -201,7 +202,7 @@ static void rt_using__number(const rt_using *u, rt_using__out *o, const rt_using
         else if (k > 0) e = (d >= 0 ? d / k : -((-d + k - 1) / k)) * k;
         else e = d + 1;
         nlen = rt_using__scaled(ds, d - e, dec, n);
-        if (ds[0] != '0' && rt_using__intdigits(n, nlen, dec) > (k > 0 ? k : 0)) {
+        if (ds[0] != '0' && (k > 0 ? rt_using__intdigits(n, nlen, dec) > k : nlen > dec && n[0] != '0')) {
             e += k > 0 ? k : 1; /* rounding carried into a new digit: renormalise once */
             nlen = rt_using__scaled(ds, d - e, dec, n);
         }
@@ -215,8 +216,6 @@ static void rt_using__number(const rt_using *u, rt_using__out *o, const rt_using
         for (i = 0; i < sh; ++i) n[i] = '0';
         nlen = dec + 1;
     }
-    for (i = 0; i < nlen; ++i)
-        if (n[i] != '0') nonzero = 1;
     /* integer part, right to left: digits with separators, then '$' and sign */
     first = nlen - dec - rt_using__intdigits(n, nlen, dec);
     ilen = 0;
@@ -227,9 +226,11 @@ static void rt_using__number(const rt_using *u, rt_using__out *o, const rt_using
     }
     if (fl->n_digits == 0 && ilen == 1 && ip[0] == '0') ilen = 0; /* ".##": no units digit */
     if (fl->dollar) ip[ilen++] = '$';
-    if (neg && nonzero && !fl->lead_sign && !fl->trail_sign) ip[ilen++] = '-';
+    /* without a sign position the minus takes a free digit position; never in the exponent
+     * format (probe8) */
+    if (neg && !fl->lead_sign && !fl->trail_sign && !fl->carets) ip[ilen++] = '-';
     /* fixed sign in front */
-    if (fl->lead_sign) rt_using__put(o, neg && nonzero ? '-' : (fl->lead_sign == '+' ? '+' : ' '));
+    if (fl->lead_sign) rt_using__put(o, neg ? '-' : (fl->lead_sign == '+' ? '+' : ' '));
     /* integer field: right-aligned, leading characters dropped if too long */
     pad = fl->w_int - ilen;
     for (i = 0; i < pad; ++i) rt_using__put(o, fl->star ? '*' : ' ');
@@ -239,18 +240,18 @@ static void rt_using__number(const rt_using *u, rt_using__out *o, const rt_using
         for (i = nlen - dec; i < nlen; ++i) rt_using__put(o, n[i]);
     }
     if (fl->carets) {
-        char es[12];
-        int32_t ex = e < 0 ? -e : e, ne = 0, want = fl->carets - 2;
+        /* exactly carets-2 exponent digits; leading digits are dropped (1E100 -> E+00, probe7) */
+        int32_t ex = e < 0 ? -e : e, p10 = 1, k;
+        const int32_t want = fl->carets - 2 > 9 ? 9 : fl->carets - 2;
         rt_using__put(o, 'E');
         rt_using__put(o, e < 0 ? '-' : '+');
-        do {
-            es[ne++] = (char)('0' + ex % 10);
-            ex /= 10;
-        } while (ex != 0);
-        for (; ne < want && ne < 10; ++ne) es[ne] = '0';
-        while (ne > 0) rt_using__put(o, es[--ne]);
+        for (k = 1; k < want; ++k) p10 *= 10;
+        for (k = 0; k < want; ++k) {
+            rt_using__put(o, (char)('0' + (ex / p10) % 10));
+            p10 /= 10;
+        }
     }
-    if (fl->trail_sign) rt_using__put(o, neg && nonzero ? '-' : (fl->trail_sign == '+' ? '+' : ' '));
+    if (fl->trail_sign) rt_using__put(o, neg ? '-' : (fl->trail_sign == '+' ? '+' : ' '));
 }
 
 static void rt_using__string(rt_using__out *o, const rt_using__field *fl, const char *s, int32_t slen) {
@@ -258,10 +259,24 @@ static void rt_using__string(rt_using__out *o, const rt_using__field *fl, const 
     if (fl->kind == 2) {
         for (i = 0; i < slen; ++i) rt_using__put(o, s[i]);
     } else if (fl->kind == 3) {
-        if (slen > 0) rt_using__put(o, s[0]);
+        rt_using__put(o, slen > 0 ? s[0] : ' '); /* probe7 T19 */
     } else {
         for (i = 0; i < fl->width; ++i) rt_using__put(o, i < slen ? s[i] : ' ');
     }
+}
+
+/* A field of the wrong kind is written as text (probe7 T17, T18). */
+static void rt_using__mismatch(rt_using *u, rt_using__out *o, int32_t end) {
+    while (u->pos < end) rt_using__put(o, u->f[u->pos++]);
+}
+
+/* "?" followed by the number as by PRINT. */
+static void rt_using__unformatted(rt_using__out *o, f64 x) {
+    char buf[RT_FMT_FLT_MAX];
+    const int n = rt_fmt_flt(buf, x, 13);
+    int i;
+    rt_using__put(o, '?');
+    for (i = 0; i < n; ++i) rt_using__put(o, buf[i]);
 }
 
 void rt_using_begin(rt_using *u, const char *f, int32_t len, int mode) {
@@ -289,22 +304,16 @@ int32_t rt_using_num(rt_using *u, char *out, int32_t cap, f64 x) {
     o.p = out;
     o.n = 0;
     o.cap = cap;
-    if (!rt_using__literal(u, &o, 1)) { /* no field in the format: the value as by PRINT */
-        char buf[RT_FMT_FLT_MAX];
-        const int n = rt_fmt_flt(buf, x, 13);
-        int i;
-        for (i = 0; i < n; ++i) rt_using__put(&o, buf[i]);
-        return o.n;
+    if (rt_using__literal(u, &o, 1, 0)) {
+        fl = rt_using__parse(u, u->pos);
+        if (fl.kind == 1) {
+            u->pos = fl.end;
+            rt_using__number(u, &o, &fl, x);
+            return o.n;
+        }
+        rt_using__mismatch(u, &o, fl.end);
     }
-    fl = rt_using__parse(u, u->pos);
-    u->pos = fl.end;
-    if (fl.kind == 1) {
-        rt_using__number(u, &o, &fl, x);
-    } else { /* string field: the value as by PRINT */
-        char buf[RT_FMT_FLT_MAX];
-        const int n = rt_fmt_flt(buf, x, 13);
-        rt_using__string(&o, &fl, buf, n);
-    }
+    rt_using__unformatted(&o, x); /* no suitable field: "?" and the value as by PRINT */
     return o.n;
 }
 
@@ -315,17 +324,17 @@ int32_t rt_using_str(rt_using *u, char *out, int32_t cap, const char *s, int32_t
     o.p = out;
     o.n = 0;
     o.cap = cap;
-    if (!rt_using__literal(u, &o, 1)) {
-        for (i = 0; i < slen; ++i) rt_using__put(&o, s[i]);
-        return o.n;
+    if (rt_using__literal(u, &o, 1, 0)) {
+        fl = rt_using__parse(u, u->pos);
+        if (fl.kind != 1) {
+            u->pos = fl.end;
+            rt_using__string(&o, &fl, s, slen);
+            return o.n;
+        }
+        rt_using__mismatch(u, &o, fl.end);
     }
-    fl = rt_using__parse(u, u->pos);
-    u->pos = fl.end;
-    if (fl.kind == 1) {
-        for (i = 0; i < slen; ++i) rt_using__put(&o, s[i]); /* number field: the string unchanged */
-    } else {
-        rt_using__string(&o, &fl, s, slen);
-    }
+    rt_using__put(&o, '?'); /* no suitable field */
+    for (i = 0; i < slen; ++i) rt_using__put(&o, s[i]);
     return o.n;
 }
 
@@ -334,6 +343,6 @@ int32_t rt_using_end(rt_using *u, char *out, int32_t cap) {
     o.p = out;
     o.n = 0;
     o.cap = cap;
-    rt_using__literal(u, &o, 0);
+    rt_using__literal(u, &o, 0, 1); /* the rest of the format as text (probe7 T11) */
     return o.n;
 }

@@ -84,6 +84,32 @@ die ungenaue Konstante `PI` (wir nehmen den nächstgelegenen binary64-Wert), das
 Ganzzahl- und Rundungsregeln, `FOR`-Semantik, Ausgabeformat, Fehlernummern und -texte, die Regel von
 `==` (siehe [numerics.md](numerics.md)).
 
+<a id="d14"></a>
+## D14 – `PRINT USING` nach dem Abgleich mit dem Original
+
+Ersetzt den Punkt `PRINT USING` in [D13](#d13). Am Original geprüft (probe7, probe8) und übernommen:
+
+- **Rest des Formats:** Nach dem letzten Wert wird der Rest des Formats als Text ausgegeben, auch
+  Felder (`USING "A## B## C",1` → `A 1 B## C`).
+- **Kein passendes Feld:** Fehlt ein Feld oder passt seine Art nicht (Zahl in `&`, String in `##`),
+  wird das Feld als Text ausgegeben, dann `?` und der Wert wie bei `PRINT` (`Summe:?5`, `&?1.5`,
+  `##?x`).
+- **Vorzeichen:** Ein negativer Wert behält sein Minus, auch wenn er auf 0 gerundet wird (`-0.00`).
+  Im Exponentformat erscheint das Minus nur mit eigener Vorzeichenstelle (`-#.##^^^^`).
+- **Exponent:** genau so viele Ziffern wie `^` minus 2; vordere Ziffern fallen weg
+  (1E100 mit `^^^^` → `E+00`). Der Exponent ist ein Vielfaches k·⌊d/k⌋ der k Stellen vor dem Punkt;
+  verursacht das Runden eine Stelle zu viel, wird einmal neu normalisiert (`#.##^^^^`, 9,999 →
+  `1.00E+01`).
+- **Leerer String mit `!`:** ein Leerzeichen.
+
+Nicht nachgebildet (Eigenheiten nach [D11](#d11)):
+- Bei 3 Stellen vor dem Punkt und |x| < 1 wählt das Original den Exponenten anders, ohne
+  erkennbare Regel (0,5 → `5.00E-01`, 0,05 → `500.00E-04`); wir bleiben bei k·⌊d/k⌋.
+- Formate ohne Stelle vor dem Punkt geben im Exponentformat falsche Werte aus (`.##^^^^`, 16 →
+  `.16E+00`); wir geben `.16E+02` aus.
+
+Die Wiederholung des Formats für weitere Werte ([D12](#d12)) bleibt.
+
 <a id="d13"></a>
 ## D13 – Festlegungen der numerischen Referenz (0.1)
 
@@ -96,7 +122,7 @@ Mit `runtime/ref` festgelegt, wo weder Handbuch noch Original eine Antwort geben
 - **`VAL`** behält höchstens 800 signifikante Ziffern; weitere wirken nur als Rundungsinformation.
   Das ist exakt, weil jeder Mittelpunkt zwischen zwei binary64-Zahlen höchstens 767 Ziffern hat.
 - **`DEFNUM`** über 13 zählt als 13.
-- **`PRINT USING`:**
+- **`PRINT USING`** (ersetzt durch [D14](#d14)):
   - Ein Format ohne Feld gibt seinen Text und danach den Wert wie `PRINT` aus.
   - Eine Zahl in einem Stringfeld erscheint in der `PRINT`-Form, ein String in einem Zahlenfeld
     unverändert.

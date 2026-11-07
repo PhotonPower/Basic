@@ -188,8 +188,14 @@ Differenztests Ausgaben vergleichen.
   Ergebnisse verlieren also die **führenden** Ziffern und das Minus (`STR$(12345.6,4,1)` = `"45.6"`,
   `STR$(12345.6,3,0)` = `"346"`, `STR$(-1.25,3,1)` = `"1.3"`, `STR$(1,0)` = `""`). Ebenso
   `USING "##"`: −5 → `-5`, −15 → `15`; `"#.#"`, 99,96 → `0.0` (probe5 T20, T25–T27).
-- Umsetzung: `rt_using_*` und `rt_str_fmt`/`rt_str_n` in `runtime/ref`; Fälle, die das Original
-  nicht zeigt, regelt [D13](decisions.md#d13).
+- Weitere Regeln am Original (probe7, probe8), Einzelheiten in [D14](decisions.md#d14):
+  - Nach dem letzten Wert folgt der Rest des Formats als Text, auch Felder.
+  - Ein Wert ohne passendes Feld erscheint als `?` und `PRINT`-Form (`Summe:?5`).
+  - Negative Werte behalten das Minus auch bei 0 (`-0.00`); im Exponentformat nur mit eigener
+    Vorzeichenstelle.
+  - Der Exponent hat genau (Zahl der `^`) − 2 Ziffern und ist ein Vielfaches der Stellen vor dem
+    Punkt (`###.##^^^^`: 12345 → ` 12.35E+03`; `##.##^^^^`: 0,5 → `50.00E-02`).
+- Umsetzung: `rt_using_*` und `rt_str_fmt`/`rt_str_n` in `runtime/ref`.
 - **Eigenheiten des Originals, nicht nachgebildet** ([D12](decisions.md#d12)):
   - Formate ohne Stelle vor dem Punkt sind im Original fehlerhaft (`".##"`, 0,25 → `. 0`, 0,5 →
     `. 1`; probe4 T29, probe5 T21–T24). Wir formatieren korrekt (`.25`, `.50`).
