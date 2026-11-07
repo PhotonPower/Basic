@@ -1,0 +1,100 @@
+' test: groups core string print
+' Arrays aller Typen, mehrdimensional, OPTION BASE, DIM?, ERASE, SWAP, CLR, VAR-Grenzfaelle
+DIM a%(3,4),f(5),w&(2),b|(3),t!(2),s$(2,2)
+FOR i%=0 TO 3
+  FOR j%=0 TO 4
+    a%(i%,j%)=i%*10+j%
+  NEXT j%
+NEXT i%
+PRINT a%(0,0);" ";a%(3,4);" ";a%(2,1);" ";DIM?(a%());" ";DIM?(s$())
+f(5)=1/3
+w&(1)=-32768
+b|(2)=255
+t!(1)=7
+PRINT f(5);" ";f(0);" ";w&(1);" ";b|(2);" ";t!(1);" ";t!(2)
+INC a%(1,1)
+DEC w&(1)
+ADD f(5),1
+MUL b|(2),2
+PRINT a%(1,1);" ";w&(1);" ";f(5);" ";b|(2)
+FOR i%=0 TO 2
+  FOR j%=0 TO 2
+    s$(i%,j%)=STRING$(100,CHR$(65+i%*3+j%))
+  NEXT j%
+NEXT i%
+FOR k%=1 TO 200
+  s$(k% MOD 3,(k%\3) MOD 3)=LEFT$(s$(k% MOD 3,(k%\3) MOD 3)+STR$(k%),150)
+NEXT k%
+PRINT LEFT$(s$(0,0),3);RIGHT$(s$(1,2),6);" ";LEN(s$(2,2))
+SWAP s$(0,0),s$(2,2)
+SWAP a%(0,0),a%(3,4)
+PRINT LEFT$(s$(0,0),2);" ";LEFT$(s$(2,2),2);" ";a%(0,0);" ";a%(3,4)
+DIM g%(2)
+g%(1)=5
+SWAP a%(),g%()
+PRINT g%(3,4);" ";a%(1);" ";DIM?(a%());" ";DIM?(g%())
+ERASE s$()
+PRINT DIM?(s$())
+DIM s$(1)
+s$(1)="neu"
+PRINT s$(1);"|";s$(0);"|"
+OPTION BASE 1
+DIM e(3)
+e(1)=11
+e(3)=33
+PRINT e(1);" ";e(3);" ";DIM?(e())
+OPTION BASE 0
+x=1
+y$="ab"
+z%=4
+CLR x,y$,z%
+PRINT x;" ";y$;"|";z%
+' VAR: der Parameter heisst wie die uebergebene Variable
+p=5
+@selbst(p)
+PRINT "selbst: ";p
+q$="q"
+@selbst$(q$)
+PRINT "selbst$: ";q$
+' VAR durch Rekursion weitergereicht
+n=0
+@zaehle(5,n)
+PRINT "zaehle: ";n
+' LOCAL einer VAR-Variablen, VAR-Array
+r=1
+@lokal(r)
+PRINT "lokal: ";r
+DIM h(2)
+@fuelle(h())
+PRINT h(0);" ";h(2)
+@tausch(a%(),g%())
+PRINT g%(1);" ";DIM?(a%())
+PROCEDURE selbst(VAR p)
+  p=p*2
+RETURN
+PROCEDURE selbst$(VAR q$)
+  q$=q$+STRING$(50,"!")
+  q$=LEFT$(q$,4)
+RETURN
+PROCEDURE zaehle(k%,VAR c)
+  IF k%>0
+    INC c
+    @zaehle(k%-1,c)
+  ENDIF
+RETURN
+PROCEDURE lokal(VAR v)
+  v=2
+  @innen
+  PRINT "v=";v;" r=";r
+RETURN
+PROCEDURE innen
+  LOCAL v
+  v=99
+RETURN
+PROCEDURE fuelle(VAR u())
+  u(0)=-1
+  u(2)=PI
+RETURN
+PROCEDURE tausch(VAR m%(),o%())
+  SWAP m%(),o%()
+RETURN

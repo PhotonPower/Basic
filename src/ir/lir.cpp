@@ -5,7 +5,7 @@ namespace basic::lir {
 namespace {
 
 std::string reg(const Reg& r) {
-    return (r.type == VT::F64 ? "f" : r.type == VT::Str ? "s" : "t") + std::to_string(r.id);
+    return (r.type == VT::F64 ? "f" : r.type == VT::Str ? "s" : r.type == VT::Addr ? "a" : "t") + std::to_string(r.id);
 }
 
 std::string hex(std::uint64_t v) {
@@ -52,6 +52,10 @@ std::string dump(const Program& p) {
                 case Kind::Restore: o += "  restore " + var(i.var) + "\n"; break;
                 case Kind::PrintStr: o += "  print \"" + i.text + "\"\n"; break;
                 case Kind::Line: o += "  stmt " + std::to_string(i.imm) + "\n"; break;
+                case Kind::Addr: o += "  " + reg(i.dst) + " = addr " + var(i.var) + "\n"; break;
+                case Kind::LoadAt: o += "  " + reg(i.dst) + " = ld." + hir::typeName(i.mem) + " [" + reg(i.a) + "]\n"; break;
+                case Kind::StoreAt: o += "  st." + std::string(hir::typeName(i.mem)) + " [" + reg(i.a) + "], " + reg(i.b) + "\n"; break;
+                case Kind::Bind: o += "  bind " + var(i.var) + ", " + reg(i.a) + "\n"; break;
             }
         }
     }

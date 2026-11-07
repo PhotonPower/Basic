@@ -1,5 +1,5 @@
 ;! module    rt_str
-;! provides  rt_str_alloc rt_str_gc rt_str_newtemp rt_str_mark rt_str_release rt_str_assign rt_str_free rt_str_relink rt_str_set_ret rt_str_take_ret rt_print_sdesc rt_str_ret
+;! provides  rt_str_alloc rt_str_gc rt_str_newtemp rt_str_mark rt_str_release rt_str_assign rt_str_free rt_str_relink rt_str_set_ret rt_str_take_ret rt_print_sdesc rt_str_ret rt_str_swap
 ;! requires  rt_error rt_print_str
 ;! group     string
 ;! clobbers  D0-D3/A0-A1
@@ -234,6 +234,19 @@ rt_str_take_ret:
         BSR     rt_str_relink
         MOVE.L  (SP)+,A0
         RTS
+
+; A0, A1 = descriptors: exchange the strings (SWAP)
+rt_str_swap:
+        MOVE.L  (A0),D0
+        MOVE.L  (A1),(A0)
+        MOVE.L  D0,(A1)
+        MOVE.L  4(A0),D0
+        MOVE.L  4(A1),4(A0)
+        MOVE.L  D0,4(A1)
+        MOVE.L  A1,-(SP)
+        BSR     rt_str_relink
+        MOVE.L  (SP)+,A0
+        BRA     rt_str_relink
 
 ; A0 = descriptor: PRINT
 rt_print_sdesc:

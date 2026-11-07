@@ -28,6 +28,7 @@ Für die Grundoperationen genügt es, das **exakte** Ergebnis und ein korrektes 
 | `rt_flt_dec`, `rt_fmt_flt` | Dezimalziffern des exakten Binärwerts; `PRINT`/`STR$`-Form mit `DEFNUM` |
 | `rt_str` | String-Heap nach D18: Deskriptoren, Blöcke mit Rückverweis, Zusammenschieben, Zwischenergebnisse, Zuweisung, Rückgabe von String-Funktionen |
 | `rt_strfn` | Verketten, Vergleich, `LEFT$`/`RIGHT$`/`MID$`, `INSTR`, `CHR$`, `ASC`, `LEN`, `SPACE$`, `STRING$`, `UPPER$`, `TRIM$`, `STR$`, `HEX$`/`BIN$`/`OCT$` |
+| `rt_arr` | Arrays: `DIM` (bis 3 Dimensionen), Elementadresse mit Prüfung (Fehler 14–18), `DIM?`, `ERASE`, `OPTION BASE`, `SWAP` ganzer Arrays |
 | `rt_bits` | `BTST`/`BCLR`/`BSET`/`BCHG`, `SHL`/`SHR`/`ROL`/`ROR` (8/16/32 Bit), `SWAP`, `WORD`, `CARD`, `BYTE` |
 | `rt_print`, `rt_int`, `rt_for`, `rt_power`, `rt_end` | Ausgabe, Ganzzahlhilfen, `FOR`, Potenz, Programmende |
 

@@ -43,7 +43,8 @@ Wurzel, Vergleiche, Konvertierungen, Rundungsfunktionen, Zufall), ✔ Zahlenausg
 (`basicc --target m68k-test`); das Golden-Programm `numbers` läuft im Emulator.
 ✔ Strings (Heap mit Speicherbereinigung, D18); `control` läuft im Emulator.
 ✔ Bit- und Ganzzahlfunktionen; `arith` läuft im Emulator.
-Weiter: `VAR`, Arrays, `DATA` und `VAL`, `ON ERROR`, `PRINT USING`,
+✔ `VAR`, Arrays, `SWAP`, `CLR`, `ERASE`; `procs` läuft im Emulator.
+Weiter: `DATA` und `VAL`, `ON ERROR`, `PRINT USING`,
 dann das Amiga-Ziel.
 
 - Quelltext-Linker (`src/link`) mit Map-Datei und Label-Prüfung.

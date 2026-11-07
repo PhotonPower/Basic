@@ -22,6 +22,8 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 - MC68000: Bit- und Ganzzahlfunktionen (`ADD`/`SUB`/`MUL`/`DIV`/`MOD`, `SHL`/`SHR`/`ROL`/`ROR` in
   8/16/32 Bit, `BTST`/`BCLR`/`BSET`/`BCHG`, `SWAP`, `WORD`, `CARD`, `BYTE`) in `rt_bits`, im
   Konformanztest gegen die Semantik von `platform/pc` geprüft; `arith` läuft im Emulator.
+- MC68000: Arrays (bis 3 Dimensionen, alle Typen, `DIM?`, `ERASE`, `OPTION BASE`), `VAR`-Parameter
+  (auch ganze Arrays), `SWAP`, `CLR`; `procs` läuft im Emulator. Neues Testprogramm `arrays`.
 - Testprogramm `strheap` für den String-Heap; dabei behoben: `rt_str_set_ret` erwartete den
   Deskriptor in A1 statt A0, das Ergebnis von String-Funktionen ging verloren (Fehler 8).
 - MC68000, erster Teil: Quelltext-Linker `src/link` (Modulköpfe, Hülle über `requires`,

@@ -12,7 +12,8 @@
 
 namespace basic::lir {
 
-enum class VT : std::uint8_t { I32, F64, Str };  // Str: address of a string descriptor (D18)
+// Str: address of a string descriptor (D18); Addr: address of a variable or array element
+enum class VT : std::uint8_t { I32, F64, Str, Addr };
 
 struct Reg {
     int id = -1;
@@ -39,6 +40,10 @@ enum class Kind : std::uint8_t {
     Restore,  // pop the value of var
     PrintStr, // print the string constant `text`
     Line,     // BASIC source line (statement boundary)
+    Addr,     // dst = address of the storage of var (scalar, or the slot of an array)
+    LoadAt,   // dst = memory at address a, element type `mem` (widened like Load)
+    StoreAt,  // memory at address a = b, element type `mem`
+    Bind,     // var refers to the storage at address a (VAR parameter; right after its Save)
 };
 
 struct Instr {
@@ -49,6 +54,7 @@ struct Instr {
     int var = -1;
     int label = -1;
     int routine = -1;
+    hir::Type mem = hir::Type::Int;  // LoadAt, StoreAt
     std::string op;      // Op, Cmp: "add", "eq", ...; RtCall: runtime symbol
     std::string text;    // PrintStr
     std::vector<Reg> args;
@@ -69,6 +75,7 @@ struct Function {
 struct Program {
     std::vector<Function> functions;  // main first
     const hir::Program* hir = nullptr;
+    std::vector<bool> indirect;  // per variable: accessed through a pointer (VAR parameters)
 };
 
 std::string dump(const Program& p);

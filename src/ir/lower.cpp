@@ -31,6 +31,10 @@ public:
         strings_ = usesStrings();
         lir::Program out;
         out.hir = &p_;
+        out.indirect.assign(p_.vars.size(), false);
+        for (const hir::Routine& r : p_.routines)
+            for (const hir::Param& prm : r.params)
+                if (prm.byRef) out.indirect[static_cast<std::size_t>(prm.var)] = true;
         lir::Function main;
         main.name = "main";
         function(main, p_.main, nullptr);
@@ -142,7 +146,7 @@ private:
     const hir::Var& var(int v) const { return p_.vars[static_cast<std::size_t>(v)]; }
 
     Reg load(int v) {
-        if (var(v).array) unsupported("arrays");
+        if (var(v).array) unsupported("whole arrays here");
         Reg r = reg(vt(var(v).type));
         Instr& i = emit(Kind::Load);
         i.dst = r;
@@ -158,6 +162,73 @@ private:
         Instr& i = emit(Kind::Store);
         i.var = v;
         i.a = x;
+    }
+
+    // address of the storage of a variable (scalar or the slot of an array)
+    Reg addrOf(int v) {
+        Reg r = reg(VT::Addr);
+        Instr& i = emit(Kind::Addr);
+        i.dst = r;
+        i.var = v;
+        return r;
+    }
+
+    // element size in an array (bytes)
+    static int elemSize(Type t) {
+        switch (t) {
+            case Type::Float:
+            case Type::Str: return 8;
+            case Type::Int: return 4;
+            case Type::Word: return 2;
+            default: return 1;
+        }
+    }
+
+    // address of an array element (checks in rt_arr_elem)
+    Reg elemAddr(const hir::Expr& e) {
+        if (e.args.size() > 3) unsupported("arrays with more than 3 dimensions");
+        std::vector<Reg> ix;
+        for (const auto& a : e.args) ix.push_back(toI(expr(*a)));
+        std::vector<Reg> args{addrOf(e.var), constI(static_cast<std::int32_t>(ix.size()))};
+        args.insert(args.end(), ix.begin(), ix.end());
+        return rtcall("rt_arr_elem", args, VT::Addr);
+    }
+
+    Reg loadElem(const hir::Expr& e) { return loadAtAddr(elemAddr(e), var(e.var).type); }
+
+    Reg loadAtAddr(Reg a, Type t) {
+        if (t == Type::Str) return strAt(a);
+        Reg r = reg(vt(t));
+        Instr& i = emit(Kind::LoadAt);
+        i.dst = r;
+        i.a = a;
+        i.mem = t;
+        return r;
+    }
+
+    Reg strAt(Reg a) {
+        Reg r = reg(VT::Str);
+        copyTo(r, a);
+        return r;
+    }
+
+    Reg loadTarget(const hir::Expr& t) { return t.op == Op::Load ? load(t.var) : loadElem(t); }
+
+    // store into a variable or an element; `addr` may be given when the element address is known
+    void storeTarget(const hir::Expr& t, Reg x, Reg addr = Reg()) {
+        if (t.op == Op::Load) return store(t.var, x);
+        if (addr.id < 0) addr = elemAddr(t);
+        const Type ty = var(t.var).type;
+        if (ty == Type::Str) {
+            Reg d = reg(VT::Str);
+            copyTo(d, addr);
+            rtcallVoid("rt_str_assign", {d, x});
+            return;
+        }
+        Instr& i = emit(Kind::StoreAt);
+        i.a = addr;
+        i.b = x;
+        i.mem = ty;
     }
 
     // Does the program compute with strings (beyond constants printed directly)?
@@ -212,13 +283,22 @@ private:
                 f.result = vt(r->result);
                 f.returnsValue = r->kind != hir::Routine::Procedure && f.result != VT::Str;
                 if (f.returnsValue) result_ = reg(f.result);
-                for (const hir::Param& prm : r->params) {
-                    if (prm.byRef) unsupported("VAR parameters");
-                    f.params.push_back(reg(vt(var(prm.var).type)));
-                }
+                for (const hir::Param& prm : r->params) f.params.push_back(reg(prm.byRef ? VT::Addr : vt(var(prm.var).type)));
                 for (std::size_t k = 0; k < r->params.size(); ++k) {
-                    save(r->params[k].var);
-                    store(r->params[k].var, f.params[k]);
+                    const int v = r->params[k].var;
+                    if (r->params[k].byRef) {  // VAR: the variable refers to the caller's storage (probe10)
+                        for (int sv : saved_)
+                            if (sv == v) unsupported("the same VAR parameter twice");
+                        saved_.push_back(v);
+                        emit(Kind::Save).var = v;
+                        Instr& b = emit(Kind::Bind);
+                        b.var = v;
+                        b.a = f.params[k];
+                        continue;
+                    }
+                    if (var(v).array) unsupported("array parameters without VAR");
+                    save(v);
+                    store(v, f.params[k]);
                 }
                 if (r->kind == hir::Routine::DefFn) {
                     setResult(expr(*r->expr));
@@ -243,6 +323,22 @@ private:
     void setResult(Reg v) {
         if (v.type == VT::Str) rtcallVoid("rt_str_set_ret", {v});
         else copyTo(result_, v);
+    }
+
+    // arguments of a call: values, or for VAR the address of the variable (Load of a scalar or a
+    // whole array; an element is passed by value as the original does with VAR a(i)? not allowed)
+    std::vector<Reg> callArgs(const hir::Routine& r, const std::vector<hir::ExprPtr>& args) {
+        std::vector<Reg> out;
+        for (std::size_t k = 0; k < args.size(); ++k) {
+            const hir::Expr& a = *args[k];
+            if (r.params[k].byRef) {
+                if (a.op != Op::Load) unsupported("VAR with an array element");
+                out.push_back(addrOf(a.var));
+            } else {
+                out.push_back(expr(a));
+            }
+        }
+        return out;
     }
 
     void save(int v) {
@@ -277,10 +373,11 @@ private:
         emit(Kind::Line).imm = s.line;
         releaseTemps();
         switch (s.kind) {
-            case SKind::Assign:
-                if (s.target->op != Op::Load) unsupported("arrays");
-                store(s.target->var, expr(*s.value));
+            case SKind::Assign: {
+                Reg x = expr(*s.value);
+                storeTarget(*s.target, x);
                 return;
+            }
             case SKind::Print: return print(s);
             case SKind::If: {
                 const int end = label();
@@ -344,10 +441,7 @@ private:
                 Instr i;
                 i.kind = Kind::Call;
                 i.routine = s.proc;
-                for (std::size_t k = 0; k < s.args.size(); ++k) {
-                    if (r.params[k].byRef) unsupported("VAR parameters");
-                    i.args.push_back(expr(*s.args[k]));
-                }
+                i.args = callArgs(r, s.args);
                 f_->code.push_back(i);
                 return;
             }
@@ -464,10 +558,13 @@ private:
     void command(const hir::Stmt& s) {
         const std::string& n = s.name;
         if (n == "INC" || n == "DEC" || n == "ADD" || n == "SUB" || n == "MUL" || n == "DIV") {
-            if (s.targets[0]->op != Op::Load) unsupported("arrays");
-            const int v = s.targets[0]->var;
+            const hir::Expr& t = *s.targets[0];
+            const int v = t.var;
             const Type ty = var(v).type;
-            Reg x = load(v);
+            Reg addr;
+            if (t.op == Op::LoadElem) addr = elemAddr(t);
+            auto store = [&](int, Reg r) { storeTarget(t, r, addr); };
+            Reg x = t.op == Op::Load ? load(v) : loadAtAddr(addr, ty);
             if (ty == Type::Float) {
                 Reg y = n == "INC" || n == "DEC" ? constF(F64_ONE) : expr(*s.args[0]);
                 const char* fn = n == "INC" || n == "ADD" ? "fp_add" : n == "DEC" || n == "SUB" ? "fp_sub" : n == "MUL" ? "fp_mul" : "fp_div";
@@ -484,6 +581,64 @@ private:
             else if (ty == Type::Byte) r = rtcall("rt_wrap_byte", {r}, VT::I32);
             else if (ty == Type::Bool) r = cmp("ne", r, constI(0));
             store(v, r);
+            return;
+        }
+        if (n == "DIM") {
+            for (const auto& t : s.targets) {
+                if (t->args.size() > 3) unsupported("arrays with more than 3 dimensions");
+                std::vector<Reg> dims;
+                for (const auto& d : t->args) dims.push_back(toI(expr(*d)));
+                const int code = elemSize(var(t->var).type) << 8 | static_cast<int>(dims.size());
+                std::vector<Reg> args{addrOf(t->var), constI(code)};
+                args.insert(args.end(), dims.begin(), dims.end());
+                rtcallVoid("rt_arr_dim", args);
+            }
+            return;
+        }
+        if (n == "ERASE") {
+            for (const auto& t : s.targets)
+                rtcallVoid("rt_arr_erase", {addrOf(t->var), constI(var(t->var).type == Type::Str ? 1 : 0)});
+            return;
+        }
+        if (n == "CLR") {
+            for (const auto& t : s.targets) {
+                const Type ty = var(t->var).type;
+                if (ty == Type::Str) {
+                    Reg e = reg(VT::Str);
+                    emit(Kind::ConstS).dst = e;
+                    store(t->var, e);
+                } else {
+                    store(t->var, ty == Type::Float ? constF(0) : constI(0));
+                }
+            }
+            return;
+        }
+        if (n == "OPTION BASE") {
+            rtcallVoid("rt_arr_set_base", {toI(expr(*s.args[0]))});
+            return;
+        }
+        if (n == "SWAP") {
+            const hir::Expr& a = *s.targets[0];
+            const hir::Expr& b = *s.targets[1];
+            const Type ty = var(a.var).type;
+            if (var(a.var).array && a.op == Op::Load) {  // whole arrays: exchange the slots
+                Reg pa = addrOf(a.var);
+                rtcallVoid("rt_swap8", {pa, addrOf(b.var)});
+                return;
+            }
+            if (ty == Type::Str) {
+                Reg pa = a.op == Op::Load ? load(a.var) : strAt(elemAddr(a));
+                Reg pb = b.op == Op::Load ? load(b.var) : strAt(elemAddr(b));
+                rtcallVoid("rt_str_swap", {pa, pb});
+                return;
+            }
+            Reg aa, ab;
+            if (a.op == Op::LoadElem) aa = elemAddr(a);
+            if (b.op == Op::LoadElem) ab = elemAddr(b);
+            Reg va = a.op == Op::Load ? load(a.var) : loadAtAddr(aa, ty);
+            Reg vb = b.op == Op::Load ? load(b.var) : loadAtAddr(ab, ty);
+            storeTarget(a, vb, aa);
+            storeTarget(b, va, ab);
             return;
         }
         if (n == "END" || n == "STOP" || n == "QUIT" || n == "SYSTEM" || n == "EDIT" || n == "NEW") {
@@ -527,7 +682,7 @@ private:
                 return r;
             }
             case Op::Load: return load(e.var);
-            case Op::LoadElem: unsupported("arrays");
+            case Op::LoadElem: return loadElem(e);
             case Op::Conv: return conv(e);
             case Op::ToInt: return rtcall("fp_to_i32", {expr(*e.args[0])}, VT::I32);
             case Op::Neg: return rtcall("fp_neg", {expr(*e.args[0])}, VT::F64);
@@ -574,10 +729,7 @@ private:
                 Instr i;
                 i.kind = Kind::Call;
                 i.routine = e.func;
-                for (std::size_t k = 0; k < e.args.size(); ++k) {
-                    if (r.params[k].byRef) unsupported("VAR parameters");
-                    i.args.push_back(expr(*e.args[k]));
-                }
+                i.args = callArgs(r, e.args);
                 i.dst = reg(vt(r.result));
                 f_->code.push_back(i);
                 return i.dst;
@@ -723,6 +875,7 @@ private:
         const std::string& n = e.sval;
         const std::size_t argc = e.args.size();
         if (n == "MIN" || n == "MAX") return minMax(e, n == "MAX");
+        if (n == "DIM?") return rtcall("rt_arr_count", {addrOf(e.args[0]->var)}, VT::I32);
         if (n == "LEN") return rtcall("rt_str_len", {arg(e, 0)}, VT::I32);
         if (n == "ASC") return rtcall("rt_str_asc", {arg(e, 0)}, VT::I32);
         if (n == "#PACK") return rtcall("rt_str_pack", {arg(e, 0)}, VT::I32);

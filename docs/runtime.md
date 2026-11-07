@@ -121,10 +121,17 @@ Optional, je nach Gruppen der Plattform: Dateien (`plat_fopen` …), Grafik (`pl
 
 > **Vorschlag**, wird mit dem jeweils ersten Backend festgelegt.
 
-**MC68000:** Ganzzahlige Argumente in D0, D1; Zeiger in A0, A1; Ergebnis in D0. D0, D1, A0, A1 sind
-frei verwendbar (wie bei AmigaOS), alle anderen Register bleiben erhalten. Ein `f64` wird als
-Registerpaar D0:D1 (höherwertiger Teil in D0) übergeben und zurückgegeben; Fließkomma-Routinen mit
-zwei Operanden erhalten den zweiten in D2:D3 und retten D2/D3 nicht.
+**MC68000** (festgelegt): Ganzzahlige Argumente der Reihe nach in D0–D3, Adressen (String-
+Deskriptoren, Variablen, Array-Elemente) der Reihe nach in A0, A1; ein `f64` belegt ein Registerpaar
+D0:D1 bzw. D2:D3 (höherwertiger Teil vorn). Ergebnis in D0 (D0:D1 bei `f64`, A0 bei Adressen). D0–D3,
+A0, A1 sind frei verwendbar, alle anderen Register bleiben erhalten (der Konformanztest prüft das).
+
+Speicherform der erzeugten Programme auf dem 68000: Jede Variable hat einen 8-Byte-Platz. Variablen,
+die irgendwo `VAR`-Parameter sind, werden über einen Zeiger angesprochen (wie `brt::Var`); `LOCAL`
+und Parameter sichern Wert, Zeiger und ein Merkzeichen, das die Bindung an die eigene Variable
+(`@p(x)` mit `PROCEDURE p(VAR x)`) kennzeichnet. Ein Array-Platz hält die Adresse seines Blocks im
+Array-Bereich: Anzahl der Dimensionen, Elementgröße (Float und String 8, Int 4, Word 2, Byte und
+Bool 1), Obergrenzen, Elemente. String-Elemente sind Deskriptoren nach D18.
 
 **Z80:** 16-Bit-Werte in HL (und DE als zweites Argument), 8-Bit-Werte in A, 32-Bit-Werte als
 Zeiger auf vier Bytes. Fließkomma-Routinen arbeiten auf Speicher: HL = Ziel, DE = erster Operand,
