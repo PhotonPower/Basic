@@ -37,6 +37,7 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
   Kopfzeile (`WHILE`, `IF`, `ELSE IF`, `DO WHILE`/`UNTIL`, `FOR`) geht in den Rumpf, `RESUME`
   wiederholt nur die Kopfzeile; in Interpreter, C++-Ziel und 68000. Neue Testprogramme `resume`
   (am Original gleich) und `errnest`; `arrays` am Original gleich.
+- `RESUME` setzt `ERR` auf 0 (probe12 T1); damit ist `errors2` am Original gleich.
 - `gfa_run.py`: Startmenü der Diskette nach einem Kaltstart (`boot` in `keys.json`), längere
   Wartezeiten für den Merge-Dialog und das Einlesen.
 - Testprogramm `strheap` für den String-Heap; dabei behoben: `rt_str_set_ret` erwartete den

@@ -1,0 +1,4 @@
+; source: GFA-BASIC 3.5 (Amiga, English), FS-UAE A500, Kickstart 1.2, 2026-11-07
+; unvollstaendig: nach T1 blieb das Programm stehen (Bildschirm nicht gesehen, anderes Fenster vorn)
+probe12
+T1 RESUME NEXT: in der Routine 7, danach 0, nach OPEN 0

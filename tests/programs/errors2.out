@@ -24,5 +24,5 @@ r=9
 Fehler 35
 n$=abc
 Fehler 10
-a$=[] 10 string too long|max. 32767 chars
+a$=[] 0 string too long|max. 32767 chars
 unknown error 200|unknown error 200|unknown error |

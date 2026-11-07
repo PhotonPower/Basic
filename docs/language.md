@@ -148,9 +148,10 @@ Diese Punkte sind aus dem Handbuch nicht sicher zu entnehmen und werden am Origi
   `DEFFN`-Formel gehört zur aufrufenden Anweisung; den Parameter setzt das Original danach **nicht**
   zurück (`q` behält den Wert aus dem Aufruf). Ein zweiter Fehler in der Fehlerroutine nach einem
   neuen `ON ERROR GOSUB` lässt das Original abstürzen („Software error – task held“). Beides bilden
-  wir nicht nach ([D19](decisions.md#d19)). Offen: Nach `RESUME NEXT` war `ERR` im Hauptprogramm 0;
-  ob `RESUME` oder das Neuöffnen der Datei in der umgeleiteten Fehlerroutine `ERR` zurücksetzt,
-  klärt probe12.
+  wir nicht nach ([D19](decisions.md#d19)).
+- ~~**`ERR` nach `RESUME`**~~ (probe12 T1): `RESUME` setzt `ERR` auf 0 (in der Fehlerroutine 7,
+  danach 0, ohne Dateibefehle in der Routine). Ob auch das Ende der Fehlerroutine ohne `RESUME`
+  `ERR` löscht, ist offen (probe12 T2 lief nicht durch).
 - ~~**`SELECT` mit Mehrzeichen-Strings**~~ (Anhang C, Punkt 8), am Original (probe4 T1–T9):
   - Die Zeichen werden **Big-Endian** gepackt: `CASE "ab"` = 97·256 + 98 = 24930, `CASE "abcd"` =
     1633837924. Die Formel im Handbuch (ASCII1 + 255 · ASCII2) ist falsch, auch die

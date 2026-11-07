@@ -554,6 +554,7 @@ private:
             callProc(proc, none);
         } catch (ResumeSignal& r) {
             --handlerDepth_;
+            err_ = 0;  // RESUME clears ERR (probe12 T1)
             return r.mode == 2 ? 2 + r.label : r.mode;
         } catch (...) {
             --handlerDepth_;

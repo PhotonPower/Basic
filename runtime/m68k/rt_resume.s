@@ -1,6 +1,6 @@
 ;! module    rt_resume
 ;! provides  rt_resume
-;! requires  rt_err_finish rt_err_frame plat_error prg_rlab
+;! requires  rt_err_finish rt_err_frame rt_err_code plat_error prg_rlab
 ;! group     core
 ;! clobbers  D0-D3/A0-A1
 ;! doc       RESUME in the error routine (also in routines it calls).
@@ -12,7 +12,8 @@ rt_resume:
         BNE     .ok
         MOVEQ   #-1,D0                  ; RESUME outside the error routine
         JMP     plat_error
-.ok:    CMP.L   #2,D0
+.ok:    CLR.L   rt_err_code             ; RESUME clears ERR (probe12 T1)
+        CMP.L   #2,D0
         BNE     .go
         LSL.L   #3,D1
         LEA     prg_rlab,A1

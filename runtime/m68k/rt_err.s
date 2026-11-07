@@ -1,5 +1,5 @@
 ;! module    rt_err
-;! provides  rt_error rt_err_get rt_err_ctx rt_err_log rt_err_handler rt_err_fin rt_err_at rt_err_frame
+;! provides  rt_error rt_err_code rt_err_get rt_err_ctx rt_err_log rt_err_handler rt_err_fin rt_err_at rt_err_frame
 ;! requires  plat_error
 ;! group     core
 ;! clobbers  D0-D3/A0-A1
@@ -18,7 +18,7 @@ rt_error:
         TST.L   rt_err_handler
         BNE     .trap
         JMP     plat_error
-.trap:  MOVE.L  D0,rt_err__code
+.trap:  MOVE.L  D0,rt_err_code
         MOVE.L  rt_err_frame,-(SP)      ; an error inside the error routine nests
         MOVE.L  rt_err_at,-(SP)
         MOVE.L  SP,rt_err_frame
@@ -32,7 +32,7 @@ rt_error:
 
 ; -> D0 = ERR (the error number as a signed byte, probe9 T6)
 rt_err_get:
-        MOVE.B  rt_err__code+3,D0
+        MOVE.B  rt_err_code+3,D0
         EXT.W   D0
         EXT.L   D0
         RTS
@@ -50,5 +50,5 @@ rt_err_at:
         DC.L    0
 rt_err_frame:
         DC.L    0
-rt_err__code:
+rt_err_code:
         DC.L    0

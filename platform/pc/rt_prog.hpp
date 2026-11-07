@@ -239,6 +239,7 @@ inline int handle(const Error& e) {
         proc();
     } catch (const Resume& r) {
         --rt.handlerDepth;
+        rt.err = 0;  // RESUME clears ERR (probe12 T1)
         return r.mode == 2 ? 2 + r.label : r.mode;
     } catch (...) {
         --rt.handlerDepth;

@@ -1,4 +1,5 @@
 ' test: groups core string print
+' source: GFA-BASIC 3.5
 ' Fehlerbehandlung, Grenzfaelle: LOCAL und VAR beim Ruecksprung, Fehler in Prozeduren, Schleifen,
 ' DEFFN, RESUME aus einer tieferen Prozedur, READ nach Fehler 35
 ON ERROR GOSUB nxt

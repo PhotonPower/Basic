@@ -89,6 +89,6 @@ Weiter: das Amiga-Ziel (Hunk-Programm über `dos.library`, Abschnitte), schnelle
    (probe1 T41, probe2 T34–T39). Dazu kommen Eigenheiten, bei denen fraglich ist, ob wir sie
    nachbilden wollen: die ungenaue Konstante `PI` und das fehlerhafte `MKS$`.
 7. **Am Original prüfen:** ~~`arrays.lst`~~ ist gleich (auch die `VAR`-Grenzfälle), ~~`resume.lst`~~
-   ebenso. `errors2.lst` stimmt bis auf `ERR` nach `RESUME NEXT` im Hauptprogramm (Original 0, wir
-   10); probe12 klärt, wann `ERR` zurückgesetzt wird. Fehler in `DEFFN` und verschachtelte Fehler
+   ebenso. ~~`errors2.lst`~~ ebenso, seit `RESUME` `ERR` löscht (probe12 T1). Offen: probe12 ab T2
+   (Fehlerroutine ohne `RESUME`), das Programm blieb nach T1 stehen. Fehler in `DEFFN` und verschachtelte Fehler
    siehe [D19](decisions.md#d19). `strheap.lst` ist unkritisch.
