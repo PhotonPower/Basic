@@ -17,6 +17,10 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
   ermittelten Rangfolge, Zuweisung, `PRINT`, alle Schleifen, `IF`/`SELECT`, Prozeduren und
   Funktionen, `DATA`/`READ`, Labels, Fehlerbehandlung, allgemeine Befehle), `basicc --emit-ast`;
   Tests lesen alle Prüfprogramme ohne Fehler.
+- Semantik und HIR: Blöcke und Strukturprüfung mit Meldungen wie im Editor (`ENDIF missing`,
+  `NEXT without FOR` …), Typen aus Postfix und `DEFxxx`, Prozeduren, Funktionen, `DEFFN`,
+  `VAR`-Parameter, Labels und `GOTO`-Prüfung, `DATA`, `SELECT` mit gepackten Strings, eingefügte
+  Konvertierungen; `basicc --emit-hir`. Entscheidungen D15–D17.
 - Numerische Referenz `runtime/ref` (C99, nur Ganzzahlarithmetik): binary64-Grundoperationen
   korrekt gerundet, `==`, Umwandlungen und Rundungsfunktionen, `ROUND`, Zahl → Text mit 13 Stellen und
   `DEFNUM`, `VAL`/`VAL?` korrekt gerundet, Zufallsgenerator; Tests gegen die IEEE-Arithmetik des

@@ -7,6 +7,7 @@
 
 #include "frontend/lexer.hpp"
 #include "frontend/parser.hpp"
+#include "frontend/sema.hpp"
 #include "test_util.hpp"
 
 using namespace basic;
@@ -131,6 +132,68 @@ void testStatements() {
     CHECK_EQ(parse("x="), std::string("error 1:3: expression expected\n"));
 }
 
+// HIR of the main program (without the "main" line), or the diagnostics.
+std::string hir(const std::string& src) {
+    Diagnostics d;
+    const ast::Program a = parseProgram(src, d);
+    const hir::Program h = analyze(a, d);
+    std::string r;
+    if (d.empty()) {
+        r = hir::dump(h);
+        r = r.substr(r.find('\n') + 1);
+        std::string out;
+        std::size_t pos = 0;
+        while (pos < r.size()) {  // remove the indentation of the main program
+            std::size_t eol = r.find('\n', pos);
+            std::string line = r.substr(pos, eol - pos);
+            if (line.rfind("  ", 0) == 0) line = line.substr(2);
+            out += line + "\n";
+            pos = eol + 1;
+        }
+        return out;
+    }
+    for (const Diagnostic& x : d) r += "error " + std::to_string(x.line) + ": " + x.message + "\n";
+    return r;
+}
+
+void testSema() {
+    // types from postfix and DEFxxx; integer expressions are computed as float (probe2 T1-T4)
+    CHECK_EQ(hir("a%=1\nb=a%+1\nc$=\"x\"+c$"),
+             std::string("A% = 1\nB# = (add (conv.float A%) 1#)\nC$ = (concat \"x\" C$)\n"));
+    CHECK_EQ(hir("DEFINT \"i-k\"\ni=1\nk$=\"\"\nDEFFLT \"i\"\ni=2"),
+             std::string("I% = 1\nK$ = \"\"\nI# = 2#\n"));
+    CHECK_EQ(hir("b|=w&\nw&=x\nf!=3"), std::string("B| = (conv.byte W&)\nW& = (conv.word X#)\nF! = (conv.bool 3)\n"));
+    CHECK_EQ(hir("x=7 MOD 2.5\ny=NOT x AND 3"), std::string("X# = (conv.float (imod 7 (toint 2.5#)))\nY# = (conv.float (not (and (toint X#) 3)))\n"));
+    CHECK_EQ(hir("x=&HFFFFFFFF+2147483648+1.5E3"), std::string("X# = (add (add -1# 2147483648#) 1500#)\n"));
+    CHECK_EQ(hir("a$(2)=LEFT$(b$)\nn=LEN(a$(1))"), std::string("A$(2) = LEFT$(B$):str\nN# = (conv.float LEN(A$(1)):int)\n"));
+    CHECK_EQ(hir("PRINT TAB(5);SPC(2);1"), std::string("print [tab 5# ;] [spc 2# ;] [1]\n"));
+    // structure test
+    CHECK_EQ(hir("IF a\nPRINT"), std::string("error 1: ENDIF missing\n"));
+    CHECK_EQ(hir("FOR i=1 TO 2\nWEND"), std::string("error 1: NEXT missing\nerror 2: WEND without WHILE\n"));
+    CHECK_EQ(hir("NEXT i\nPRINT 1"), std::string("error 1: NEXT without FOR\n"));
+    CHECK_EQ(hir("FOR i=1 TO 2\nNEXT j"), std::string("error 2: NEXT J does not match FOR I\n"));
+    CHECK_EQ(hir("EXIT IF 1"), std::string("error 1: EXIT IF outside a loop\n"));
+    CHECK_EQ(hir("PROCEDURE p\nPRINT"), std::string("error 1: RETURN missing at the end of PROCEDURE P\n"));
+    CHECK_EQ(hir("IF 1\nPROCEDURE p\nRETURN\nENDIF"),
+             std::string("error 2: PROCEDURE/FUNCTION inside a block\nerror 3: RETURN without PROCEDURE\n"));
+    CHECK_EQ(hir("PROCEDURE p\nIF 1\nRETURN\nENDIF\nRETURN"),
+             std::string("error 3: RETURN must be the last statement of the procedure, not inside a block\n"));
+    CHECK_EQ(hir("SELECT 1\nCASE 1\nCONT\nENDSELECT"), std::string("error 1: CONT must be followed by CASE or DEFAULT\n"));
+    CHECK_EQ(hir("CASE \"abcde\""), std::string("error 1: CASE without SELECT\n"));
+    // names, calls, types
+    CHECK_EQ(hir("x$=1"), std::string("error 1: type mismatch\n"));
+    CHECK_EQ(hir("x=\"a\"<1"), std::string("error 1: type mismatch\n"));
+    CHECK_EQ(hir("q(1)"), std::string("error 1: procedure 'Q' not found\n"));
+    CHECK_EQ(hir("x=@f(1)"), std::string("error 1: function 'F' not found\n"));
+    CHECK_EQ(hir("p(1,2)\nPROCEDURE p(a)\nRETURN"), std::string("error 1: P expects 1 argument(s)\n"));
+    CHECK_EQ(hir("p(1)\nPROCEDURE p(VAR a)\nRETURN"), std::string("error 1: VAR parameter needs a variable\n"));
+    CHECK_EQ(hir("GOTO x"), std::string("error 1: label 'X' not found\n"));
+    CHECK_EQ(hir("GOTO x\nPROCEDURE p\nx:\nRETURN"), std::string("error 1: GOTO into or out of a procedure\n"));
+    CHECK_EQ(hir("x=SIN(1)"), std::string("error 1: SIN is not supported yet\n"));
+    CHECK_EQ(hir("x=LEFT$(1)"), std::string("error 1: LEFT$ expects a string here\n"));
+    CHECK_EQ(hir("SELECT 1\nCASE \"abcde\"\nENDSELECT"), std::string("error 2: CASE strings have at most 4 characters\n"));
+}
+
 void testProbes() {
     // Every line of the probe programs was accepted by the original's editor.
     namespace fs = std::filesystem;
@@ -158,6 +221,7 @@ int main() {
     testLexer();
     testExpressions();
     testStatements();
+    testSema();
     testProbes();
     return report("frontend");
 }

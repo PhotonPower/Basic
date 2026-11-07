@@ -21,9 +21,10 @@ Dokumentation von Architektur, Zwischencode, Runtime, Numerik, Zielsystemen und 
 ## 0.2 – Frontend und IR
 
 - ✔ Lexer, Parser (`basicc --emit-ast`).
-- Semantik für den Sprachkern ([language.md](language.md#reihenfolge-der-umsetzung)).
-- HIR, Lowering, LIR, Textausgabe (`--emit-*`).
-- IR-Interpreter; erste Golden-Tests unter `tests/programs/`.
+- ✔ Semantik für den Sprachkern ([language.md](language.md#reihenfolge-der-umsetzung)), HIR
+  (`basicc --emit-hir`).
+- Interpreter auf der HIR; erste Golden-Tests unter `tests/programs/` ([D17](decisions.md#d17)).
+- LIR und Lowering folgen mit 0.4.
 
 ## 0.3 – C++-Ziel
 

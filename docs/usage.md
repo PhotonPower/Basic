@@ -1,6 +1,7 @@
 # Bedienung
 
-> Stand: Umgesetzt sind `--version`, `--help`, `--targets` und `--emit-ast <programm.lst>`
+> Stand: Umgesetzt sind `--version`, `--help`, `--targets`, `--emit-ast <programm.lst>` und
+> `--emit-hir <programm.lst>`
 > (Syntaxbaum, eine Zeile je Anweisung; Syntaxfehler als `datei:zeile:spalte: meldung` auf stderr,
 > Rückgabewert 1). Der Rest beschreibt die geplante Kommandozeile.
 

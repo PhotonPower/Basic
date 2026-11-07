@@ -1,4 +1,11 @@
 # src/ir
 
 HIR, LIR, Lowering HIR → LIR, Textausgabe (`--emit-hir`, `--emit-lir`) und der IR-Interpreter.
-Spezifikation: [docs/ir.md](../../docs/ir.md). Noch leer (Meilenstein 0.2).
+Spezifikation: [docs/ir.md](../../docs/ir.md).
+
+| Datei | Inhalt |
+|---|---|
+| `hir.hpp`, `hir.cpp` | HIR (typisierter, strukturierter Baum) und ihre Textform |
+| `rt_bridge.*` | `rt_error` für `runtime/ref`: merkt sich den Fehler, der Aufrufer prüft ihn |
+
+LIR und Lowering kommen mit dem MC68000-Backend ([D17](../../docs/decisions.md#d17)).

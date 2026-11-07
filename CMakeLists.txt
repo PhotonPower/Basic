@@ -68,8 +68,12 @@ add_library(basiccore STATIC
   src/frontend/lexer.cpp
   src/frontend/parser.cpp
   src/frontend/ast_dump.cpp
-  src/frontend/builtins.cpp)
+  src/frontend/builtins.cpp
+  src/frontend/sema.cpp
+  src/ir/hir.cpp
+  src/ir/rt_bridge.cpp)
 target_include_directories(basiccore PUBLIC include src)
+target_link_libraries(basiccore PUBLIC basic_rt_ref)
 target_compile_features(basiccore PUBLIC cxx_std_20)
 basic_set_warnings(basiccore)
 

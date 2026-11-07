@@ -12,6 +12,7 @@
 #include "basic/target.hpp"
 #include "basic/version.hpp"
 #include "frontend/parser.hpp"
+#include "frontend/sema.hpp"
 
 namespace {
 
@@ -21,9 +22,10 @@ void usage(std::ostream& out) {
         << "  basicc --target <name> <program.lst> [-o <output>]   compile (not implemented yet)\n"
         << "  basicc --targets                                      list targets and their command groups\n"
         << "  basicc --emit-ast <program.lst>                       print the syntax tree\n"
+        << "  basicc --emit-hir <program.lst>                       print the typed intermediate code\n"
         << "  basicc --version\n"
         << "  basicc --help\n\n"
-        << "Planned debugging options: --emit-hir, --emit-lir, --emit-asm, --map\n"
+        << "Planned debugging options: --emit-lir, --emit-asm, --map\n"
         << "(see docs/usage.md).\n";
 }
 
@@ -36,7 +38,7 @@ bool readFile(const std::string& path, std::string& out) {
     return true;
 }
 
-int emitAst(const std::string& path) {
+int emit(const std::string& path, bool hir) {
     std::string source;
     if (!readFile(path, source)) {
         std::cerr << "basicc: cannot read '" << path << "'\n";
@@ -44,7 +46,14 @@ int emitAst(const std::string& path) {
     }
     basic::Diagnostics diags;
     const basic::ast::Program program = basic::parseProgram(source, diags);
-    std::cout << basic::ast::dump(program);
+    if (hir) {
+        if (diags.empty()) {
+            const basic::hir::Program h = basic::analyze(program, diags);
+            if (diags.empty()) std::cout << basic::hir::dump(h);
+        }
+    } else {
+        std::cout << basic::ast::dump(program);
+    }
     for (const basic::Diagnostic& d : diags) std::cerr << basic::formatDiagnostic(path, d) << "\n";
     return diags.empty() ? 0 : 1;
 }
@@ -65,12 +74,12 @@ int main(int argc, char** argv) {
         std::cout << basic::formatTargets();
         return 0;
     }
-    if (args[0] == "--emit-ast") {
+    if (args[0] == "--emit-ast" || args[0] == "--emit-hir") {
         if (args.size() != 2) {
             usage(std::cerr);
             return 2;
         }
-        return emitAst(args[1]);
+        return emit(args[1], args[0] == "--emit-hir");
     }
     std::string target;
     for (std::size_t i = 0; i < args.size(); ++i)

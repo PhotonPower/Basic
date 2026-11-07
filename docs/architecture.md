@@ -85,7 +85,8 @@ Zwei Ebenen, beschrieben in [ir.md](ir.md):
   Operationen (`rtcall`) und werden nicht früh expandiert; jedes Backend entscheidet selbst, was es
   inline erzeugt.
 
-Der **IR-Interpreter** führt LIR direkt aus. Er prüft Frontend und Lowering unabhängig von jedem
+Der **IR-Interpreter** führt LIR direkt aus; bis es die LIR gibt, führt er die HIR aus
+([D17](decisions.md#d17)). Er prüft Frontend und Lowering unabhängig von jedem
 Backend und ist neben dem C++-Ziel die Referenz der Differenztests ([testing.md](testing.md)).
 
 ## Backends

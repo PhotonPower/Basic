@@ -84,6 +84,34 @@ die ungenaue Konstante `PI` (wir nehmen den nächstgelegenen binary64-Wert), das
 Ganzzahl- und Rundungsregeln, `FOR`-Semantik, Ausgabeformat, Fehlernummern und -texte, die Regel von
 `==` (siehe [numerics.md](numerics.md)).
 
+<a id="d17"></a>
+## D17 – Interpreter auf der HIR, LIR mit dem ersten Assembler-Backend
+
+Ersetzt die Reihenfolge in [architecture.md](architecture.md) und der Roadmap: Der Referenz-Interpreter
+führt zunächst die **HIR** aus. LIR und Lowering entstehen mit dem MC68000-Backend (0.4), wo sie
+gebraucht werden; dann wird die LIR gleich passend für Registerzuteilung und Runtime-Aufrufe
+entworfen. So laufen BASIC-Programme früher, und Frontend und Semantik sind gegen die Golden-Tests
+geprüft, bevor das Lowering dazukommt. Sobald es die LIR gibt, läuft der Interpreter auch auf ihr
+(Differenztest HIR ↔ LIR).
+
+<a id="d16"></a>
+## D16 – Ganzzahlausdrücke werden als Float typisiert
+
+Das Original rechnet `+ - *` mit Ganzzahlen ohne 32-Bit-Überlauf (probe2 T1–T4); erst die Zuweisung
+prüft den Bereich. Die HIR typisiert diese Operationen deshalb als Float. Das ist bitgenau: Summe und
+Differenz zweier 32-Bit-Zahlen sind in binary64 exakt, ein Produkt ist das korrekt gerundete exakte
+Produkt. `DIV`, `MOD`, `\` und die logischen Operatoren arbeiten auf 32-Bit-Ganzzahlen (Operanden
+werden abgeschnitten). Schnelle Ganzzahl-Befehle sind eine spätere Optimierung über Wertebereiche.
+
+<a id="d15"></a>
+## D15 – Dynamische Bindung: ein Speicherplatz je Variable
+
+Laut Handbuch sind `LOCAL`-Variablen und Parameter auch in den aufgerufenen Routinen sichtbar. Jede
+Variable (Name + Typ, Arrays getrennt) hat deshalb genau einen festen Speicherplatz. `LOCAL` und
+Wertparameter sichern beim Eintritt den alten Wert und stellen ihn beim Verlassen wieder her
+(„shallow binding“). Das passt zum Z80, weil alle Variablen statisch liegen, und erlaubt Rekursion.
+`VAR`-Parameter binden den Parameternamen an die übergebene Variable.
+
 <a id="d14"></a>
 ## D14 – `PRINT USING` nach dem Abgleich mit dem Original
 

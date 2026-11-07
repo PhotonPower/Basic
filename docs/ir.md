@@ -20,6 +20,10 @@ Runtime-Schnittstelle, weil `*a()`, `SWAP a(),b()`, `TYPE()` und `VAR a()` darau
 
 ## HIR
 
+> Umgesetzt in `src/ir/hir.hpp`, erzeugt von `src/frontend/sema.cpp`, Textform mit
+> `basicc --emit-hir`. Variablen nach [D15](decisions.md#d15), Ganzzahlausdrücke nach
+> [D16](decisions.md#d16).
+
 Die HIR ist ein typisierter Baum je Prozedur. Sie entspricht weitgehend dem AST, aber mit
 aufgelösten Namen, festen Typen, expliziten Konvertierungen und vereinheitlichten Aliasen:
 
@@ -40,6 +44,8 @@ Knoten: `proc`, `func`, `local`, `assign`, `if/elseif/else`, `select/case/defaul
 Das C++-Backend arbeitet auf der HIR, damit der erzeugte Code die Struktur des BASIC-Programms behält.
 
 ## LIR
+
+> Kommt mit dem MC68000-Backend ([D17](decisions.md#d17)).
 
 Drei-Adress-Code in Basisblöcken mit unbegrenzt vielen typisierten virtuellen Registern (`t1`, `t2`, …)
 und benannten Variablen. Textform (für `basicc --emit-lir` und Tests):
