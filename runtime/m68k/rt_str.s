@@ -215,8 +215,9 @@ rt_str_assign:
 .done:  MOVEM.L (SP)+,D2/A2-A3
 .out:   RTS
 
-; A1 = descriptor: becomes the result of a string function
+; A0 = descriptor: becomes the result of a string function
 rt_str_set_ret:
+        MOVE.L  A0,A1
         LEA     rt_str_ret,A0
         BRA     rt_str_assign
 

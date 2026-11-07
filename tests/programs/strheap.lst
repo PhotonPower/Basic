@@ -1,0 +1,45 @@
+' test: groups core string print
+' String-Heap: viele Zwischenergebnisse und lange Strings, LOCAL- und Parameter-Strings, String-Funktionen
+a$="Anfang"
+b$=""
+FOR i%=1 TO 400
+  c$=STRING$(200,CHR$(65+i% MOD 26))
+  b$=RIGHT$(b$+LEFT$(c$,3),60)
+  IF i% MOD 50=0
+    PRINT i%;" ";LEN(c$);" ";b$
+  ENDIF
+NEXT i%
+PRINT a$;" ";@pruef(b$)
+s$=""
+FOR i%=1 TO 300
+  s$=s$+CHR$(48+i% MOD 10)
+NEXT i%
+PRINT LEN(s$);" ";LEFT$(s$,12);" ";RIGHT$(s$,12);" ";@pruef(s$)
+FOR i%=1 TO 30
+  t$=@rek$(5,STR$(i%))
+NEXT i%
+PRINT t$
+x$="aussen"
+@lokal(x$)
+PRINT x$
+PRINT UPPER$("gfa-basic ");TRIM$("  mitte  ");"|";MID$(s$,295);"|";INSTR(s$,"789",100)
+FUNCTION pruef(p$)
+  LOCAL k%,h%
+  FOR k%=1 TO LEN(p$)
+    h%=(h%*31+ASC(MID$(p$,k%,1))) MOD 1000003
+  NEXT k%
+  RETURN h%
+ENDFUNC
+FUNCTION rek$(n%,q$)
+  LOCAL z$
+  z$=STRING$(500,"x")
+  IF n%=0
+    RETURN q$
+  ENDIF
+  RETURN "("+@rek$(n%-1,q$+"*")+")"
+ENDFUNC
+PROCEDURE lokal(v$)
+  LOCAL x$
+  x$=v$+" innen"
+  PRINT x$;" ";v$
+RETURN
