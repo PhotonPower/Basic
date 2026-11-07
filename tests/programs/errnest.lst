@@ -1,0 +1,18 @@
+' test: groups core print
+' Fehler in der Fehlerroutine mit neuem ON ERROR GOSUB: das Original stuerzt dabei ab ("Software
+' error - task held", errors2 am 2026-11-07); wir behandeln den zweiten Fehler und kehren zurueck
+ON ERROR GOSUB doppelt
+v=SQR(-4)
+PRINT "nach doppelt"
+END
+PROCEDURE doppelt
+  PRINT "doppelt ";ERR
+  ON ERROR GOSUB nxt
+  ERROR 30
+  PRINT "doppelt weiter"
+  RESUME NEXT
+RETURN
+PROCEDURE nxt
+  PRINT "Fehler ";ERR
+  RESUME NEXT
+RETURN

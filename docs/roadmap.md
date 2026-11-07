@@ -88,7 +88,7 @@ Weiter: das Amiga-Ziel (Hunk-Programm über `dos.library`, Abschnitte), schnelle
    folgt einer anderen Regel als in [numerics.md](numerics.md#ungefähre-gleichheit-) angenommen
    (probe1 T41, probe2 T34–T39). Dazu kommen Eigenheiten, bei denen fraglich ist, ob wir sie
    nachbilden wollen: die ungenaue Konstante `PI` und das fehlerhafte `MKS$`.
-7. **Am Original prüfen:** `tests/programs/arrays.lst` und `errors2.lst` stammen vom Interpreter.
-   Fraglich sind vor allem `@p(x)` mit `PROCEDURE p(VAR x)` (Bindung an die eigene Variable), ein
-   Fehler in `DEFFN` (gehört er zur aufrufenden Anweisung?) und `RESUME Marke` aus einer tieferen
-   Prozedur (werden deren `LOCAL`-Variablen zurückgesetzt?). `strheap.lst` ist unkritisch.
+7. **Am Original prüfen:** ~~`arrays.lst`~~ ist gleich (auch die `VAR`-Grenzfälle), ~~`resume.lst`~~
+   ebenso. `errors2.lst` stimmt bis auf `ERR` nach `RESUME NEXT` im Hauptprogramm (Original 0, wir
+   10); probe12 klärt, wann `ERR` zurückgesetzt wird. Fehler in `DEFFN` und verschachtelte Fehler
+   siehe [D19](decisions.md#d19). `strheap.lst` ist unkritisch.

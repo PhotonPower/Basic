@@ -1,0 +1,116 @@
+' test: groups core print
+' source: GFA-BASIC 3.5
+' RESUME nach Fehlern in Kopfzeilen (probe11, D19): RESUME NEXT geht in die naechste Zeile, also
+' in den Rumpf; Fehler in UNTIL, LOOP UNTIL und SELECT gehen hinter die Struktur
+g%=0
+ON ERROR GOSUB nxt
+'
+k%=0
+WHILE 10/k%>5
+  PRINT "T1 WHILE: Rumpf"
+  k%=100
+WEND
+PRINT "T1 nach WEND"
+'
+k%=0
+IF 1/k%>0
+  PRINT "T2 IF: THEN-Zweig"
+ELSE
+  PRINT "T2 IF: ELSE-Zweig"
+ENDIF
+PRINT "T2 nach ENDIF"
+'
+k%=0
+IF k%=1
+  PRINT "T3 erster Zweig"
+ELSE IF 1/k%>0
+  PRINT "T3 ELSE IF: Zweig"
+ELSE
+  PRINT "T3 ELSE-Zweig"
+ENDIF
+PRINT "T3 nach ENDIF"
+'
+k%=0
+FOR i%=1 TO 10/k%
+  PRINT "T4 FOR: Rumpf i%=";i%
+  EXIT IF i%>=3
+NEXT i%
+PRINT "T4 nach NEXT i%=";i%
+'
+k%=0
+c%=0
+REPEAT
+  INC c%
+  PRINT "T5 REPEAT: Rumpf ";c%
+UNTIL 1/k%>0 OR c%>=3
+PRINT "T5 nach UNTIL c%=";c%
+'
+k%=0
+DO WHILE 1/k%>0
+  PRINT "T6 DO WHILE: Rumpf"
+  k%=-1
+LOOP
+PRINT "T6 nach LOOP"
+'
+k%=0
+c%=0
+DO
+  INC c%
+  PRINT "T7 DO: Rumpf ";c%
+LOOP UNTIL 1/k%>0 OR c%>=3
+PRINT "T7 nach LOOP UNTIL c%=";c%
+'
+k%=0
+SELECT 1/k%
+CASE 0
+  PRINT "T8 SELECT: CASE 0"
+CASE 1
+  PRINT "T8 SELECT: CASE 1"
+DEFAULT
+  PRINT "T8 SELECT: DEFAULT"
+ENDSELECT
+PRINT "T8 nach ENDSELECT"
+'
+k%=0
+c%=0
+WHILE c%<2
+  INC c%
+  x=1/k%
+  PRINT "T9 WHILE-Rumpf nach Fehler ";c%
+WEND
+PRINT "T9 nach WEND c%=";c%
+'
+ON ERROR GOSUB rep
+k%=0
+WHILE 10/k%>5
+  PRINT "T10 RESUME: Rumpf (nie)"
+WEND
+PRINT "T10 nach WEND k%=";k%
+'
+ON ERROR GOSUB nxt
+k%=0
+FOR i%=1 TO 2
+  PRINT "T11 FOR i%=";i%
+NEXT i%
+notaus:
+PRINT "Fehler insgesamt ";g%
+END
+'
+PROCEDURE nxt
+  e%=ERR
+  INC g%
+  PRINT "   -> ERR ";e%
+  ON ERROR GOSUB nxt
+  IF g%>25
+    RESUME notaus
+  ENDIF
+  RESUME NEXT
+RETURN
+PROCEDURE rep
+  e%=ERR
+  INC g%
+  PRINT "   -> ERR ";e%;", RESUME"
+  k%=100
+  ON ERROR GOSUB nxt
+  RESUME
+RETURN

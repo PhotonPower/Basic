@@ -1,6 +1,6 @@
 ' test: groups core string print
 ' Fehlerbehandlung, Grenzfaelle: LOCAL und VAR beim Ruecksprung, Fehler in Prozeduren, Schleifen,
-' DEFFN und in der Fehlerroutine selbst, RESUME aus einer tieferen Prozedur, READ nach Fehler 35
+' DEFFN, RESUME aus einer tieferen Prozedur, READ nach Fehler 35
 ON ERROR GOSUB nxt
 x=5
 s$="aussen"
@@ -12,11 +12,12 @@ FOR i%=1 TO 3
   y=10/(i%-2)
   PRINT "i%=";i%;" y=";y
 NEXT i%
-' Fehler in der Bedingung: die ganze Schleife wird uebersprungen
+' Fehler in der Bedingung: RESUME NEXT geht in den Rumpf (probe11, D19)
 k%=0
 ON ERROR GOSUB nxt
-WHILE 1/k%>0
-  PRINT "nie"
+WHILE 10/k%>5
+  PRINT "Rumpf"
+  k%=100
 WEND
 PRINT "nach WHILE"
 ' RESUME wiederholt: die Fehlerroutine repariert den Divisor
@@ -24,16 +25,13 @@ ON ERROR GOSUB rep
 d%=0
 z=100/d%
 PRINT "z=";z
-' Fehler in DEFFN: gehoert zur aufrufenden Anweisung, der Parameter ist danach wieder da
+' Fehler in DEFFN: gehoert zur aufrufenden Anweisung (den Parameter setzt das Original danach
+' nicht zurueck, wir schon: D19; er wird daher nicht ausgegeben)
 DEFFN kehr(q)=1/q
 q=7
 ON ERROR GOSUB nxt
 w=FN kehr(0)
-PRINT "q=";q;" w=";w
-' Fehler in der Fehlerroutine mit neuem ON ERROR
-ON ERROR GOSUB doppelt
-v=SQR(-4)
-PRINT "nach doppelt"
+PRINT "w=";w
 ' RESUME Marke aus einer Prozedur, die die Fehlerroutine aufruft; LOCAL dort wird zurueckgesetzt
 t=1
 ON ERROR GOSUB weit
@@ -78,13 +76,6 @@ PROCEDURE tief(n%)
     PRINT "tief 0: x=";x;" s$=";s$
   ENDIF
   PRINT "tief ";n%;": x=";x;" s$=";s$
-RETURN
-PROCEDURE doppelt
-  PRINT "doppelt ";ERR
-  ON ERROR GOSUB nxt
-  ERROR 30
-  PRINT "doppelt weiter"
-  RESUME NEXT
 RETURN
 PROCEDURE lokal
   LOCAL t

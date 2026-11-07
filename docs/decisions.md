@@ -84,6 +84,23 @@ die ungenaue Konstante `PI` (wir nehmen den nächstgelegenen binary64-Wert), das
 Ganzzahl- und Rundungsregeln, `FOR`-Semantik, Ausgabeformat, Fehlernummern und -texte, die Regel von
 `==` (siehe [numerics.md](numerics.md)).
 
+<a id="d19"></a>
+## D19 – Fehler in Kopfzeilen; Abweichungen der Fehlerbehandlung vom Original
+
+`RESUME NEXT` setzt wie im Original (probe11) in der nächsten Programmzeile fort: Nach einem Fehler
+in der Bedingung von `WHILE`, `IF`, `ELSE IF`, `DO WHILE`/`DO UNTIL` geht es im Rumpf weiter, nach
+einem Fehler in der `FOR`-Zeile läuft der Rumpf einmal, `NEXT` erhöht die Laufvariable und verlässt
+die Schleife. `RESUME` wiederholt nur die Kopfzeile. Fehler in `UNTIL`, `LOOP UNTIL`, `NEXT` und im
+`SELECT`-Ausdruck gehen hinter die Struktur. Interpreter, C++-Ziel und 68000 setzen das gleich um.
+
+Bewusst **anders** als das Original (Fehler des Originals, keine Sprachregeln):
+- Schlägt in der `FOR`-Zeile die Schrittweite fehl, rechnet `NEXT` mit 1 statt mit einem zufälligen
+  Wert.
+- Nach einem Fehler in einer `DEFFN`-Formel wird deren Parameter wie bei jedem Rücksprung
+  wiederhergestellt; das Original lässt den Wert aus dem Aufruf stehen.
+- Ein Fehler in der Fehlerroutine nach erneutem `ON ERROR GOSUB` wird behandelt
+  (`tests/programs/errnest.lst`); das Original stürzt ab.
+
 <a id="d18"></a>
 ## D18 – Strings der Assembler-Ziele: Deskriptoren, Rückverweise, Zusammenschieben
 

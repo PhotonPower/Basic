@@ -33,6 +33,12 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 - MC68000: `PRINT USING`, `MODE`, `STR$(x,n)`, `STR$(x,y,z)`, `MID$=`, `LSET`, `RSET`;
   Konformanztest mit zufälligen Formaten in allen vier Modi. Alle Testprogramme laufen jetzt im
   Emulator mit derselben Ausgabe wie Interpreter und Original.
+- Fehlerbehandlung nach dem Original (probe11, D19): `RESUME NEXT` nach einem Fehler in einer
+  Kopfzeile (`WHILE`, `IF`, `ELSE IF`, `DO WHILE`/`UNTIL`, `FOR`) geht in den Rumpf, `RESUME`
+  wiederholt nur die Kopfzeile; in Interpreter, C++-Ziel und 68000. Neue Testprogramme `resume`
+  (am Original gleich) und `errnest`; `arrays` am Original gleich.
+- `gfa_run.py`: Startmenü der Diskette nach einem Kaltstart (`boot` in `keys.json`), längere
+  Wartezeiten für den Merge-Dialog und das Einlesen.
 - Testprogramm `strheap` für den String-Heap; dabei behoben: `rt_str_set_ret` erwartete den
   Deskriptor in A1 statt A0, das Ergebnis von String-Funktionen ging verloren (Fehler 8).
 - MC68000, erster Teil: Quelltext-Linker `src/link` (Modulköpfe, Hülle über `requires`,

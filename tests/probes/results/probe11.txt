@@ -1,0 +1,39 @@
+; source: GFA-BASIC 3.5 (Amiga, English), FS-UAE A500, Kickstart 1.2, 2026-11-07
+probe11
+   -> ERR 0
+T1 WHILE: Rumpf
+T1 nach WEND
+   -> ERR 0
+T2 IF: THEN-Zweig
+T2 nach ENDIF
+   -> ERR 0
+T3 ELSE IF: Zweig
+T3 nach ENDIF
+   -> ERR 0
+T4 FOR: Rumpf i%=1
+T4 nach NEXT i%=2
+T5 REPEAT: Rumpf 1
+   -> ERR 0
+T5 nach UNTIL c%=1
+   -> ERR 0
+T6 DO WHILE: Rumpf
+T6 nach LOOP
+T7 DO: Rumpf 1
+   -> ERR 0
+T7 nach LOOP UNTIL c%=1
+   -> ERR 0
+T8 nach ENDSELECT
+   -> ERR 0
+T9 WHILE-Rumpf nach Fehler 1
+   -> ERR 0
+T9 WHILE-Rumpf nach Fehler 2
+T9 nach WEND c%=2
+   -> ERR 0, RESUME
+T10 nach WEND k%=100
+T12 FOR i%=1
+T12 FOR i%=2
+   -> ERR 0
+T12 STEP-Fehler: Rumpf i%=1
+T12 nach NEXT i%=12782147
+Fehler insgesamt 12
+ende

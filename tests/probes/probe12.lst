@@ -1,0 +1,55 @@
+' probe12 - Wann wird ERR wieder 0? (GFA-BASIC 3.5, Amiga)
+' Ergebnisdatei: gfa_run.py setzt datei$ auf DH0:probe12.txt (docs/gfa-original.md).
+' Anlass: errors2.lst, nach RESUME NEXT war ERR im Hauptprogramm 0. Die Fehlerroutinen hier
+' benutzen keine Dateibefehle; der Kanal wird erst im Hauptprogramm neu geoeffnet.
+'
+datei$="DH0:probe12.txt"
+OPEN "O",#1,datei$
+PRINT #1,"probe12"
+'
+ON ERROR GOSUB still
+ERROR 7
+f%=ERR
+CLOSE #1
+OPEN "A",#1,datei$
+PRINT #1,"T1 RESUME NEXT: in der Routine ";e%;", danach ";f%;", nach OPEN ";ERR
+'
+ON ERROR GOSUB ohne
+y=SQR(-1)
+f%=ERR
+CLOSE #1
+OPEN "A",#1,datei$
+PRINT #1,"T2 ohne RESUME: in der Routine ";e%;", danach ";f%;", nach OPEN ";ERR
+'
+ON ERROR GOSUB still
+ERROR 7
+g%=1
+f%=ERR
+CLOSE #1
+OPEN "A",#1,datei$
+PRINT #1,"T3 eine Anweisung spaeter: ";f%
+'
+ON ERROR GOSUB nochmal
+k%=0
+z=10/k%
+f%=ERR
+CLOSE #1
+OPEN "A",#1,datei$
+PRINT #1,"T4 RESUME: in der Routine ";e%;", danach ";f%;" z=";z
+'
+PRINT #1,"ende"
+CLOSE #1
+END
+'
+PROCEDURE still
+  e%=ERR
+  RESUME NEXT
+RETURN
+PROCEDURE ohne
+  e%=ERR
+RETURN
+PROCEDURE nochmal
+  e%=ERR
+  k%=2
+  RESUME
+RETURN

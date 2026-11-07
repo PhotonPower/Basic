@@ -1,4 +1,5 @@
 ' test: groups core string print
+' source: GFA-BASIC 3.5
 ' Arrays aller Typen, mehrdimensional, OPTION BASE, DIM?, ERASE, SWAP, CLR, VAR-Grenzfaelle
 DIM a%(3,4),f(5),w&(2),b|(3),t!(2),s$(2,2)
 FOR i%=0 TO 3
@@ -54,8 +55,8 @@ p=5
 @selbst(p)
 PRINT "selbst: ";p
 q$="q"
-@selbst$(q$)
-PRINT "selbst$: ";q$
+@selbst2(q$)
+PRINT "selbst2: ";q$
 ' VAR durch Rekursion weitergereicht
 n=0
 @zaehle(5,n)
@@ -72,7 +73,7 @@ PRINT g%(1);" ";DIM?(a%())
 PROCEDURE selbst(VAR p)
   p=p*2
 RETURN
-PROCEDURE selbst$(VAR q$)
+PROCEDURE selbst2(VAR q$)
   q$=q$+STRING$(50,"!")
   q$=LEFT$(q$,4)
 RETURN
@@ -93,7 +94,7 @@ PROCEDURE innen
 RETURN
 PROCEDURE fuelle(VAR u())
   u(0)=-1
-  u(2)=PI
+  u(2)=1.5
 RETURN
 PROCEDURE tausch(VAR m%(),o%())
   SWAP m%(),o%()

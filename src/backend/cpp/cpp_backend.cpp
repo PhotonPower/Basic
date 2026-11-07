@@ -475,13 +475,19 @@ private:
         }
     }
 
+    // header condition: 1 true, 0 false, -1 RESUME NEXT after an error (D19)
+    std::string cond(const hir::Expr& e) {
+        if (errors_) return "brt::header([&] { return " + expr(e) + "; })";
+        return "(brt::isTrue(" + expr(e) + ") ? 1 : 0)";
+    }
+
     void stmt(const hir::Stmt& s, int in) {
         switch (s.kind) {
             case SKind::Assign: line(in, lvalue(*s.target) + " = " + expr(*s.value) + ";"); return;
             case SKind::Print: return print(s, in);
             case SKind::If:
                 for (std::size_t k = 0; k < s.branches.size(); ++k) {
-                    line(in, std::string(k == 0 ? "if" : "} else if") + " (brt::isTrue(" + expr(*s.branches[k].cond) + ")) {");
+                    line(in, std::string(k == 0 ? "if" : "} else if") + " (" + cond(*s.branches[k].cond) + " != 0) {");
                     block(s.branches[k].body, in + 1);
                 }
                 if (!s.elseBody.empty()) {
@@ -493,21 +499,48 @@ private:
             case SKind::For: {
                 const Type t = s.target->type;
                 line(in, "{");
-                line(in + 1, lvalue(*s.target) + " = " + expr(*s.start) + ";");
-                line(in + 1, "const f64 end_ = " + expr(*s.end) + ", step_ = " + expr(*s.step) + ";");
+                const std::string next = t == Type::Float ? "brt::forNext(" + lvalue(*s.target) + ", end_, step_)"
+                                                          : "brt::forNext(" + lvalue(*s.target) + ", end_, step_, '" + widthOf(t) + "')";
                 const std::string cur = t == Type::Float ? lvalue(*s.target) : "brt::flt(" + lvalue(*s.target) + ")";
-                line(in + 1, "if (brt::forInRange(" + cur + ", end_, step_)) {");
+                if (errors_) {  // an error in the FOR line: RESUME NEXT runs the body once (D19)
+                    line(in + 1, "f64 end_ = 0, step_ = brt::flt(1);");
+                    line(in + 1, "bool failed_ = false;");
+                    line(in + 1, "for (;;) {");
+                    line(in + 2, "try {");
+                    line(in + 3, lvalue(*s.target) + " = " + expr(*s.start) + ";");
+                    line(in + 3, "end_ = " + expr(*s.end) + ";");
+                    line(in + 3, "step_ = " + expr(*s.step) + ";");
+                    line(in + 3, "break;");
+                    line(in + 2, "} catch (const brt::Error& e_) {");
+                    line(in + 3, "const int r_ = brt::handle(e_);");
+                    line(in + 3, "if (r_ == 0) continue;");
+                    line(in + 3, "if (r_ >= 2) throw brt::GotoLabel{r_ - 2};");
+                    line(in + 3, "failed_ = true;");
+                    line(in + 3, "break;");
+                    line(in + 2, "}");
+                    line(in + 1, "}");
+                    line(in + 1, "if (failed_) {");
+                    line(in + 2, "for (;;) {");
+                    block(s.body, in + 3);
+                    line(in + 3, "(void)" + next + ";");
+                    line(in + 3, "break;");
+                    line(in + 2, "}");
+                    line(in + 1, "} else if (brt::forInRange(" + cur + ", end_, step_)) {");
+                } else {
+                    line(in + 1, lvalue(*s.target) + " = " + expr(*s.start) + ";");
+                    line(in + 1, "const f64 end_ = " + expr(*s.end) + ", step_ = " + expr(*s.step) + ";");
+                    line(in + 1, "if (brt::forInRange(" + cur + ", end_, step_)) {");
+                }
                 line(in + 2, "for (;;) {");
                 block(s.body, in + 3);
-                if (t == Type::Float) line(in + 3, "if (!brt::forNext(" + lvalue(*s.target) + ", end_, step_)) break;");
-                else line(in + 3, "if (!brt::forNext(" + lvalue(*s.target) + ", end_, step_, '" + widthOf(t) + "')) break;");
+                line(in + 3, "if (!" + next + ") break;");
                 line(in + 2, "}");
                 line(in + 1, "}");
                 line(in, "}");
                 return;
             }
             case SKind::While:
-                line(in, "while (brt::isTrue(" + expr(*s.cond) + ")) {");
+                line(in, "while (" + cond(*s.cond) + " != 0) {");
                 block(s.body, in + 1);
                 line(in, "}");
                 return;
@@ -518,8 +551,8 @@ private:
                 return;
             case SKind::Do:
                 line(in, "for (;;) {");
-                if (s.pre == 1) line(in + 1, "if (!brt::isTrue(" + expr(*s.cond) + ")) break;");
-                if (s.pre == 2) line(in + 1, "if (brt::isTrue(" + expr(*s.cond) + ")) break;");
+                if (s.pre == 1) line(in + 1, "if (" + cond(*s.cond) + " == 0) break;");
+                if (s.pre == 2) line(in + 1, "if (" + cond(*s.cond) + " == 1) break;");
                 block(s.body, in + 1);
                 if (s.post == 1) line(in + 1, "if (!brt::isTrue(" + expr(*s.cond2) + ")) break;");
                 if (s.post == 2) line(in + 1, "if (brt::isTrue(" + expr(*s.cond2) + ")) break;");

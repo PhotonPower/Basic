@@ -127,6 +127,30 @@ Diese Punkte sind aus dem Handbuch nicht sicher zu entnehmen und werden am Origi
   geschrieben wurde, bleibt erhalten (Versuche beim Lauf von probe1, siehe
   [gfa-original.md](gfa-original.md#regeln-für-prüfprogramme)). Ob das auch ohne `ON ERROR` oder nur
   für bestimmte Fehler gilt, ist offen.
+- ~~**`RESUME` nach Fehlern in Kopfzeilen**~~ (probe11, 2026-11-07): `RESUME NEXT` geht zur
+  **nächsten Programmzeile**, auch in einen Rumpf hinein; `RESUME` wiederholt nur die fehlerhafte
+  Zeile. Im Einzelnen:
+
+  | Fehler in | `RESUME NEXT` geht weiter mit |
+  |---|---|
+  | `WHILE`-Bedingung (T1) | erster Zeile des Rumpfs; `WEND` prüft wieder |
+  | `IF`-Bedingung (T2) | dem `THEN`-Zweig, danach hinter `ENDIF` |
+  | `ELSE IF`-Bedingung (T3) | diesem Zweig |
+  | `FOR`-Zeile (T4, T12) | dem Rumpf (einmal); `NEXT` erhöht und verlässt die Schleife |
+  | `DO WHILE`/`DO UNTIL` (T6) | dem Rumpf; `LOOP` prüft wieder |
+  | `UNTIL`, `LOOP UNTIL` (T5, T7) | der Zeile hinter der Schleife |
+  | `SELECT`-Ausdruck (T8) | der Zeile hinter `ENDSELECT` (kein Zweig) |
+
+  Bei einem Fehler in der Schrittweite rechnet `NEXT` im Original mit einem zufälligen Wert (T12:
+  `i%` = 12782135, beim nächsten Lauf 12782147); wir nehmen 1 ([D19](decisions.md#d19)).
+  Bestätigt durch `tests/programs/resume.lst`.
+- **Fehler in `DEFFN` und in der Fehlerroutine** (errors2, 2026-11-07): Ein Fehler in einer
+  `DEFFN`-Formel gehört zur aufrufenden Anweisung; den Parameter setzt das Original danach **nicht**
+  zurück (`q` behält den Wert aus dem Aufruf). Ein zweiter Fehler in der Fehlerroutine nach einem
+  neuen `ON ERROR GOSUB` lässt das Original abstürzen („Software error – task held“). Beides bilden
+  wir nicht nach ([D19](decisions.md#d19)). Offen: Nach `RESUME NEXT` war `ERR` im Hauptprogramm 0;
+  ob `RESUME` oder das Neuöffnen der Datei in der umgeleiteten Fehlerroutine `ERR` zurücksetzt,
+  klärt probe12.
 - ~~**`SELECT` mit Mehrzeichen-Strings**~~ (Anhang C, Punkt 8), am Original (probe4 T1–T9):
   - Die Zeichen werden **Big-Endian** gepackt: `CASE "ab"` = 97·256 + 98 = 24930, `CASE "abcd"` =
     1633837924. Die Formel im Handbuch (ASCII1 + 255 · ASCII2) ist falsch, auch die

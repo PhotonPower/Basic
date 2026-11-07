@@ -584,12 +584,12 @@ private:
             case SKind::Print: return print(s);
             case SKind::If:
                 for (const hir::Branch& br : s.branches)
-                    if (truth(*br.cond)) return exec(br.body);
+                    if (header(*br.cond) != 0) return exec(br.body);
                 return exec(s.elseBody);
             case SKind::For: return forLoop(s);
             case SKind::While:
                 try {
-                    while (truth(*s.cond)) loop(s.body);
+                    while (header(*s.cond) != 0) loop(s.body);
                 } catch (const ExitLoop&) {
                 }
                 return;
@@ -603,8 +603,8 @@ private:
             case SKind::Do:
                 try {
                     for (;;) {
-                        if (s.pre == 1 && !truth(*s.cond)) break;
-                        if (s.pre == 2 && truth(*s.cond)) break;
+                        if (s.pre == 1 && header(*s.cond) == 0) break;
+                        if (s.pre == 2 && header(*s.cond) == 1) break;
                         loop(s.body);
                         if (s.post == 1 && !truth(*s.cond2)) break;
                         if (s.post == 2 && truth(*s.cond2)) break;
@@ -635,34 +635,76 @@ private:
         }
     }
 
+    // Condition of a header line (WHILE, IF, ELSE IF, DO WHILE/UNTIL). An error there belongs to
+    // that line (probe11): RESUME evaluates it again, RESUME NEXT goes on with the next line, the
+    // first one of the body. Returns 1 (true), 0 (false) or -1 (RESUME NEXT after an error).
+    int header(const hir::Expr& e) {
+        for (;;) {
+            try {
+                return truth(e) ? 1 : 0;
+            } catch (RuntimeError& err) {
+                if (onError_ < 0) throw;
+                const int r = handle(err.code);
+                if (r == 0) continue;
+                if (r == 1) return -1;
+                throw GotoSignal{r - 2};
+            }
+        }
+    }
+
     void forLoop(const hir::Stmt& s) {
         // GFA semantics (probe1 T18-T21, probe2 T10-T14): end and step evaluated once; the
         // condition is checked before the first pass; the variable is increased (integers wrap)
         // and the new value is checked.
         const hir::Expr& t = *s.target;
         const Type ty = var(t.var).type;
-        storeTarget(t, eval(*s.start));
-        const f64 end = eval(*s.end).f;
-        const f64 step = eval(*s.step).f;
+        f64 end = 0, step = F64_ONE;
+        bool failed = false;  // error in the FOR line and RESUME NEXT (D19, probe11 T4, T12)
+        for (;;) {
+            try {
+                storeTarget(t, eval(*s.start));
+                end = eval(*s.end).f;
+                step = eval(*s.step).f;
+                break;
+            } catch (RuntimeError& err) {
+                if (onError_ < 0) throw;
+                const int r = handle(err.code);
+                if (r == 0) continue;
+                if (r >= 2) throw GotoSignal{r - 2};
+                failed = true;
+                break;
+            }
+        }
         const bool down = fp_cmp(step, 0) < 0;
         auto inRange = [&](f64 v) { return down ? fp_cmp(v, end) >= 0 : fp_cmp(v, end) <= 0; };
+        auto increase = [&]() {
+            const f64 next = fp_add(num(loadTarget(t)), step);
+            check();
+            if (ty == Type::Float) {
+                storeTarget(t, Value::ofFloat(next));
+            } else {
+                // integers wrap like INC: |next| < 2^32, so one correction by 2^32 suffices
+                const f64 two31 = 0x41E0000000000000u, two32 = 0x41F0000000000000u;
+                f64 tr = fp_trunc(next);
+                if (fp_cmp(tr, two31) >= 0) tr = fp_sub(tr, two32);
+                else if (fp_cmp(tr, fp_neg(two31)) < 0) tr = fp_add(tr, two32);
+                storeTarget(t, wrapTo(ty, toI32(tr)));
+            }
+            return next;
+        };
+        if (failed) {  // the body once, NEXT increases the variable and leaves the loop
+            try {
+                loop(s.body);
+                increase();
+            } catch (const ExitLoop&) {
+            }
+            return;
+        }
         if (!inRange(num(loadTarget(t)))) return;
         try {
             for (;;) {
                 loop(s.body);
-                const f64 next = fp_add(num(loadTarget(t)), step);
-                check();
-                if (ty == Type::Float) {
-                    storeTarget(t, Value::ofFloat(next));
-                } else {
-                    // integers wrap like INC: |next| < 2^32, so one correction by 2^32 suffices
-                    const f64 two31 = 0x41E0000000000000u, two32 = 0x41F0000000000000u;
-                    f64 tr = fp_trunc(next);
-                    if (fp_cmp(tr, two31) >= 0) tr = fp_sub(tr, two32);
-                    else if (fp_cmp(tr, fp_neg(two31)) < 0) tr = fp_add(tr, two32);
-                    storeTarget(t, wrapTo(ty, toI32(tr)));
-                }
-                if (!inRange(next)) break;
+                if (!inRange(increase())) break;
             }
         } catch (const ExitLoop&) {
         }

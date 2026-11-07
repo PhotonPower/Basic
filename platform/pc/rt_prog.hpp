@@ -248,6 +248,23 @@ inline int handle(const Error& e) {
     return 1;  // routine ended without RESUME: continue after the statement
 }
 
+// Condition of a header line (WHILE, IF, ELSE IF, DO WHILE/UNTIL) in a program with ON ERROR:
+// an error belongs to that line (probe11, D19). RESUME evaluates it again, RESUME NEXT goes on with
+// the first line of the body. Returns 1 (true), 0 (false), -1 (RESUME NEXT after an error).
+template <class F>
+int header(F f) {
+    for (;;) {
+        try {
+            return isTrue(f()) ? 1 : 0;
+        } catch (const Error& e) {
+            const int r = handle(e);
+            if (r == 0) continue;
+            if (r == 1) return -1;
+            throw GotoLabel{r - 2};
+        }
+    }
+}
+
 [[noreturn]] inline void resume(int mode, int label) {
     if (rt.handlerDepth == 0) throw Fatal{"RESUME outside the error routine"};
     throw Resume{mode, label};

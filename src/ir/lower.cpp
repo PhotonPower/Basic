@@ -252,6 +252,16 @@ private:
         for (const hir::Routine& r : p_.routines) blk(r.body);
     }
 
+    // record of a header line (WHILE, IF, ELSE IF, DO WHILE/UNTIL, FOR) with ON ERROR: RESUME repeats
+    // the line at `start`, RESUME NEXT goes on at `after`, the first line of the body (D19, probe11)
+    void headerRecord(int start, int after) {
+        if (!onError_) return;
+        Instr& i = emit(Kind::Line);
+        i.imm = line_;
+        i.label = start;
+        i.label2 = after;
+    }
+
     // statement record again (with ON ERROR): the condition or the step of a loop belongs to the
     // loop statement, not to the last statement of its body
     void reenter() {
@@ -432,8 +442,11 @@ private:
             case SKind::If: {
                 const int end = label();
                 for (const hir::Branch& br : s.branches) {
-                    const int next = label();
+                    const int next = label(), head = label(), body = label();
+                    place(head);
+                    headerRecord(head, body);
                     branchZ(truth(*br.cond), next);
+                    place(body);
                     block(br.body);
                     jump(end);
                     place(next);
@@ -444,11 +457,12 @@ private:
             }
             case SKind::For: return forLoop(s);
             case SKind::While: {
-                const int top = label(), end = label();
+                const int top = label(), end = label(), body = label();
                 place(top);
-                reenter();
+                headerRecord(top, body);
                 releaseTemps();
                 branchZ(truth(*s.cond), end);
+                place(body);
                 exitLabels_.push_back(end);
                 block(s.body);
                 exitLabels_.pop_back();
@@ -469,12 +483,14 @@ private:
                 return;
             }
             case SKind::Do: {
-                const int top = label(), end = label();
+                const int top = label(), end = label(), body = label();
                 place(top);
-                reenter();
+                if (s.pre != 0) headerRecord(top, body);
+                else reenter();
                 releaseTemps();
                 if (s.pre == 1) branchZ(truth(*s.cond), end);
                 if (s.pre == 2) branchNZ(truth(*s.cond), end);
+                place(body);
                 exitLabels_.push_back(end);
                 block(s.body);
                 exitLabels_.pop_back();
@@ -597,9 +613,21 @@ private:
         if (s.target->op != Op::Load) unsupported("arrays");
         const int v = s.target->var;
         const Type ty = var(v).type;
+        // with ON ERROR: an error in the FOR line and RESUME NEXT run the body once, NEXT increases
+        // the variable (by 1 if the step is unknown) and leaves the loop (D19, probe11 T4)
+        Reg failed, step;
+        int failLabel = -1;
+        if (onError_) {
+            failed = constI(0);
+            step = reg(VT::F64);
+            copyTo(step, constF(F64_ONE));
+            failLabel = label();
+            headerRecord(stmtLabels_.back().first, failLabel);
+        }
         store(v, expr(*s.start));
         Reg end = expr(*s.end);
-        Reg step = expr(*s.step);
+        if (onError_) copyTo(step, expr(*s.step));
+        else step = expr(*s.step);
         Reg dir = rtcall("fp_cmp", {step, constF(0)}, VT::I32);
         Reg down = cmp("lt", dir, constI(0));
         Reg bad = op("or", op("add", down, down), constI(1));
@@ -607,6 +635,11 @@ private:
         Reg cur = load(v);
         if (cur.type == VT::I32) cur = rtcall("fp_from_i32", {cur}, VT::F64);
         branchZ(cmp("ne", rtcall("fp_cmp", {cur, end}, VT::I32), bad), exit);
+        if (onError_) {
+            jump(top);
+            place(failLabel);
+            copyTo(failed, constI(-1));
+        }
         place(top);
         exitLabels_.push_back(exit);
         block(s.body);
@@ -617,6 +650,7 @@ private:
         Reg next = rtcall("fp_add", {now, step}, VT::F64);
         if (ty == Type::Float) store(v, next);
         else store(v, rtcall(ty == Type::Word ? "rt_for_wrap_word" : ty == Type::Byte ? "rt_for_wrap_byte" : ty == Type::Bool ? "rt_for_wrap_bool" : "rt_for_wrap_int", {next}, VT::I32));
+        if (onError_) branchNZ(failed, exit);
         branchNZ(cmp("ne", rtcall("fp_cmp", {next, end}, VT::I32), bad), top);
         place(exit);
     }

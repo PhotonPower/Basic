@@ -291,6 +291,9 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         start_fs_uae(args.config, args.app)
         time.sleep(args.boot_wait)
+        if keys.get("boot"):  # the boot menu of the disk: start GFA-BASIC
+            boot = build_script(keys["boot"], args.amiga_layout, args.app, {})
+            subprocess.run(["osascript", "-"], input=boot, text=True, capture_output=True)
 
     run = subprocess.run(["osascript", "-"], input=script, text=True, capture_output=True)
     if run.returncode != 0 and "focus lost" in run.stderr:

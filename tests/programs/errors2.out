@@ -10,15 +10,12 @@ Fehler 0
 i%=2 y=-10
 i%=3 y=10
 Fehler 0
+Rumpf
 nach WHILE
 rep 0
 z=25
 Fehler 0
-q=7 w=0
-doppelt 5
-Fehler 30
-doppelt weiter
-nach doppelt
+w=0
 springe 3 t=60
 ziel: t=1
 Fehler 4
