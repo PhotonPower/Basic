@@ -1,5 +1,5 @@
 ;! module    rt_strfn
-;! provides  rt_str_concat rt_str_cmp rt_str_len rt_str_asc rt_str_chr rt_str_left rt_str_right rt_str_mid rt_str_space rt_str_string rt_str_instr rt_str_upper rt_str_trim rt_str_pack rt_str_str rt_str_radix
+;! provides  rt_str_midset rt_str_lset rt_str_rset rt_str_concat rt_str_cmp rt_str_len rt_str_asc rt_str_chr rt_str_left rt_str_right rt_str_mid rt_str_space rt_str_string rt_str_instr rt_str_upper rt_str_trim rt_str_pack rt_str_str rt_str_radix
 ;! requires  rt_str_newtemp rt_error rt_fmt_flt rt_defnum
 ;! group     string
 ;! clobbers  D0-D3/A0-A1
@@ -407,3 +407,83 @@ rt_str_radix:
 
 rt_strfn__digits:
         DC.B    '0123456789ABCDEF'
+        EVEN
+
+; A0 = target descriptor, A1 = source, D0 = from (< 1 counts as 1), D1 = count:
+; MID$(a$,from,count)=b$ overwrites in place, the length stays (probe4 T46)
+rt_str_midset:
+        MOVEM.L D2-D3,-(SP)
+        TST.L   D0
+        BGT     .f
+        MOVEQ   #1,D0
+.f:     MOVEQ   #0,D2
+        MOVE.W  4(A0),D2                ; D2 = characters of a$ from position from on
+        SUB.L   D0,D2
+        ADDQ.L  #1,D2
+        BLE     .out
+        CMP.L   D1,D2
+        BLE     .c1
+        MOVE.L  D1,D2
+.c1:    MOVEQ   #0,D3
+        MOVE.W  4(A1),D3
+        CMP.L   D3,D2
+        BLE     .c2
+        MOVE.L  D3,D2
+.c2:    TST.L   D2
+        BLE     .out
+        MOVE.L  (A0),A0
+        LEA     -1(A0,D0.L),A0
+        MOVE.L  (A1),A1
+        SUBQ.L  #1,D2
+.cp:    MOVE.B  (A1)+,(A0)+
+        DBRA    D2,.cp
+.out:   MOVEM.L (SP)+,D2-D3
+        RTS
+
+; A0 = target descriptor, A1 = source: LSET a$=b$ (b$ cut or filled with spaces at the end)
+rt_str_lset:
+        MOVEM.L D2-D3,-(SP)
+        MOVEQ   #0,D2
+        MOVE.W  4(A0),D2                ; D2 = length of a$
+        MOVEQ   #0,D3
+        MOVE.W  4(A1),D3
+        CMP.L   D2,D3
+        BLE     .n
+        MOVE.L  D2,D3                   ; D3 = characters taken from b$
+.n:     MOVE.L  (A0),A0
+        MOVE.L  (A1),A1
+        SUB.L   D3,D2                   ; D2 = spaces
+        BRA     .cn
+.c:     MOVE.B  (A1)+,(A0)+
+.cn:    SUBQ.L  #1,D3
+        BPL     .c
+        BRA     .sn
+.s:     MOVE.B  #' ',(A0)+
+.sn:    SUBQ.L  #1,D2
+        BPL     .s
+        MOVEM.L (SP)+,D2-D3
+        RTS
+
+; A0 = target descriptor, A1 = source: RSET a$=b$ (spaces in front)
+rt_str_rset:
+        MOVEM.L D2-D3,-(SP)
+        MOVEQ   #0,D2
+        MOVE.W  4(A0),D2
+        MOVEQ   #0,D3
+        MOVE.W  4(A1),D3
+        CMP.L   D2,D3
+        BLE     .n
+        MOVE.L  D2,D3
+.n:     MOVE.L  (A0),A0
+        MOVE.L  (A1),A1
+        SUB.L   D3,D2
+        BRA     .sn
+.s:     MOVE.B  #' ',(A0)+
+.sn:    SUBQ.L  #1,D2
+        BPL     .s
+        BRA     .cn
+.c:     MOVE.B  (A1)+,(A0)+
+.cn:    SUBQ.L  #1,D3
+        BPL     .c
+        MOVEM.L (SP)+,D2-D3
+        RTS

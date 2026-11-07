@@ -46,8 +46,8 @@ Wurzel, Vergleiche, Konvertierungen, Rundungsfunktionen, Zufall), ✔ Zahlenausg
 ✔ `VAR`, Arrays, `SWAP`, `CLR`, `ERASE`; `procs` läuft im Emulator.
 ✔ `VAL`, `DATA`/`READ`; `dataread` läuft im Emulator.
 ✔ `ON ERROR`, `RESUME`, `ERR`, `ERR$`; `errors` läuft im Emulator.
-Weiter: `PRINT USING` (auch für `STR$(x,y,z)`), `MID$=`, `LSET`/`RSET`,
-dann das Amiga-Ziel.
+✔ `PRINT USING`, `STR$(x,y,z)`, `MID$=`, `LSET`/`RSET`; alle Testprogramme laufen im Emulator.
+Weiter: das Amiga-Ziel (Hunk-Programm über `dos.library`, Abschnitte), schnellere Zahlenausgabe.
 
 - Quelltext-Linker (`src/link`) mit Map-Datei und Label-Prüfung.
 - LIR → 68000-Assembler, `runtime/m68k` (Integer, Strings, Ausgabe, Fließkomma-Kern), `platform/amiga`

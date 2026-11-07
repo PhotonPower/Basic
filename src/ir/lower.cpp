@@ -552,8 +552,24 @@ private:
         return gotoLabels_[key] = label();
     }
 
+    // PRINT USING: every item is a value (as in the interpreter), numbers as floats
+    void printUsing(const hir::Stmt& s) {
+        rtcallVoid("rt_using_begin", {expr(*s.usingFmt)});
+        char last = 0;
+        for (const hir::PrintItem& it : s.items) {
+            if (it.expr) {
+                Reg v = expr(*it.expr);
+                if (v.type == VT::Str) rtcallVoid("rt_using_str", {v});
+                else rtcallVoid("rt_using_num", {v.type == VT::F64 ? v : rtcall("fp_from_i32", {v}, VT::F64)});
+            }
+            last = it.sep;
+        }
+        rtcallVoid("rt_using_end", {});
+        if (last != ';' && last != ',') rtcallVoid("rt_print_nl", {});
+    }
+
     void print(const hir::Stmt& s) {
-        if (s.usingFmt) unsupported("PRINT USING");
+        if (s.usingFmt) return printUsing(s);
         char last = 0;
         for (const hir::PrintItem& it : s.items) {
             if (it.expr) {
@@ -723,6 +739,26 @@ private:
         }
         if (n == "END" || n == "STOP" || n == "QUIT" || n == "SYSTEM" || n == "EDIT" || n == "NEW") {
             rtcallVoid("rt_end", {});
+            return;
+        }
+        if (n == "MID$=") {
+            const hir::Expr& t = *s.targets[0];
+            Reg target = t.op == Op::Load ? load(t.var) : strAt(elemAddr(t));
+            Reg from = toI(expr(*s.args[0]));
+            Reg len = s.args.size() > 1 ? toI(expr(*s.args[1])) : constI(32767);
+            Reg b = expr(*s.value);
+            rtcallVoid("rt_str_midset", {target, b, from, len});
+            return;
+        }
+        if (n == "LSET" || n == "RSET") {
+            const hir::Expr& t = *s.targets[0];
+            Reg target = t.op == Op::Load ? load(t.var) : strAt(elemAddr(t));
+            Reg b = expr(*s.value);
+            rtcallVoid(n == "LSET" ? "rt_str_lset" : "rt_str_rset", {target, b});
+            return;
+        }
+        if (n == "MODE") {
+            rtcallVoid("rt_set_mode", {toI(expr(*s.args[0]))});
             return;
         }
         if (n == "DEFNUM") {
@@ -998,6 +1034,15 @@ private:
         if (n == "UPPER$") return rtcall("rt_str_upper", {arg(e, 0)}, VT::Str);
         if (n == "TRIM$") return rtcall("rt_str_trim", {arg(e, 0)}, VT::Str);
         if (n == "STR$" && argc == 1) return rtcall("rt_str_str", {arg(e, 0)}, VT::Str);
+        if (n == "STR$" && argc == 2) {
+            Reg x = arg(e, 0);
+            return rtcall("rt_str_n", {x, toI(arg(e, 1))}, VT::Str);
+        }
+        if (n == "STR$") {
+            Reg x = arg(e, 0);
+            Reg y = toI(arg(e, 1));
+            return rtcall("rt_str_fmt", {x, y, toI(arg(e, 2))}, VT::Str);
+        }
         if (n == "HEX$" || n == "BIN$" || n == "OCT$") {
             Reg v = toI(arg(e, 0));
             Reg base = constI(n == "HEX$" ? 16 : n == "BIN$" ? 2 : 8);

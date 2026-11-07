@@ -30,6 +30,9 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
   laufenden Anweisung und eine Kette der gesicherten Variablen, nur in Programmen mit `ON ERROR`.
   Die Plattform stellt jetzt `plat_error` statt `rt_error`. `errors` läuft im Emulator; neues
   Testprogramm `errors2` für Grenzfälle.
+- MC68000: `PRINT USING`, `MODE`, `STR$(x,n)`, `STR$(x,y,z)`, `MID$=`, `LSET`, `RSET`;
+  Konformanztest mit zufälligen Formaten in allen vier Modi. Alle Testprogramme laufen jetzt im
+  Emulator mit derselben Ausgabe wie Interpreter und Original.
 - Testprogramm `strheap` für den String-Heap; dabei behoben: `rt_str_set_ret` erwartete den
   Deskriptor in A1 statt A0, das Ergebnis von String-Funktionen ging verloren (Fehler 8).
 - MC68000, erster Teil: Quelltext-Linker `src/link` (Modulköpfe, Hülle über `requires`,
