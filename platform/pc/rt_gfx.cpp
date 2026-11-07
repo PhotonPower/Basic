@@ -293,13 +293,7 @@ std::int32_t Gfx::point(std::int32_t x, std::int32_t y) const {
     return w.pix[static_cast<std::size_t>(y) * static_cast<std::size_t>(w.innerW()) + static_cast<std::size_t>(x)];
 }
 
-bool Gfx::isCommand(const std::string& n) {
-    static const std::set<std::string> names = {"OPENS", "CLOSES", "OPENW", "CLOSEW", "CLEARW", "TITLEW", "TITLES",
-                                                "FRONTS", "BACKS", "FRONTW", "BACKW", "COLOR", "SETCOLOR", "GRAPHMODE",
-                                                "DEFFILL", "BOUNDARY", "DEFLINE", "PLOT", "LINE", "DRAW", "BOX",
-                                                "PBOX", "CIRCLE", "PCIRCLE", "ELLIPSE", "PELLIPSE", "TEXT"};
-    return names.count(n) != 0;
-}
+bool Gfx::isCommand(const std::string& n) { return n != "CLS" && gfxCommandCode(n) >= 0; }
 
 void Gfx::command(const std::string& n, const std::vector<std::int32_t>& v, const std::string& str, int mode) {
     const auto present = static_cast<unsigned>(mode);
@@ -322,6 +316,7 @@ void Gfx::command(const std::string& n, const std::vector<std::int32_t>& v, cons
     else if (n == "CIRCLE" || n == "PCIRCLE") circle(v[0], v[1], v[2], n == "PCIRCLE");
     else if (n == "ELLIPSE" || n == "PELLIPSE") ellipse(v[0], v[1], v[2], v[3], n == "PELLIPSE");
     else if (n == "TEXT") text(v[0], v[1], str);
+    else if (n == "CLS") cls();
     else if (n == "DRAW") {  // DRAW x,y = PLOT; DRAW TO x,y from the last point; x1,y1 TO x2,y2 ... lines
         std::size_t k = 0;
         if (mode != 1) {

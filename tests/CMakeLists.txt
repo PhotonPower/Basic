@@ -55,7 +55,7 @@ if(BASIC_WITH_EMULATORS)
     harness/m68k_runner.cpp
     harness/m68k_routines.cpp)
   target_include_directories(basic_harness PUBLIC harness)
-  target_link_libraries(basic_harness PUBLIC z80core m68kcore)
+  target_link_libraries(basic_harness PUBLIC z80core m68kcore basic_rt_pc)
   basic_set_warnings(basic_harness)
 
   foreach(name harness_z80 harness_m68k)

@@ -19,6 +19,7 @@ struct M68kRun {
     std::string error;
     std::uint64_t instructions = 0;
     std::vector<std::string> unemulatedCalls;  ///< amiga: library calls that only were logged
+    std::string gfx;         ///< test: digest of the graphics drawn through the ports (D25), "" if none
 };
 
 struct M68kOptions {

@@ -40,6 +40,9 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 - `RESUME` setzt `ERR` auf 0 (probe12 T1); damit ist `errors2` am Original gleich.
 - `gfa_run.py`: Startmenü der Diskette nach einem Kaltstart (`boot` in `keys.json`), längere
   Wartezeiten für den Merge-Dialog und das Einlesen.
+- Grafik auf dem 68000: `rt_gfx` sammelt die Argumente, `plat_gfx` zeichnet; m68k-test über Ports,
+  die der Testtreiber mit `brt::Gfx` ausführt (gleiche Zusammenfassung wie Interpreter und C++-Ziel).
+  Amiga folgt (Stufe 2), bis dahin zeichnet es nichts.
 - Grafik Stufe 1 (D25): Screens, Fenster, Stift, Zeichenmodi und Grundformen im Interpreter und
   C++-Ziel (`platform/pc/rt_gfx`), Rasterregeln am Original gemessen (probe22–24) und in `test_gfx`
   Pixel für Pixel verglichen. `basicc --run … --gfx bild` bzw. `BASIC_GFX_OUT` schreiben Bild (PPM)

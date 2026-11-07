@@ -1,11 +1,14 @@
 #include "lower.hpp"
 
+#include "rt_gfx.hpp"
+
 #include <cmath>
 #include <cstring>
 #include <functional>
 #include <map>
 #include <string>
 
+#include "rt_gfx.hpp"
 #include "rt_ref.h"
 
 namespace basic {
@@ -1068,6 +1071,14 @@ private:
         }
         if (n == "CLS") {
             rtcallVoid("rt_print_cls", {});
+            rtcallVoid("rt_gfx_cmd", {constI(brt::gfxCommandCode("CLS")), constI(0)});
+            return;
+        }
+        if (brt::Gfx::isCommand(n)) {  // D25: the arguments first, then pass them on in order
+            std::vector<Reg> vals;
+            for (const auto& a : s.args) vals.push_back(a->type == Type::Str ? expr(*a) : toI(expr(*a)));
+            for (const Reg& v : vals) rtcallVoid(v.type == VT::Str ? "rt_gfx_str" : "rt_gfx_arg", {v});
+            rtcallVoid("rt_gfx_cmd", {constI(brt::gfxCommandCode(n)), constI(s.mode)});
             return;
         }
         if (n == "LOCATE") {
@@ -1501,6 +1512,10 @@ private:
         if (n == "POS") {
             expr(*e.args[0]);
             return rtcall("rt_pos", {}, VT::I32);
+        }
+        if (n == "POINT") {
+            Reg x = toI(arg(e, 0));
+            return rtcall("rt_gfx_point", {x, toI(arg(e, 1))}, VT::I32);
         }
         if (n == "CRSCOL" || n == "CRSLIN") return rtcall(n == "CRSCOL" ? "rt_crscol" : "rt_crslin", {}, VT::I32);
         if (n == "TIMER") return rtcall("plat_timer", {}, VT::I32);

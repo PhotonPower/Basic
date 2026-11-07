@@ -413,6 +413,12 @@ sie Pixel für Pixel):
 Annahmen, noch nicht am Original geprüft: die vordefinierten Linienmuster 2–6, die Innenmaße anderer
 Fenster als 0, Screens mit anderer Auflösung (Seitenverhältnis von `CIRCLE`), `GRAPHMODE 4`.
 
+68000 (Stufe 3 vorgezogen): Das Lowering sammelt die Argumente eines Befehls (`rt_gfx_arg`,
+`rt_gfx_str`, nach der Auswertung aller Argumente) und ruft `rt_gfx_cmd` mit der Nummer aus
+`brt::kGfxCommands`; die Plattform zeichnet (`plat_gfx`). m68k-test schreibt die Befehle an Ports ab
+`$00FF0010`, der Testtreiber führt sie mit `brt::Gfx` aus: dieselben Regeln, dieselbe
+Zusammenfassung, damit testet `test_m68k_programs` auch das Lowering und die Laufzeit der Grafik.
+
 Ergebnis: Mit `basicc --run p.lst --gfx bild` (Interpreter) bzw. `BASIC_GFX_OUT=bild` (C++-Ziel)
 entstehen `bild.ppm` und `bild.txt`, eine Zusammenfassung je Fenster (Größe, Zahl und FNV-Prüfsumme
 der Pixel, Texte) und je Screen (Palette). Testprogramme halten sie in `<name>.gfx` fest.

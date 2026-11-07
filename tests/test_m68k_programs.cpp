@@ -64,6 +64,12 @@ int main() {
             const std::string label = name + (amiga ? " (amiga)" : " (m68k-test)");
             // the OS emulation of the sister project has no files (docs/toolchain.md): programs of the
             // group file-seq run on amiga only in FS-UAE (tools/gfa/amiga_run.py)
+            // graphics on the amiga: stage 2 of D25 (intuition/graphics.library) follows
+            if (amiga && read(entry.path()).find("graphics") != std::string::npos) {
+                std::cout << label << ": skipped (graphics on the amiga follows)\n";
+                ++skipped;
+                continue;
+            }
             if (amiga && read(entry.path()).find("file-seq") != std::string::npos) {
                 std::cout << label << ": skipped (no files in the OS emulation)\n";
                 ++skipped;
@@ -100,6 +106,12 @@ int main() {
             ++ran;
             std::string unemulated;
             for (const std::string& c : run.unemulatedCalls) unemulated += " " + c;
+            const fs::path gfxPath = fs::path(entry.path()).replace_extension(".gfx");  // D25
+            const std::string expectedGfx = fs::exists(gfxPath) ? read(gfxPath) : std::string();
+            if (!amiga && run.gfx != expectedGfx) {
+                ++g_failures;
+                std::cerr << label << ": graphics differ\n--- expected\n" << expectedGfx << "--- actual\n" << run.gfx;
+            }
             if (!run.error.empty() || run.console != expected || !unemulated.empty()) {
                 ++g_failures;
                 std::cerr << label << ": " << run.error << (unemulated.empty() ? "" : " unemulated calls:" + unemulated)

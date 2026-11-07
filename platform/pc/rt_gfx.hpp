@@ -14,6 +14,21 @@
 
 namespace brt {
 
+// The graphics commands by number: the code of rt_gfx_cmd / plat_gfx on the 68000 targets is the
+// index here (the lowering and the m68k-test harness use this table).
+inline constexpr const char* kGfxCommands[] = {
+    "OPENS", "CLOSES",   "OPENW",     "CLOSEW",  "CLEARW",   "TITLEW",  "TITLES", "FRONTS", "BACKS",
+    "FRONTW", "BACKW",   "COLOR",     "SETCOLOR", "GRAPHMODE", "DEFFILL", "BOUNDARY", "DEFLINE", "PLOT",
+    "LINE",  "DRAW",     "BOX",       "PBOX",    "CIRCLE",   "PCIRCLE", "ELLIPSE", "PELLIPSE", "TEXT",
+    "CLS",
+};
+inline constexpr int kGfxCommandCount = static_cast<int>(sizeof kGfxCommands / sizeof kGfxCommands[0]);
+inline int gfxCommandCode(const std::string& name) {
+    for (int k = 0; k < kGfxCommandCount; ++k)
+        if (name == kGfxCommands[k]) return k;
+    return -1;
+}
+
 class Gfx {
 public:
     Gfx();
