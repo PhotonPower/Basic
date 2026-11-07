@@ -1,0 +1,122 @@
+' test: groups core float print
+' Zahlen ohne Strings: Typen, Arithmetik, Schleifen, SELECT, Prozeduren (Umfang des 68000-Backends)
+a%=2147483647
+x=a%+1
+PRINT x;" ";a%*2;" ";a%+1-1
+b%=-7
+PRINT b% DIV 2;" ";b% MOD 2;" ";7 MOD -2;" ";b%\2
+w&=32767
+INC w&
+y|=0
+DEC y|
+f!=5
+PRINT w&;" ";y|;" ";f!
+i%=2.5
+j%=-2.5
+k%=7/2
+PRINT i%;" ";j%;" ";k%
+PRINT CINT(2.5);" ";CINT(-2.5);" ";INT(-0.5);" ";TRUNC(-1.7);" ";FRAC(-1.25);" ";ROUND(-2.5);" ";ROUND(0.125,2)
+PRINT -2^2;" ";2^3^2;" ";2^-1;" ";7 MOD 3*2;" ";NOT 0+1;" ";1 OR 2 AND 0;" ";6 IMP 3;" ";6 EQV 3
+PRINT 1==1+2^(-29);" ";1==1+2^(-28);" ";3.7 AND 6;" ";(3>2)*5;" ";TRUE;" ";FALSE
+PRINT 1/3;" ";100/3;" ";1E15;" ";-1E-100;" ";1E-5;" ";1E-6;" ";0.5;" ";1E13;" ";1E14
+PRINT SQR(2);" ";ABS(-3);" ";SGN(-0.1);" ";ODD(3);" ";EVEN(3)
+DEFNUM 4
+PRINT 123456;" ";0.000123456;" ";2/3
+DEFNUM 13
+PRINT 1;2;-3
+PRINT "Komma:";1,2,3
+PRINT 1'2
+PRINT "ab";SPC(3);"cd";TAB(12);"x"
+n%=0
+FOR i%=5 TO 1
+  INC n%
+NEXT i%
+PRINT "FOR 5 TO 1: ";n%;" ";i%
+n%=0
+FOR i%=1 TO 10 STEP 3
+  INC n%
+NEXT i%
+PRINT "STEP 3: ";n%;" ";i%
+n%=0
+FOR i%=5 DOWNTO 1
+  INC n%
+NEXT i%
+PRINT "DOWNTO: ";n%;" ";i%
+n%=0
+FOR i%=2147483646 TO 2147483647
+  INC n%
+NEXT i%
+PRINT "Bereichsende: ";n%;" ";i%
+n%=0
+FOR x=1 TO 0 STEP -0.25
+  INC n%
+NEXT x
+PRINT "Float: ";n%;" ";x
+i%=0
+WHILE i%<3
+  INC i%
+WEND
+REPEAT
+  DEC i%
+UNTIL i%<=0
+DO
+  INC i%
+  EXIT IF i%=4
+LOOP
+DO WHILE i%>1
+  DEC i%
+LOOP
+PRINT "Schleifen: ";i%
+FOR i%=1 TO 6
+  SELECT i%
+  CASE 1
+    PRINT "eins";
+  CASE 2
+    PRINT "zwei";
+    CONT
+  CASE 3
+    PRINT "+drei";
+  CASE 4 TO 5
+    PRINT "vier-fuenf";
+  DEFAULT
+    PRINT "sonst";
+  ENDSELECT
+  PRINT
+NEXT i%
+z=10
+@aussen
+PRINT "z=";z;" fak(12)=";@fak(12);" fib(15)=";@fib(15);" q(1.5)=";FN q(1.5)
+DEFFN q(v)=v*v
+n%=0
+nochmal:
+INC n%
+IF n%<3
+  GOTO nochmal
+ENDIF
+PRINT "GOTO ";n%
+ADD n%,5
+MUL n%,3
+SUB n%,1
+DIV n%,4
+PRINT "ADD/MUL/SUB/DIV ";n%
+END
+PROCEDURE aussen
+  LOCAL z
+  z=20
+  @innen(z+1)
+RETURN
+PROCEDURE innen(p)
+  PRINT "innen: z=";z;" p=";p
+RETURN
+FUNCTION fak(k)
+  IF k<=1
+    RETURN 1
+  ENDIF
+  RETURN k*@fak(k-1)
+ENDFUNC
+FUNCTION fib(k%)
+  IF k%<2
+    RETURN k%
+  ENDIF
+  RETURN @fib(k%-1)+@fib(k%-2)
+ENDFUNC

@@ -60,6 +60,13 @@ if(BASIC_WITH_EMULATORS)
   target_compile_definitions(test_conformance_m68k PRIVATE BASIC_SOURCE_DIR="${PROJECT_SOURCE_DIR}")
   basic_set_warnings(test_conformance_m68k)
   add_test(NAME conformance_m68k COMMAND test_conformance_m68k)
+
+  # Programs compiled for m68k-test against the outputs of the original
+  add_executable(test_m68k_programs test_m68k_programs.cpp)
+  target_link_libraries(test_m68k_programs PRIVATE basic_harness basiccore)
+  target_compile_definitions(test_m68k_programs PRIVATE BASIC_SOURCE_DIR="${PROJECT_SOURCE_DIR}")
+  basic_set_warnings(test_m68k_programs)
+  add_test(NAME m68k_programs COMMAND test_m68k_programs)
 endif()
 
 # Tools written in Python (standard library only); skipped without Python 3.

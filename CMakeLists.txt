@@ -67,6 +67,21 @@ target_link_libraries(basic_rt_pc PUBLIC basic_rt_ref)
 target_compile_features(basic_rt_pc PUBLIC cxx_std_17)
 basic_set_warnings(basic_rt_pc)
 
+# ---- runtime modules built into the compiler ---------------------------------------------
+set(BASIC_MODULE_DIRS runtime/m68k platform/m68k-test)
+string(REPLACE ";" "," BASIC_MODULE_DIRS_ARG "${BASIC_MODULE_DIRS}")
+set(BASIC_MODULE_FILES "")
+foreach(dir ${BASIC_MODULE_DIRS})
+  file(GLOB files CONFIGURE_DEPENDS ${PROJECT_SOURCE_DIR}/${dir}/*.s)
+  list(APPEND BASIC_MODULE_FILES ${files})
+endforeach()
+add_custom_command(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/embedded_modules.cpp
+  COMMAND ${CMAKE_COMMAND} -DSOURCE_DIR=${PROJECT_SOURCE_DIR} -DDIRS=${BASIC_MODULE_DIRS_ARG}
+          -DOUTPUT=${CMAKE_CURRENT_BINARY_DIR}/embedded_modules.cpp -P ${PROJECT_SOURCE_DIR}/cmake/embed_modules.cmake
+  DEPENDS ${BASIC_MODULE_FILES} ${PROJECT_SOURCE_DIR}/cmake/embed_modules.cmake
+  COMMENT "Embedding runtime modules")
+
 # ---- core library ---------------------------------------------------------------------
 # Frontend, IR, backends and the runtime linker are added here as they are written
 # (see docs/architecture.md and docs/roadmap.md).
@@ -80,7 +95,11 @@ add_library(basiccore STATIC
   src/ir/hir.cpp
   src/ir/interp.cpp
   src/backend/cpp/cpp_backend.cpp
-  src/link/linker.cpp)
+  src/link/linker.cpp
+  src/ir/lir.cpp
+  src/ir/lower.cpp
+  src/backend/m68k/m68k_backend.cpp
+  ${CMAKE_CURRENT_BINARY_DIR}/embedded_modules.cpp)
 target_include_directories(basiccore PUBLIC include src)
 target_link_libraries(basiccore PUBLIC basic_rt_pc)
 target_compile_features(basiccore PUBLIC cxx_std_20)

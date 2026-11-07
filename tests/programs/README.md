@@ -21,5 +21,9 @@ auch am echten GFA-BASIC laufen kann:
 python3 tools/gfa/gfa_run.py tests/programs/arith.lst --out tests/programs/arith.out
 ```
 
-**Stand:** Die `.out`-Dateien aller Programme sind am Original erzeugt (Kopfzeile
-`' source: GFA-BASIC 3.5`); der Referenz-Interpreter liefert Byte für Byte dasselbe.
+**Stand:** Die `.out`-Dateien sind am Original erzeugt (Kopfzeile `' source: GFA-BASIC 3.5`),
+außer `numbers` (Umfang des MC68000-Backends): dort stammt sie noch vom Referenz-Interpreter, der
+Abgleich am Original steht aus.
+
+Differenztests: `test_programs` (Interpreter), `pc_<name>` (C++-Ziel), `m68k_programs`
+(MC68000 im Emulator; Programme, die das Backend noch nicht kann, werden übersprungen und gezählt).

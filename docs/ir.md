@@ -45,7 +45,10 @@ Das C++-Backend arbeitet auf der HIR, damit der erzeugte Code die Struktur des B
 
 ## LIR
 
-> Kommt mit dem MC68000-Backend ([D17](decisions.md#d17)).
+> Umgesetzt in `src/ir/lir.hpp` (Textform `basicc --emit-lir`), Lowering in `src/ir/lower.cpp`.
+> Erster Umfang: Zahlen, Kontrollfluss, Prozeduren und Funktionen mit Wertparametern, `LOCAL`,
+> `PRINT` von Zahlen und Stringkonstanten. Variablen laden/speichern (`ld`/`st`), Ganzzahl-`Op`
+> und `Cmp`, alles andere als `rtcall`; `save`/`clear`/`restore` für `LOCAL` und Parameter (D15).
 
 Drei-Adress-Code in Basisblöcken mit unbegrenzt vielen typisierten virtuellen Registern (`t1`, `t2`, …)
 und benannten Variablen. Textform (für `basicc --emit-lir` und Tests):

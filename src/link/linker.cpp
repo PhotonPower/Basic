@@ -188,3 +188,17 @@ Result link(const Library& lib, const Program& program, const std::vector<std::s
 }
 
 }  // namespace basic::link
+
+#include "link/embedded.hpp"
+
+namespace basic::link {
+
+std::vector<Module> embeddedModulesOf(const std::vector<std::string>& dirs, Diagnostics& diags) {
+    std::vector<Module> out;
+    for (const std::string& dir : dirs)
+        for (const EmbeddedModule& m : embeddedModules())
+            if (dir == m.dir) out.push_back(parseModule(m.text, std::string(m.dir) + "/" + m.name, diags));
+    return out;
+}
+
+}  // namespace basic::link

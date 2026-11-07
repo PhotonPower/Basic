@@ -53,13 +53,17 @@ class Runtime {
 public:
     Runtime() {
         Diagnostics d;
+        // all runtime routines; the platform modules resolve plat_putc/plat_exit, the stub replaces
+        // the platform's rt_error (records the error number and returns)
         std::vector<link::Module> mods = link::loadModules(std::string(BASIC_SOURCE_DIR) + "/runtime/m68k", d);
+        std::vector<std::string> all;
+        for (const link::Module& m : mods) all.insert(all.end(), m.provides.begin(), m.provides.end());
+        for (link::Module& m : link::loadModules(std::string(BASIC_SOURCE_DIR) + "/platform/m68k-test", d))
+            if (m.name != "rt_error" && m.name != "plat_start") mods.push_back(std::move(m));
         std::vector<link::Module> stub = link::loadModules(std::string(BASIC_SOURCE_DIR) + "/tests/conformance/m68k", d);
         mods.insert(mods.end(), stub.begin(), stub.end());
         for (const link::Module& m : mods) link::checkLabels(m, d);
         const link::Library lib = link::makeLibrary(std::move(mods), d);
-        std::vector<std::string> all;
-        for (const auto& [sym, idx] : lib.bySymbol) all.push_back(sym);
         const link::Result r = link::link(lib, {}, all, link::Layout::Plain, "        ORG $1000\n", d);
         for (const Diagnostic& x : d) std::cerr << "link: " << x.message << "\n";
         CHECK(d.empty());
