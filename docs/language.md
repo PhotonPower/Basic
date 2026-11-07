@@ -104,10 +104,20 @@ Diese Punkte sind aus dem Handbuch nicht sicher zu entnehmen und werden am Origi
   | 5 | no negative squareroot | `SQR(-1)` (probe1 T51) |
   | 6 | logarithm only for\|numbers greater zero | `LOG(0)` (probe1 T52) |
   | 10 | string too long\|max. 32767 chars | `LEFT$("abc",-1)` (probe4 T45) |
+  | 14 | redimensioned array | zweites `DIM` desselben Arrays (probe9 T3) |
+  | 15 | array undimensioned | Zugriff ohne `DIM` (probe9 T4) |
   | 16 | array index out of range | `f%(10)` bei `DIM f%(5)` (probe1 T53) |
+  | 17 | dim out of range | (Text aus `ERR$`, probe9 T8) |
+  | 18 | wrong # of indices | (Text aus `ERR$`, probe9 T8) |
+  | 34 | out of data | (Text aus `ERR$`, probe9 T9) |
+  | 35 | data not numeric | `READ x` bei `DATA abc`; der Datenzeiger bleibt stehen (probe9 T1, T2) |
   | 24 | file not open | `PRINT #1` nach einem abgefangenen Fehler, siehe unten |
 
-  `|` trennt im Original die Zeilen der Fehlermeldung.
+  `|` trennt im Original die Zeilen der Fehlermeldung. Alle Texte 0–35 stehen in
+  `src/ir/interp.cpp` (`errorText`). `ERR` ist ein vorzeichenbehaftetes Byte: Nach `ERROR 200` ist
+  `ERR` = −56, `ERR$(-56)` = „unknown error 200“ (probe9 T6).
+- **Offen:** Gilt `VAR` in `PROCEDURE p(VAR a,b)` für alle folgenden Parameter oder nur für `a`?
+  (Derzeit nur für `a`; Abgleich mit `tests/programs/procs.lst` am Original.)
 - **Dateikanäle nach einem Fehler:** Nach einem mit `ON ERROR GOSUB` abgefangenen Fehler ist ein
   offener Kanal unbrauchbar: `PRINT #1` meldet Fehler 24 „file not open“, `OPEN "A",#1` dagegen
   „file already open“. Erst `CLOSE #1` und erneutes `OPEN "A"` machen ihn wieder nutzbar; was vorher

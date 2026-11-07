@@ -57,10 +57,17 @@ class Steps(unittest.TestCase):
         with self.assertRaises(ValueError):
             gfa_run.parse_step("click:10,10", "de")
 
+    def test_script_waits_for_focus(self):
+        # FS-UAE must be frontmost before keys are sent (two runs lost their keys without this)
+        script = gfa_run.build_script(["key:return"], "us", "FS-UAE", {})
+        self.assertIn("frontmost is true", script)
+        self.assertLess(script.index("frontmost is true"), script.index("key code 36"))
+
     def test_keys_json_builds(self):
         keys = json.loads((ROOT / "tools" / "gfa" / "keys.json").read_text())
         script = gfa_run.build_script(keys["run"], "de", "FS-UAE", {"file": "dh0:probe1.lst"})
-        self.assertTrue(script.startswith('tell application "FS-UAE" to activate'))
+        self.assertTrue(script.startswith("repeat"))
+        self.assertIn('tell application "FS-UAE" to activate', script)
         self.assertNotIn("{file}", script)
 
 
@@ -70,9 +77,29 @@ class Program(unittest.TestCase):
         self.assertIn('datei$="DH0:a.txt"', out)
         self.assertNotIn("\r", out)
 
-    def test_missing_datei_line(self):
-        with self.assertRaises(ValueError):
-            gfa_run.prepare_program('PRINT "x"\n', "DH0:a.txt")
+    def test_screen_program_is_redirected(self):
+        # a program without datei$ prints to the screen; it is rewritten to print into the file
+        src = 'x=1\nPRINT "a";x\n  print\nPRINT USING "##",x\nEND\nPROCEDURE p\nPRINT 2\nRETURN\n'
+        out = gfa_run.prepare_program(src, "DH0:a.txt")
+        lines = out.splitlines()
+        self.assertEqual(lines[0], 'zz.out$="DH0:a.txt"')
+        self.assertEqual(lines[1], 'OPEN "O",#1,zz.out$')
+        self.assertIn('PRINT #1,"a";x', lines)
+        self.assertIn('  PRINT #1', lines)
+        self.assertIn('PRINT #1,USING "##",x', lines)
+        self.assertNotIn("END", lines)
+        self.assertEqual(lines.count("@zz.end"), 2)  # for END and before the first PROCEDURE
+        self.assertIn("PRINT #1,2", lines)
+        self.assertEqual(lines[-5:], ["PROCEDURE zz.end", '  PRINT #1,"ende"', "  CLOSE #1", "  END", "RETURN"])
+
+    def test_error_routine_reopens_the_file(self):
+        src = "ON ERROR GOSUB f\nERROR 5\nEND\nPROCEDURE f\nPRINT ERR\nRESUME NEXT\nRETURN\n"
+        lines = gfa_run.prepare_program(src, "DH0:a.txt").splitlines()
+        i = lines.index("PROCEDURE f")
+        self.assertEqual(lines[i + 1:i + 4], ["  zz.err%=ERR", "  CLOSE #1", '  OPEN "A",#1,zz.out$'])
+
+    def test_result_without_end_marker(self):
+        self.assertEqual(gfa_run.strip_end_marker("a\nb\nende\n"), "a\nb\n")
 
     def test_non_ascii_rejected(self):
         with self.assertRaises(ValueError):

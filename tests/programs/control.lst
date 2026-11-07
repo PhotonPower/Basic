@@ -1,0 +1,124 @@
+' test: groups core print
+' Kontrollfluss: Schleifen mit GFA-Semantik, IF, SELECT, EXIT IF, GOTO
+n%=0
+FOR i%=5 TO 1
+  INC n%
+NEXT i%
+PRINT "FOR 5 TO 1: ";n%;" ";i%
+n%=0
+FOR i%=1 TO 3
+  INC n%
+NEXT i%
+PRINT "FOR 1 TO 3: ";n%;" ";i%
+e%=3
+n%=0
+FOR i%=1 TO e%
+  INC n%
+  e%=10
+NEXT i%
+PRINT "Endwert einmal: ";n%;" ";i%
+n%=0
+FOR i%=5 TO 1 STEP -1
+  INC n%
+NEXT i%
+PRINT "STEP -1: ";n%;" ";i%
+n%=0
+FOR i%=1 TO 10 STEP 3
+  INC n%
+NEXT i%
+PRINT "STEP 3: ";n%;" ";i%
+n%=0
+FOR i%=2147483646 TO 2147483647
+  INC n%
+  EXIT IF n%>5
+NEXT i%
+PRINT "Bereichsende: ";n%;" ";i%
+n%=0
+FOR x=1 TO 0 STEP -0.25
+  INC n%
+NEXT x
+PRINT "Float: ";n%;" ";x
+FOR i%=3 DOWNTO 1
+  PRINT i%;
+NEXT i%
+PRINT
+i%=0
+WHILE i%<3
+  INC i%
+WEND
+PRINT "WHILE ";i%
+REPEAT
+  DEC i%
+UNTIL i%<=0
+PRINT "REPEAT ";i%
+DO
+  INC i%
+  EXIT IF i%=4
+LOOP
+PRINT "DO ";i%
+DO WHILE i%>0
+  DEC i%
+LOOP
+PRINT "DO WHILE ";i%
+DO
+  INC i%
+LOOP UNTIL i%>=2
+PRINT "LOOP UNTIL ";i%
+FOR i%=1 TO 4
+  IF i%=1
+    PRINT "eins"
+  ELSE IF i%=2
+    PRINT "zwei"
+  ELSE IF i%=3
+    PRINT "drei"
+  ELSE
+    PRINT "sonst"
+  ENDIF
+NEXT i%
+FOR i%=1 TO 9
+  r$=""
+  SELECT i%
+  CASE 1
+    r$="eins"
+  CASE 2
+    r$="zwei"
+    CONT
+  CASE 3
+    r$=r$+"+drei"
+  CASE 4 TO 5,7
+    r$="vier-fuenf-sieben"
+  CASE TO 0
+    r$="nie"
+  CASE 8 TO
+    r$="ab acht"
+  DEFAULT
+    r$="sonst"
+  ENDSELECT
+  PRINT i%;" ";r$
+NEXT i%
+SELECT "ab"
+CASE "a"
+  PRINT "a"
+CASE "ab"
+  PRINT "CASE ab"
+ENDSELECT
+SELECT 2.7
+CASE 2
+  PRINT "SELECT 2.7 -> 2"
+DEFAULT
+  PRINT "SELECT 2.7 -> sonst"
+ENDSELECT
+n%=0
+nochmal:
+INC n%
+IF n%<3
+  GOTO nochmal
+ENDIF
+PRINT "GOTO ";n%
+FOR i%=1 TO 3
+  FOR j%=1 TO 3
+    EXIT IF j%=2
+    PRINT i%;j%;" ";
+  NEXT j%
+NEXT i%
+PRINT

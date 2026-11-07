@@ -13,6 +13,7 @@
 #include "basic/version.hpp"
 #include "frontend/parser.hpp"
 #include "frontend/sema.hpp"
+#include "ir/interp.hpp"
 
 namespace {
 
@@ -23,6 +24,7 @@ void usage(std::ostream& out) {
         << "  basicc --targets                                      list targets and their command groups\n"
         << "  basicc --emit-ast <program.lst>                       print the syntax tree\n"
         << "  basicc --emit-hir <program.lst>                       print the typed intermediate code\n"
+        << "  basicc --run <program.lst> [--seed <n>]               run with the reference interpreter\n"
         << "  basicc --version\n"
         << "  basicc --help\n\n"
         << "Planned debugging options: --emit-lir, --emit-asm, --map\n"
@@ -36,6 +38,31 @@ bool readFile(const std::string& path, std::string& out) {
     ss << in.rdbuf();
     out = ss.str();
     return true;
+}
+
+int run(const std::string& path, std::uint32_t seed) {
+    std::string source;
+    if (!readFile(path, source)) {
+        std::cerr << "basicc: cannot read '" << path << "'\n";
+        return 2;
+    }
+    basic::Diagnostics diags;
+    const basic::ast::Program program = basic::parseProgram(source, diags);
+    basic::hir::Program h;
+    if (diags.empty()) h = basic::analyze(program, diags);
+    for (const basic::Diagnostic& d : diags) std::cerr << basic::formatDiagnostic(path, d) << "\n";
+    if (!diags.empty()) return 1;
+    basic::RunOptions options;
+    options.seed = seed;
+    const basic::RunResult r = basic::interpret(h, options);
+    std::cout << r.output;
+    if (!r.ok) {
+        std::cerr << path << ":" << r.line << ": runtime error";
+        if (r.error >= 0) std::cerr << " " << r.error;
+        std::cerr << ": " << r.message << "\n";
+        return 1;
+    }
+    return 0;
 }
 
 int emit(const std::string& path, bool hir) {
@@ -80,6 +107,13 @@ int main(int argc, char** argv) {
             return 2;
         }
         return emit(args[1], args[0] == "--emit-hir");
+    }
+    if (args[0] == "--run") {
+        if (args.size() != 2 && !(args.size() == 4 && args[2] == "--seed")) {
+            usage(std::cerr);
+            return 2;
+        }
+        return run(args[1], args.size() == 4 ? static_cast<std::uint32_t>(std::stoul(args[3])) : 1u);
     }
     std::string target;
     for (std::size_t i = 0; i < args.size(); ++i)

@@ -1,0 +1,16 @@
+' test: groups core print
+' DATA, READ, RESTORE
+READ a,b$,c%
+PRINT a;" ";b$;" ";c%
+READ d$,e
+PRINT d$;" ";e
+RESTORE zwei
+READ f
+PRINT f
+RESTORE
+READ g
+PRINT g
+DATA 1.5,Hallo Welt,&HFF
+DATA "a,b",-2E3
+zwei:
+DATA 42

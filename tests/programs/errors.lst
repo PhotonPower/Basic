@@ -1,0 +1,43 @@
+' test: groups core print
+' Fehlerbehandlung: ON ERROR GOSUB, RESUME NEXT, RESUME, RESUME Marke, ERR, ERR$
+ON ERROR GOSUB fehler
+a%=2147483647
+b%=a%+1
+PRINT "b%=";b%
+x=1/0
+PRINT "nach 1/0"
+w&=40000
+PRINT "w&=";w&
+DIM f%(3)
+f%(5)=1
+DIM f%(2)
+g%(1)=1
+READ q
+ERROR 5
+v=SQR(-1)
+z$=LEFT$("abc",-1)
+versuch%=0
+ON ERROR GOSUB nochmal
+y=10/versuch%
+PRINT "y=";y
+ON ERROR GOSUB springen
+ERROR 2
+PRINT "nicht erreicht"
+weiter:
+PRINT "weiter"
+PRINT ERR$(0);"|";ERR$(16);"|";ERR$(34)
+END
+PROCEDURE fehler
+  PRINT "Fehler ";ERR;": ";ERR$(ERR)
+  ON ERROR GOSUB fehler
+  RESUME NEXT
+RETURN
+PROCEDURE nochmal
+  PRINT "nochmal ";ERR
+  versuch%=4
+  RESUME
+RETURN
+PROCEDURE springen
+  PRINT "springen ";ERR
+  RESUME weiter
+RETURN

@@ -124,8 +124,20 @@ def parse_step(step: str, layout: str) -> list[str]:
     raise ValueError(f"unknown step {step!r}")
 
 
+FOCUS_WAIT = """\
+repeat 40 times
+  tell application "{app}" to activate
+  delay 0.25
+  tell application "System Events" to set frontApp to name of first application process whose frontmost is true
+  if frontApp contains "uae" or frontApp contains "UAE" then exit repeat
+end repeat
+if not (frontApp contains "uae" or frontApp contains "UAE") then error "FS-UAE does not get the focus"
+delay 2"""
+
+
 def build_script(steps: list[str], layout: str, app: str, variables: dict[str, str]) -> str:
-    lines = [f'tell application "{app}" to activate', "delay 0.5"]
+    # Activate FS-UAE and wait until it really is frontmost; otherwise the keys go elsewhere.
+    lines = [FOCUS_WAIT.replace("{app}", app)]
     for step in steps:
         for name, value in variables.items():
             step = step.replace("{" + name + "}", value)
@@ -137,11 +149,56 @@ def build_script(steps: list[str], layout: str, app: str, variables: dict[str, s
 DATEI_RE = re.compile(r'^(\s*datei\$\s*=\s*)"[^"]*"', re.IGNORECASE | re.MULTILINE)
 
 
+PRINT_RE = re.compile(r"^(\s*)PRINT\b\s*(.*)$", re.IGNORECASE)
+END_RE = re.compile(r"^\s*END\s*(!.*)?$", re.IGNORECASE)
+ROUTINE_RE = re.compile(r"^\s*(PROCEDURE|FUNCTION)\s+([A-Za-z0-9_.]+)", re.IGNORECASE)
+ONERROR_RE = re.compile(r"^\s*ON\s*ERROR\s+GOSUB\s+([A-Za-z0-9_.]+)", re.IGNORECASE)
+
+
+def redirect_screen_program(source: str, result_path: str) -> str:
+    """Rewrites a program that prints to the screen (tests/programs) so that it prints into the
+    result file: PRINT -> PRINT #1, END and the start of the procedures -> @zz.end (writes
+    "ende", closes the file, ends). Error routines first reopen the file, because a trapped error
+    makes the channel unusable on the original (docs/language.md)."""
+    lines = source.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    handlers = {m.group(1).upper() for m in map(ONERROR_RE.match, lines) if m}
+    out = [f'zz.out$="{result_path}"', 'OPEN "O",#1,zz.out$']
+    in_main = True
+    for line in lines:
+        routine = ROUTINE_RE.match(line)
+        if routine and in_main:
+            out.append("@zz.end")
+            in_main = False
+        if END_RE.match(line):
+            out.append("@zz.end")
+            continue
+        m = PRINT_RE.match(line)
+        if m:
+            rest = m.group(2)
+            line = m.group(1) + ("PRINT #1," + rest if rest else "PRINT #1")
+        out.append(line)
+        if routine and routine.group(2).upper() in handlers:
+            out += ["  zz.err%=ERR", "  CLOSE #1", '  OPEN "A",#1,zz.out$']
+    while out and out[-1] == "":
+        out.pop()
+    if in_main:
+        out.append("@zz.end")
+    out += ["PROCEDURE zz.end", '  PRINT #1,"ende"', "  CLOSE #1", "  END", "RETURN"]
+    return "\n".join(out) + "\n"
+
+
+def strip_end_marker(text: str) -> str:
+    """The result of a redirected program without its last line "ende"."""
+    return re.sub(r"ende\n?$", "", text)
+
+
 def prepare_program(source: str, result_path: str) -> str:
-    """Points the program's `datei$="..."` line to the result file and normalises line ends."""
-    if not DATEI_RE.search(source):
-        raise ValueError('the program needs a line  datei$="..."  naming its result file')
-    text = DATEI_RE.sub(lambda m: m.group(1) + '"' + result_path + '"', source, count=1)
+    """Points the program's `datei$="..."` line to the result file (probe programs) or redirects
+    its screen output into the file (test programs), and normalises line ends."""
+    if DATEI_RE.search(source):
+        text = DATEI_RE.sub(lambda m: m.group(1) + '"' + result_path + '"', source, count=1)
+    else:
+        text = redirect_screen_program(source, result_path)
     text = text.replace("\r\n", "\n").replace("\r", "\n")
     try:
         text.encode("ascii")
@@ -235,6 +292,8 @@ def main(argv: list[str] | None = None) -> int:
     if text is None:
         print(f"gfa_run: no complete result after {args.timeout:.0f} s; screenshot: {shot}", file=sys.stderr)
         return 1
+    if not DATEI_RE.search(args.program.read_text()):
+        text = strip_end_marker(text)  # test program: exactly what it printed
     if args.out:
         args.out.parent.mkdir(parents=True, exist_ok=True)
         args.out.write_text(text)

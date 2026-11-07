@@ -1,0 +1,26 @@
+' test: groups core string print
+' Stringfunktionen
+a$="Hallo Welt"
+PRINT LEFT$(a$,5);"|";RIGHT$(a$,4);"|";MID$(a$,7);"|";MID$(a$,2,3);"|";LEFT$(a$);"|";RIGHT$(a$)
+PRINT LEN(a$);" ";INSTR(a$,"l");" ";INSTR(a$,"l",5);" ";INSTR(5,a$,"l");" ";INSTR(a$,"x")
+PRINT MID$("abc",5);"|";MID$("abc",2,10);"|";LEFT$("abc",10);"|";RIGHT$("abc",0);"|";MID$("abc",0,2)
+PRINT INSTR("","");" ";INSTR("abcabc","c",4)
+PRINT STRING$(3,"ab");"|";STRING$(2,65);"|";SPACE$(3);"|";SPACE$(0);"|";CHR$(65);CHR$(321)
+PRINT ASC("A");" ";ASC("");" ";LEN("a"+CHR$(0)+"b")
+PRINT UPPER$("abc xyz 123");"|";TRIM$("  a b  ");"|"
+PRINT VAL("1.5E3");" ";VAL("&HFF");" ";VAL("%101");" ";VAL(".5x");" ";VAL("x");" ";VAL("-2.5");" ";VAL("&HFFFFFFFF")
+PRINT VAL?("3.00 DM");" ";VAL?("x");" ";VAL?(" 12");" ";VAL?("1E")
+PRINT STR$(-12);"|";STR$(0.5);"|";STR$(42,5);"|";STR$(123456,3);"|";STR$(123.4567,6,2);"|";STR$(-1.5,4,0)
+PRINT HEX$(255);" ";HEX$(-1);" ";HEX$(255,4);" ";BIN$(5);" ";BIN$(5,8);" ";OCT$(8);" ";OCT$(8,4)
+PRINT "a"<"B";" ";"abc"<"abd";" ";"ab"<"abc";" ";""<"a";" ";"x"="x";" ";"x"<>"y"
+PRINT MAX("b","a","c");" ";MIN("b","a","c");" ";PRED("b");" ";SUCC("b")
+b$="Testwert"
+MID$(b$,5,2)="wer war das ?"
+c$="abc"
+MID$(c$,2)="XYZ"
+PRINT b$;"|";c$
+d$="12345"
+LSET d$="ab"
+e$="12345"
+RSET e$="ab"
+PRINT "[";d$;"][";e$;"]"

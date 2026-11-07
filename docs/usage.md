@@ -1,7 +1,7 @@
 # Bedienung
 
 > Stand: Umgesetzt sind `--version`, `--help`, `--targets`, `--emit-ast <programm.lst>` und
-> `--emit-hir <programm.lst>`
+> `--emit-hir <programm.lst>` sowie `--run <programm.lst> [--seed <n>]` (Referenz-Interpreter)
 > (Syntaxbaum, eine Zeile je Anweisung; Syntaxfehler als `datei:zeile:spalte: meldung` auf stderr,
 > Rückgabewert 1). Der Rest beschreibt die geplante Kommandozeile.
 

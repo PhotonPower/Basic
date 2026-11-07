@@ -1,0 +1,18 @@
+Fehler 2: no integer|-2147483648 .. 2147483647
+b%=0
+Fehler 0: divide by zero
+nach 1/0
+Fehler 4: no word|-32768 .. 32767
+w&=0
+Fehler 16: array index out of range
+Fehler 14: redimensioned array
+Fehler 15: array undimensioned
+Fehler 34: out of data
+Fehler 5: no negative squareroot
+Fehler 5: no negative squareroot
+Fehler 10: string too long|max. 32767 chars
+nochmal 0
+y=2.5
+springen 2
+weiter
+divide by zero|array index out of range|out of data

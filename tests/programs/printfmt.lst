@@ -1,0 +1,42 @@
+' test: groups core print
+' PRINT: Trenner, Spalten, TAB, SPC, DEFNUM, USING, MODE
+PRINT 1;2;-3;"x"
+PRINT "Komma:";1,2,3
+PRINT "a","b"
+PRINT 1'2'"x"
+PRINT "abc";
+PRINT "def"
+PRINT TAB(5);"x";TAB(2);"y"
+PRINT "ab";SPC(3);"cd"
+PRINT ,"leer davor"
+DEFNUM 4
+PRINT 123456;" ";0.000123456;" ";3.14159;" ";STR$(2/3)
+DEFNUM 3
+PRINT 12345;" ";0.00001234;" ";99999
+DEFNUM 13
+PRINT USING "#.####",3.14159265
+PRINT USING "###.##^^^^",16
+PRINT USING "#.##^^^^",0.000123
+PRINT USING "#",2.5
+PRINT USING "#.#",0.25
+PRINT USING "##",1234
+PRINT USING "-##.#",-1.25
+PRINT USING "+##",5
+PRINT USING "##.#-",-3
+PRINT USING "***#",12
+PRINT USING "$##.##",3.5
+PRINT USING "###.##",-0.5
+PRINT USING "#,###.##",1234.5
+PRINT USING "PI_._._. #.###",3.14159265
+PRINT USING "&|",
+PRINT USING "&","abc"
+PRINT USING "!","abc"
+PRINT USING "\  \","abcdef"
+PRINT USING "A## B## C",1
+PRINT USING "##.##",-0.001
+PRINT USING "##.##",0.005;
+PRINT "<"
+MODE 2
+PRINT USING "#.###,##",1234.5
+PRINT STR$(1234.5,8,2)
+MODE 0

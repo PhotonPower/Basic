@@ -1,0 +1,76 @@
+' test: groups core print
+' Prozeduren, Funktionen, DEFFN, LOCAL (dynamische Bindung), VAR, Rekursion
+x=1
+y=2
+@zeige
+PRINT "nach zeige: x=";x;" y=";y
+@tausche(x,y)
+PRINT "nach tausche: x=";x;" y=";y
+PRINT "fak(10)=";@fak(10)
+PRINT "fib(15)=";@fib(15)
+DEFFN quadrat(q)=q*q
+PRINT "quadrat(7)=";FN quadrat(7);" ";@quadrat(1.5)
+PRINT "x+y=";@summe(x,y)
+s$="abc"
+@anhaengen(s$,"def")
+PRINT s$
+n=5
+@lokal
+PRINT "n nach lokal=";n
+z=10
+@aussen
+PRINT "z nach aussen=";z
+DIM a%(4)
+@fuellen(a%())
+PRINT a%(0);" ";a%(4)
+GOSUB zeige
+zeige
+PRINT @wort$(3)
+END
+PROCEDURE zeige
+  PRINT "zeige: x=";x;" y=";y
+RETURN
+PROCEDURE tausche(VAR a,b)
+  SWAP a,b
+RETURN
+FUNCTION fak(k)
+  IF k<=1
+    RETURN 1
+  ENDIF
+  RETURN k*@fak(k-1)
+ENDFUNC
+FUNCTION fib(k%)
+  IF k%<2
+    RETURN k%
+  ELSE
+    RETURN @fib(k%-1)+@fib(k%-2)
+  ENDIF
+ENDFUNC
+FUNCTION summe(a,b)
+  RETURN a+b
+ENDFUNC
+PROCEDURE anhaengen(VAR t$,u$)
+  t$=t$+u$
+RETURN
+PROCEDURE lokal
+  LOCAL n
+  n=99
+  PRINT "n in lokal=";n
+RETURN
+PROCEDURE aussen
+  LOCAL z
+  z=20
+  @innen
+RETURN
+PROCEDURE innen
+  PRINT "z in innen=";z
+RETURN
+PROCEDURE fuellen(VAR f%())
+  LOCAL i%
+  FOR i%=0 TO 4
+    f%(i%)=i%*i%
+  NEXT i%
+RETURN
+FUNCTION wort$(k)
+  RETURN STRING$(k,"ab")
+ENDFUNC

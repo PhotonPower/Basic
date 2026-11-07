@@ -21,6 +21,13 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
   `NEXT without FOR` …), Typen aus Postfix und `DEFxxx`, Prozeduren, Funktionen, `DEFFN`,
   `VAR`-Parameter, Labels und `GOTO`-Prüfung, `DATA`, `SELECT` mit gepackten Strings, eingefügte
   Konvertierungen; `basicc --emit-hir`. Entscheidungen D15–D17.
+- Referenz-Interpreter auf der HIR (`basicc --run`): alle Numerik über `runtime/ref`, dynamische
+  Bindung mit Sichern/Wiederherstellen, `ON ERROR GOSUB` mit `RESUME`/`RESUME NEXT`/`RESUME marke`,
+  `PRINT` mit Zonen, `TAB`, `SPC`, `USING`, `DATA`/`READ`, Fehlernummern und `ERR$`-Texte vom
+  Original (probe9). Golden-Tests `tests/programs` (7 Programme, Ausgaben noch nicht am Original
+  abgeglichen).
+- `gfa_run.py`: Programme ohne `datei$`-Zeile werden umgeschrieben (`PRINT` in eine Datei, Kanal in
+  Fehlerroutinen neu öffnen); wartet, bis FS-UAE den Fokus hat; erstes Return doppelt.
 - Numerische Referenz `runtime/ref` (C99, nur Ganzzahlarithmetik): binary64-Grundoperationen
   korrekt gerundet, `==`, Umwandlungen und Rundungsfunktionen, `ROUND`, Zahl → Text mit 13 Stellen und
   `DEFNUM`, `VAL`/`VAL?` korrekt gerundet, Zufallsgenerator; Tests gegen die IEEE-Arithmetik des
