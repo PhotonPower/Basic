@@ -1,0 +1,263 @@
+' probe17 - Matrixbefehle (Kapitel 13): MAT PRINT-Format, MAT BASE, Fehler bei falschen Dimensionen,
+' DET/QDET/RANG/INV/NORM an Grenzfaellen (GFA-BASIC 3.5, Amiga). Ergebnisdatei: DH0:probe17.txt.
+' Nach jedem Abschnitt wird die Datei geschlossen (@flush), damit bei einem Absturz das Bisherige bleibt.
+'
+datei$="DH0:probe17.txt"
+OPEN "O",#1,datei$
+ON ERROR GOSUB fehler
+PRINT #1,"probe17"
+'
+@flush
+' T1 MAT PRINT: Vektor, Matrix, mit Format
+DIM v(3),m(2,3)
+MAT READ v()
+MAT READ m()
+PRINT #1,"T1 v:"
+MAT PRINT #1,v()
+PRINT #1,"T1 m:"
+MAT PRINT #1,m()
+PRINT #1,"T1 m,7,3:"
+MAT PRINT #1,m(),7,3
+PRINT #1,"T1 v(0)=";v(0);" m(0,1)=";m(0,1);" m(1,0)=";m(1,0);" m(2,3)=";m(2,3)
+DATA 1,2.5,-3
+DATA 1,2,3,4,5,6
+'
+@flush
+' T2 MAT BASE 0: READ fuellt ab Index 0
+MAT BASE 0
+DIM w(2)
+MAT READ w()
+PRINT #1,"T2 w:";w(0);" ";w(1);" ";w(2)
+MAT PRINT #1,w()
+MAT BASE 1
+DATA 7,8,9
+'
+@flush
+' T3 MAT SET, ONE, CLR, TRANS
+DIM a(3,3),b(3,3),c(2,3),t(3,2)
+PRINT #1,"> MAT SET a()=2"
+@flush
+MAT SET a()=2
+' MAT ONE b() stuerzt am Original ab (Software error), daher von Hand
+FOR i%=1 TO 3
+  b(i%,i%)=1
+NEXT i%
+PRINT #1,"T3 a(1,1)=";a(1,1);" a(0,0)=";a(0,0);" b(1,1)=";b(1,1);" b(1,2)=";b(1,2);" b(0,0)=";b(0,0)
+PRINT #1,"> MAT CPY c()=m()"
+@flush
+MAT CPY c()=m()
+PRINT #1,"> MAT TRANS t()=c()"
+@flush
+MAT TRANS t()=c()
+MAT PRINT #1,t()
+PRINT #1,"> MAT CLR a()"
+@flush
+MAT CLR a()
+PRINT #1,"T3 nach CLR a(2,2)=";a(2,2)
+'
+@flush
+' T4 ADD/SUB/MUL mit Skalar und Matrizen
+PRINT #1,"> MAT SET a()=1"
+@flush
+MAT SET a()=1
+PRINT #1,"> MAT ADD a(),b()"
+@flush
+MAT ADD a(),b()
+PRINT #1,"> MAT ADD a(),0.5"
+@flush
+MAT ADD a(),0.5
+PRINT #1,"> MAT MUL a(),2"
+@flush
+MAT MUL a(),2
+PRINT #1,"> MAT SUB a(),1"
+@flush
+MAT SUB a(),1
+MAT PRINT #1,a()
+DIM p(2,2)
+PRINT #1,"> MAT MUL p()=c()*t()"
+@flush
+MAT MUL p()=c()*t()
+MAT PRINT #1,p()
+PRINT #1,"> MAT MUL x=v()*v()"
+@flush
+MAT MUL x=v()*v()
+PRINT #1,"T4 v*v=";x
+'
+@flush
+' T5 Fehler: falsche Dimensionen
+@flush
+PRINT #1,"T5 ADD 2x3+3x3:"
+@flush
+PRINT #1,"> MAT ADD c(),a()"
+@flush
+MAT ADD c(),a()
+PRINT #1,"T5 MUL 2x3*2x3:"
+@flush
+PRINT #1,"> MAT MUL p()=c()*c()"
+@flush
+MAT MUL p()=c()*c()
+PRINT #1,"T5 DET 2x3:"
+@flush
+PRINT #1,"> MAT DET x=c()"
+@flush
+MAT DET x=c()
+PRINT #1,"T5 INV in falsche Groesse:"
+@flush
+PRINT #1,"> MAT INV c()=a()"
+@flush
+MAT INV c()=a()
+DIM i%(3)
+PRINT #1,"T5 Integerfeld:"
+@flush
+PRINT #1,"> MAT CLR i%()"
+@flush
+MAT CLR i%()
+'
+@flush
+' T6 DET, QDET, RANG, INV
+DIM s(3,3),r(3,3)
+RESTORE m3
+PRINT #1,"> MAT READ s()"
+@flush
+MAT READ s()
+PRINT #1,"> MAT DET x=s()"
+@flush
+MAT DET x=s()
+PRINT #1,"> MAT QDET y=s()"
+@flush
+MAT QDET y=s()
+PRINT #1,"> MAT RANG z=s()"
+@flush
+MAT RANG z=s()
+PRINT #1,"T6 singulaer: DET ";x;" QDET ";y;" RANG ";z
+PRINT #1,"T6 INV singulaer:"
+@flush
+PRINT #1,"> MAT INV r()=s()"
+@flush
+MAT INV r()=s()
+MAT PRINT #1,r()
+RESTORE m4
+PRINT #1,"> MAT READ s()"
+@flush
+MAT READ s()
+PRINT #1,"> MAT DET x=s()"
+@flush
+MAT DET x=s()
+PRINT #1,"> MAT QDET y=s()"
+@flush
+MAT QDET y=s()
+PRINT #1,"> MAT RANG z=s()"
+@flush
+MAT RANG z=s()
+PRINT #1,"T6 regulaer: DET ";x;" QDET ";y;" RANG ";z
+PRINT #1,"> MAT INV r()=s()"
+@flush
+MAT INV r()=s()
+MAT PRINT #1,r(),20,15
+PRINT #1,"> MAT DET x=s(2,2),2"
+@flush
+MAT DET x=s(2,2),2
+PRINT #1,"T6 Teil-DET ";x
+DIM e(2,2)
+e(1,1)=0
+e(1,2)=1
+e(2,1)=1
+e(2,2)=0
+PRINT #1,"> MAT DET x=e()"
+@flush
+MAT DET x=e()
+PRINT #1,"> MAT QDET y=e()"
+@flush
+MAT QDET y=e()
+PRINT #1,"T6 Pivot 0: DET ";x;" QDET ";y
+m3:
+DATA 1,2,3,4,5,6,7,8,9
+m4:
+DATA 2,1,1,1,3,2,1,0,0
+'
+@flush
+' T7 NORM
+DIM n(2,2)
+n(1,1)=3
+n(1,2)=4
+n(2,1)=0
+n(2,2)=0
+PRINT #1,"> MAT NORM n(),0"
+@flush
+MAT NORM n(),0
+PRINT #1,"T7 zeilen: ";n(1,1);" ";n(1,2);" ";n(2,1);" ";n(2,2)
+n(1,1)=3
+n(1,2)=0
+n(2,1)=4
+n(2,2)=5
+PRINT #1,"> MAT NORM n(),1"
+@flush
+MAT NORM n(),1
+PRINT #1,"T7 spalten: ";n(1,1);" ";n(2,1);" ";n(1,2);" ";n(2,2)
+'
+@flush
+' T8 Vektoren: aeusseres Produkt, CPY in Spaltenvektor, XCPY
+DIM u(2),col(3,1),row(1,3),o(2,2)
+u(1)=2
+u(2)=3
+PRINT #1,"> MAT MUL o()=u()*u()"
+@flush
+MAT MUL o()=u()*u()
+PRINT #1,"T8 aeusseres:"
+MAT PRINT #1,o()
+PRINT #1,"> MAT CPY col()=v()"
+@flush
+MAT CPY col()=v()
+PRINT #1,"T8 col: ";col(1,1);" ";col(2,1);" ";col(3,1)
+PRINT #1,"> MAT XCPY row()=col()"
+@flush
+MAT XCPY row()=col()
+PRINT #1,"T8 row: ";row(1,1);" ";row(1,2);" ";row(1,3)
+PRINT #1,"> MAT MUL x=row()*s()*col()"
+@flush
+MAT MUL x=row()*s()*col()
+PRINT #1,"T8 row*s*col=";x
+'
+@flush
+' T9 MAT CPY mit Offsets und Groesse
+DIM g(4,4),h(4,4)
+FOR i%=1 TO 4
+  FOR j%=1 TO 4
+    h(i%,j%)=i%*10+j%
+  NEXT j%
+NEXT i%
+PRINT #1,"> MAT CPY g(2,2)=h(1,1),2,3"
+@flush
+MAT CPY g(2,2)=h(1,1),2,3
+MAT PRINT #1,g()
+PRINT #1,"> MAT CLR g()"
+@flush
+MAT CLR g()
+PRINT #1,"> MAT CPY g(3,3)=h()"
+@flush
+MAT CPY g(3,3)=h()
+MAT PRINT #1,g()
+'
+@flush
+' T10 MAT PRINT auf den Bildschirm-Kanal mit grossen/kleinen Zahlen
+DIM k(3)
+k(1)=1E20
+k(2)=1/3
+k(3)=-0.000012
+MAT PRINT #1,k()
+PRINT #1,"ende"
+CLOSE #1
+END
+'
+PROCEDURE flush
+  CLOSE #1
+  OPEN "A",#1,datei$
+RETURN
+PROCEDURE fehler
+  e%=ERR
+  CLOSE #1
+  OPEN "A",#1,datei$
+  PRINT #1,"   -> ERR ";e%;" ";ERR$(e%)
+  ON ERROR GOSUB fehler
+  RESUME NEXT
+RETURN

@@ -77,6 +77,10 @@ std::string errorText(int code) {
         case 54: return "get/put field string|len changed";  // probe16 T3
         case 55: return "get/put: illegal recordnumber";     // probe16 T4
         case 68: return "var-type mismatch";    // probe10
+        case 77: return "Matrices are of different order";  // probe17 T5
+        case 79: return "Matrix product not defined";       // probe17 T8
+        case 82: return "Non square matrix";                // probe17 T5
+        case 83: return "Transposition not defined";        // probe17 T5
         default: break;
     }
     const int c = code & 0xFF;  // ERR$(-56) = "unknown error 200" (probe9 T6)
@@ -512,6 +516,84 @@ void Output::tab(f64 nf) {
 void Output::spc(f64 nf) {
     const std::int32_t n = toInt(fp_trunc(nf));
     if (n > 0) put(std::string(static_cast<std::size_t>(n), ' '));
+}
+
+// ---- matrices ------------------------------------------------------------------------------------
+rt_mat matView(const MatArray& a, const MatBase& b, bool column) {
+    if (!a.dimmed) throw Error{15};  // array undimensioned
+    const auto& u = *a.upper;
+    if (u.size() > 2) throw Error{18};  // wrong # of indices
+    const int lo = std::max(b.mat, b.option);
+    rt_mat m{};
+    if (u.size() == 1) {
+        const std::int32_t n = std::max(u[0] - lo + 1, 0);
+        m.p = a.data + (lo - b.option);
+        if (column) m = rt_mat{m.p, n, 1, 1, 0};
+        else m = rt_mat{m.p, 1, n, 0, 1};
+        return m;
+    }
+    const std::int32_t cs = u[0] - b.option + 1;
+    m.p = a.data + static_cast<long>(lo - b.option) * (1 + cs);
+    m.rows = std::max(u[0] - lo + 1, 0);
+    m.cols = std::max(u[1] - lo + 1, 0);
+    m.rs = 1;
+    m.cs = cs;
+    return m;
+}
+
+rt_mat matSub(const MatArray& a, const MatBase& b, const std::vector<std::int32_t>& at, std::int32_t n) {
+    rt_mat m = matView(a, b);
+    const int lo = std::max(b.mat, b.option);
+    std::int32_t oi = 0, oj = 0;
+    if (a.upper->size() == 1 && !at.empty()) oj = at[0] - lo;  // a vector: its one index
+    else if (at.size() == 2) oi = at[0] - lo, oj = at[1] - lo;
+    if (oi < 0 || oj < 0 || oi > m.rows || oj > m.cols) throw Error{RT_ERR_INDEX};
+    m.p += static_cast<long>(oi) * m.rs + static_cast<long>(oj) * m.cs;
+    m.rows -= oi;
+    m.cols -= oj;
+    if (n >= 0) m.rows = std::min(m.rows, n), m.cols = std::min(m.cols, n);
+    return m;
+}
+
+void matFill(const MatArray& a, const MatBase& b, f64 x) {
+    if (!a.dimmed) throw Error{15};
+    std::size_t n = 1;
+    for (std::int32_t u : *a.upper) n *= static_cast<std::size_t>(u - b.option + 1);
+    std::fill(a.data, a.data + n, x);
+}
+
+void matCpy(const MatArray& d, const std::vector<std::int32_t>& dAt, const MatArray& s, const std::vector<std::int32_t>& sAt,
+            std::int32_t h, std::int32_t w, bool transpose, const MatBase& b) {
+    // vectors count as column vectors for CPY: only their first offset counts
+    const rt_mat dv = matView(d, b, !transpose), sv = matView(s, b, !transpose);
+    const int lo = std::max(b.mat, b.option);
+    auto off = [&](const MatArray& a, const std::vector<std::int32_t>& at, std::int32_t& i, std::int32_t& j) {
+        i = j = 0;
+        if (at.empty()) return;
+        if (a.upper->size() == 1) {
+            if (transpose) j = at[0] - lo;
+            else i = at[0] - lo;
+        } else {
+            i = at[0] - lo;
+            j = at.size() > 1 ? at[1] - lo : 0;
+        }
+    };
+    std::int32_t di = 0, dj = 0, si = 0, sj = 0;
+    off(d, dAt, di, dj);
+    off(s, sAt, si, sj);
+    rt_mat_cpy(&dv, di, dj, &sv, si, sj, h, w, transpose ? 1 : 0);
+}
+
+void matPrint(Output& out, const rt_mat& m, bool format, f64 g, f64 n) {
+    for (std::int32_t i = 0; i < m.rows; ++i) {
+        for (std::int32_t j = 0; j < m.cols; ++j) {
+            if (j > 0) out.put(",");
+            const f64 x = matAt(m, i, j);
+            out.put(format ? str(x, g, n, out.mode) : str(x, out.defnum));
+        }
+        out.put("\r");  // MAT PRINT ends its lines with CR LF (probe17 T1)
+        out.newline();
+    }
 }
 
 // ---- memory --------------------------------------------------------------------------------------

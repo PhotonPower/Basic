@@ -709,9 +709,82 @@ private:
         line(in, "}");
     }
 
+    // MAT (D23): calls of platform/pc/rt_prog.hpp
+    void mat(const hir::Stmt& s, int in) {
+        const std::string w = s.name.substr(4);
+        const auto& T = s.targets;
+        auto arg = [&](std::size_t k) { return expr(*s.args[k]); };
+        auto arr = [&](std::size_t k) { return var(T[k]->var) + "()"; };
+        auto at = [&](std::size_t k) {
+            std::string r = "std::vector<std::int32_t>{";
+            for (std::size_t i = 0; i < T[k]->args.size(); ++i) r += (i ? ", " : "") + expr(*T[k]->args[i]);
+            return r + "}";
+        };
+        auto store = [&](const std::string& value) {
+            line(in, "{");
+            line(in + 1, "const f64 x_ = " + value + ";");
+            line(in + 1, lvalue(*T[0]) + " = " + conv("x_", Type::Float, T[0]->type) + ";");
+            line(in, "}");
+        };
+        if (w == "BASE") line(in, "brt::rt.matBase = " + arg(0) + " != 0 ? 1 : 0;");
+        else if (w == "CLR") line(in, "brt::matFill(" + arr(0) + ", brt::flt(0));");
+        else if (w == "SET") line(in, "brt::matFill(" + arr(0) + ", " + arg(0) + ");");
+        else if (w == "ONE") line(in, "brt::matOne(" + arr(0) + ");");
+        else if (w == "READ") line(in, "brt::matRead(" + arr(0) + ");");
+        else if (w == "PRINT") {
+            line(in, "{");
+            if (s.channel) {
+                line(in + 1, "const f64 ch_ = " + expr(*s.channel) + ";");
+                line(in + 1, "brt::Output& o_ = brt::rt.files.output(ch_, brt::rt.out);");
+            } else {
+                line(in + 1, "brt::Output& o_ = brt::rt.out;");
+            }
+            if (s.args.size() == 2) {
+                line(in + 1, "const f64 g_ = " + arg(0) + ";");
+                line(in + 1, "brt::matPrint(o_, " + arr(0) + ", g_, " + arg(1) + ");");
+            } else {
+                line(in + 1, "brt::matPrint(o_, " + arr(0) + ");");
+            }
+            if (s.channel) line(in + 1, "brt::rt.files.flush(ch_);");
+            line(in, "}");
+        } else if (w == "CPY" || w == "XCPY") {
+            line(in, "{");
+            line(in + 1, "const auto da_ = " + at(0) + ";");
+            line(in + 1, "const auto sa_ = " + at(1) + ";");
+            if (s.args.size() == 2) {
+                line(in + 1, "const std::int32_t h_ = " + arg(0) + ";");
+                line(in + 1, "brt::matCpy(" + arr(0) + ", da_, " + arr(1) + ", sa_, h_, " + arg(1) + ", " + (w == "XCPY" ? "true" : "false") + ");");
+            } else {
+                line(in + 1, "brt::matCpy(" + arr(0) + ", da_, " + arr(1) + ", sa_, -1, -1, " + (w == "XCPY" ? "true" : "false") + ");");
+            }
+            line(in, "}");
+        } else if (w == "TRANS") line(in, "brt::matTrans(" + arr(0) + ", " + arr(T.size() > 1 ? 1 : 0) + ");");
+        else if (w == "INV") line(in, "brt::matInv(" + arr(0) + ", " + arr(1) + ");");
+        else if (w == "ADD" || w == "SUB") {
+            const std::string sub = w == "SUB" ? "true" : "false";
+            if (s.mode == 0) line(in, "brt::matAddSub(" + arr(0) + ", " + arr(1) + ", " + arr(2) + ", " + sub + ");");
+            else if (s.mode == 1) line(in, "brt::matAddSub(" + arr(0) + ", " + arr(0) + ", " + arr(1) + ", " + sub + ");");
+            else line(in, "brt::matScalar(" + arr(0) + ", " + arg(0) + ", " + (w == "ADD" ? "0" : "1") + ");");
+        } else if (w == "MUL") {
+            if (s.mode == 0) line(in, "brt::matMul(" + arr(0) + ", " + arr(1) + ", " + arr(2) + ");");
+            else if (s.mode == 1) store("brt::matDot(" + arr(1) + ", " + arr(2) + ")");
+            else if (s.mode == 2) store("brt::matTriple(" + arr(1) + ", " + arr(2) + ", " + arr(3) + ")");
+            else line(in, "brt::matScalar(" + arr(0) + ", " + arg(0) + ", 2);");
+        } else if (w == "NORM") line(in, "brt::matNorm(" + arr(0) + ", " + arg(0) + ");");
+        else if (w == "DET" || w == "QDET" || w == "RANG") {
+            line(in, "{");
+            line(in + 1, "const auto at_ = " + at(1) + ";");
+            const std::string kind = w == "DET" ? "0" : w == "QDET" ? "1" : "2";
+            line(in + 1, "const f64 x_ = brt::matDet(" + arr(1) + ", at_, " + (s.args.empty() ? std::string("-1") : arg(0)) + ", " + kind + ");");
+            line(in + 1, lvalue(*T[0]) + " = " + conv("x_", Type::Float, T[0]->type) + ";");
+            line(in, "}");
+        }
+    }
+
     void command(const hir::Stmt& s, int in) {
         const std::string& n = s.name;
         auto arg = [&](std::size_t k) { return expr(*s.args[k]); };
+        if (n.rfind("MAT ", 0) == 0) return mat(s, in);
         if (n == "INC" || n == "DEC") {
             const hir::Expr& t = *s.targets[0];
             line(in, "{");

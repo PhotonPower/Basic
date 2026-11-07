@@ -240,6 +240,14 @@ Differenztests Ausgaben vergleichen.
   ergibt `VAL` 0 ohne Fehler. Insgesamt (Text → nächstgelegene
   darstellbare Zahl), damit `VAL(STR$(x))` stabil ist.
 
+## Matrizen
+
+`MAT DET`, `MAT RANG` und `MAT INV` (`runtime/ref/rt_mat.c`, [D23](decisions.md#d23)) eliminieren
+mit Spaltenpivotsuche; ein Pivot mit |p| ≤ n · 2⁻⁵² · max|aᵢⱼ| gilt als 0. Damit ergibt die singuläre
+Matrix ((1,2,3),(4,5,6),(7,8,9)) wie am Original `DET` 0, `RANG` 2 und bei `INV` Fehler 0
+(probe17 T6); ohne Schwelle wäre das letzte Pivot 1,1·10⁻¹⁶. `MAT QDET` sucht nur das erste Pivot
+ungleich 0. Summen und Skalarprodukte laufen in aufsteigender Indexfolge.
+
 ## Zufallszahlen
 
 Eigener Generator, auf allen Zielen gleich: **xorshift32** (Marsaglia, Schiebewerte 13, 17, 5).

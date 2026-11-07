@@ -14,6 +14,7 @@
 #include <cstring>
 #include <initializer_list>
 #include <string>
+#include <vector>
 
 #include "rt_ref.h"
 #include "test_util.hpp"
@@ -681,8 +682,63 @@ void testMath() {
     CHECK_EQ(g_error, 6);  // (-8)^(1/3): LOG of a negative number (probe13 T8)
 }
 
+// MAT (rt_mat.c): properties instead of fixed bits (the bits are fixed by the order of operations)
+void testMatrix() {
+    Rng r;
+    for (int round = 0; round < 200; ++round) {
+        const int n = r.range(1, 6);
+        std::vector<f64> a(static_cast<std::size_t>(n * n)), inv(a.size()), prod(a.size());
+        for (int i = 0; i < n; ++i)
+            for (int j = 0; j < n; ++j)  // diagonally dominant: well conditioned
+                a[static_cast<std::size_t>(i * n + j)] = bits(i == j ? 10.0 + r.range(0, 9) : r.range(-9, 9) / 4.0);
+        const rt_mat A{a.data(), n, n, n, 1}, I{inv.data(), n, n, n, 1}, P{prod.data(), n, n, n, 1};
+        g_error = -1;
+        rt_mat_inv(&I, &A);
+        CHECK_EQ(g_error, -1);
+        rt_mat_mul(&P, &A, &I);
+        for (int i = 0; i < n; ++i)
+            for (int j = 0; j < n; ++j) CHECK(std::fabs(dbl(prod[static_cast<std::size_t>(i * n + j)]) - (i == j ? 1.0 : 0.0)) < 1e-12);
+        const double det = dbl(rt_mat_det(&A, 0)), qdet = dbl(rt_mat_det(&A, 1));
+        CHECK(std::fabs(det - qdet) <= 1e-9 * std::fabs(det));
+        CHECK_EQ(dbl(rt_mat_rank(&A)), static_cast<double>(n));
+        // upper triangle: the determinant is the product of the diagonal (exact for small integers)
+        double diag = 1;
+        for (int i = 0; i < n; ++i)
+            for (int j = 0; j < n; ++j) {
+                const double v = j < i ? 0.0 : static_cast<double>(r.range(1, 5));
+                a[static_cast<std::size_t>(i * n + j)] = bits(v);
+                if (i == j) diag *= v;
+            }
+        CHECK_EQ(dbl(rt_mat_det(&A, 0)), diag);
+        // outer product of two integer vectors: rank 1, determinant 0 (n > 1)
+        for (int i = 0; i < n; ++i)
+            for (int j = 0; j < n; ++j) a[static_cast<std::size_t>(i * n + j)] = bits(static_cast<double>((i + 1) * (j + 2)));
+        CHECK_EQ(dbl(rt_mat_rank(&A)), 1.0);
+        if (n > 1) CHECK_EQ(dbl(rt_mat_det(&A, 0)), 0.0);
+        g_error = -1;
+        rt_mat_inv(&I, &A);
+        CHECK_EQ(g_error, n > 1 ? 0 : -1);
+    }
+    // errors: order 77, product 79, not square 82, target 83
+    f64 m6[6] = {}, m4[4] = {}, v3[3] = {};
+    const rt_mat M23{m6, 2, 3, 3, 1}, M22{m4, 2, 2, 2, 1}, V3{v3, 1, 3, 0, 1};
+    g_error = -1;
+    rt_mat_addsub(&M23, &M23, &M22, 0);
+    CHECK_EQ(g_error, 77);
+    g_error = -1;
+    (void)rt_mat_triple(&V3, &M23, &V3);
+    CHECK_EQ(g_error, 79);
+    g_error = -1;
+    (void)rt_mat_det(&M23, 0);
+    CHECK_EQ(g_error, 82);
+    g_error = -1;
+    rt_mat_inv(&M23, &M22);
+    CHECK_EQ(g_error, 83);
+}
+
 int main() {
     testMath();
+    testMatrix();
     testArithmetic();
     testCanon();
     testIntegers();

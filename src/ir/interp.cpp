@@ -164,6 +164,7 @@ private:
     int onError_ = -1;
     int handlerDepth_ = 0;
     int base_ = 0;
+    int matBase_ = 1;  // MAT BASE
     std::size_t dataPos_ = 0;
     struct Frame;
     std::vector<Frame*> frames_;
@@ -805,6 +806,117 @@ private:
         exec(s.elseBody);
     }
 
+    // the next DATA item as a number (MAT READ)
+    f64 readNumber() {
+        if (dataPos_ >= p_.data.size()) throw RuntimeError{kErrOutOfData};
+        const hir::DataItem& d = p_.data[dataPos_];
+        std::int32_t used = 0;
+        const f64 v = rt_val(d.text.data(), static_cast<std::int32_t>(d.text.size()), &used);
+        if (d.quoted || d.text.empty() || used != static_cast<std::int32_t>(d.text.size())) throw RuntimeError{kErrNotNumeric};
+        ++dataPos_;
+        return v;
+    }
+
+    // ---- MAT (D23) --------------------------------------------------------------------------------
+    brt::MatBase matBase() const { return brt::MatBase{matBase_, base_}; }
+    brt::MatArray matArray(const hir::Expr& t) {
+        Array& a = array(t.var);
+        return brt::MatArray{a.floats.data(), &a.upper, a.dimmed};
+    }
+    std::vector<std::int32_t> matAt(const hir::Expr& t) {
+        std::vector<std::int32_t> at;
+        for (const auto& x : t.args) at.push_back(eval(*x).i);
+        return at;
+    }
+    rt_mat view(const hir::Expr& t) { return brt::matView(matArray(t), matBase()); }
+
+    void mat(const hir::Stmt& s) {
+        const std::string w = s.name.substr(4);
+        const auto& T = s.targets;
+        auto arg = [&](std::size_t k) { return eval(*s.args[k]); };
+        if (w == "BASE") {
+            matBase_ = arg(0).i != 0 ? 1 : 0;
+        } else if (w == "CLR" || w == "SET") {
+            brt::matFill(matArray(*T[0]), matBase(), w == "SET" ? arg(0).f : F64_ZERO);
+        } else if (w == "ONE") {
+            const rt_mat m = view(*T[0]);
+            rt_mat_one(&m);
+        } else if (w == "READ") {
+            const rt_mat m = view(*T[0]);
+            for (std::int32_t i = 0; i < m.rows; ++i)
+                for (std::int32_t j = 0; j < m.cols; ++j) brt::matAt(m, i, j) = readNumber();
+        } else if (w == "PRINT") {
+            f64 ch = 0;
+            if (s.channel) ch = eval(*s.channel).f;
+            brt::Output& out = s.channel ? files_.output(ch, out_) : out_;
+            const rt_mat m = view(*T[0]);
+            if (s.args.size() == 2) {
+                const f64 g = arg(0).f;
+                brt::matPrint(out, m, true, g, arg(1).f);
+            } else {
+                brt::matPrint(out, m, false, 0, 0);
+            }
+            if (s.channel) files_.flush(ch);
+        } else if (w == "CPY" || w == "XCPY") {
+            const std::vector<std::int32_t> da = matAt(*T[0]), sa = matAt(*T[1]);
+            std::int32_t h = -1, wd = -1;
+            if (s.args.size() == 2) {
+                h = arg(0).i;
+                wd = arg(1).i;
+            }
+            brt::matCpy(matArray(*T[0]), da, matArray(*T[1]), sa, h, wd, w == "XCPY", matBase());
+        } else if (w == "TRANS") {
+            const rt_mat a = view(*T[0]);
+            const rt_mat b = T.size() > 1 ? view(*T[1]) : a;
+            rt_mat_trans(&a, &b);
+        } else if (w == "INV") {
+            const rt_mat b = view(*T[0]), a = view(*T[1]);
+            rt_mat_inv(&b, &a);
+        } else if (w == "ADD" || w == "SUB") {
+            const rt_mat a = view(*T[0]);
+            if (s.mode == 2) {
+                const f64 x = arg(0).f;
+                rt_mat_scalar(&a, x, w == "ADD" ? 0 : 1);
+            } else {
+                const rt_mat b = view(*T[1]);
+                const rt_mat c = s.mode == 0 ? view(*T[2]) : b;
+                if (s.mode == 0) rt_mat_addsub(&a, &b, &c, w == "SUB");
+                else rt_mat_addsub(&a, &a, &b, w == "SUB");
+            }
+        } else if (w == "MUL") {
+            if (s.mode == 0) {  // two vectors: the outer product (column times row)
+                const rt_mat a = view(*T[0]);
+                const bool vectors = array(T[1]->var).upper.size() == 1 && array(T[2]->var).upper.size() == 1;
+                const rt_mat b = brt::matView(matArray(*T[1]), matBase(), vectors), c = view(*T[2]);
+                rt_mat_mul(&a, &b, &c);
+            } else if (s.mode == 1 || s.mode == 2) {
+                const rt_mat a = view(*T[1]), b = view(*T[2]);
+                f64 x = 0;
+                if (s.mode == 1) {
+                    x = rt_mat_dot(&a, &b);
+                } else {
+                    const rt_mat c = view(*T[3]);
+                    x = rt_mat_triple(&a, &b, &c);
+                }
+                check();
+                storeTarget(*T[0], convert(Value::ofFloat(x), var(T[0]->var).type));
+            } else {
+                const rt_mat a = view(*T[0]);
+                rt_mat_scalar(&a, arg(0).f, 2);
+            }
+        } else if (w == "NORM") {
+            const rt_mat a = view(*T[0]);
+            rt_mat_norm(&a, arg(0).i != 0);
+        } else if (w == "DET" || w == "QDET" || w == "RANG") {
+            const std::int32_t n = s.args.empty() ? -1 : arg(0).i;
+            const rt_mat a = brt::matSub(matArray(*T[1]), matBase(), matAt(*T[1]), n);
+            const f64 x = w == "RANG" ? rt_mat_rank(&a) : rt_mat_det(&a, w == "QDET");
+            check();
+            storeTarget(*T[0], convert(Value::ofFloat(x), var(T[0]->var).type));
+        }
+        check();
+    }
+
     void read(const hir::Stmt& s) {
         for (const auto& t : s.targets) {
             if (dataPos_ >= p_.data.size()) throw RuntimeError{kErrOutOfData};
@@ -864,6 +976,10 @@ private:
 
     void command(const hir::Stmt& s) {
         const std::string& n = s.name;
+        if (n.rfind("MAT ", 0) == 0) {
+            mat(s);
+            return;
+        }
         if (n == "INC" || n == "DEC") {
             const hir::Expr& t = *s.targets[0];
             const Value v = loadTarget(t);

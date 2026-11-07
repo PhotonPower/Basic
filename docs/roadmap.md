@@ -61,7 +61,8 @@ laufen in der OS-Emulation (`test_m68k_programs`) und unter Kickstart 1.2 im FS-
 ✔ Gruppe `memory` (D21): `VARPTR`/`V:`, `PEEK`/`POKE` (8/16/32 Bit), `MALLOC`/`MFREE`, `BMOVE`,
 `BYTE{}` … `CHAR{}`.
 ✔ Ganzzahl-Ketten in 32 Bit (D16, Nachtrag), Zwischenwerte in D4–D7 (D22).
-Weiter: Gruppe `matrix`; `memory` Rest (`*x`/`ARRPTR`, `ABSOLUTE`, voller Umbau nach D6); weitere
+✔ Gruppe `matrix` im Interpreter und C++-Ziel (probe17, D23).
+Weiter: `matrix` auf dem 68000 und `MAT INPUT #`; `memory` Rest (`*x`/`ARRPTR`, `ABSOLUTE`, voller Umbau nach D6); weitere
 Optimierungen (Variablen in Registern innerhalb von Schleifen ohne Aufrufe, Fließkomma inline).
 
 - Quelltext-Linker (`src/link`) mit Map-Datei und Label-Prüfung.

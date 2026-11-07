@@ -293,3 +293,35 @@ tot. Ohne `ON ERROR` beendet ein Fehler das Programm, dann gilt jede Lebensdauer
 Ist das Ergebnis ein Register, rechnen `+ - AND OR XOR NOT` direkt dort; Vergleiche mit einem Register
 sind ein `CMP` ohne Umweg über D0. `* 2^k` (k bis 8) in Ganzzahl-Ketten ist `ASL` mit Prüfung des
 V-Flags. `tests/programs/regs.lst` prüft Schleifen über Aufrufe hinweg und Rekursion.
+
+<a id="d23"></a>
+## D23 – Matrixbefehle (`MAT`, Kapitel 13)
+
+Grundlage sind die Befehlsreferenz und probe17; die Ausgabe von probe17 ist im Interpreter und im
+C++-Ziel Byte für Byte die des Originals. Die Rechenregeln stehen in `runtime/ref/rt_mat.c`.
+
+- **Bereich:** Eine Matrix ist der Teil eines `#`-Feldes von `MAT BASE` (mindestens `OPTION BASE`)
+  bis zu den oberen Grenzen; ein eindimensionales Feld ist ein Zeilenvektor (1 × n), für `MAT CPY`
+  ein Spaltenvektor. `MAT CLR` und `MAT SET` füllen das ganze Feld, auch Index 0 (probe17 T3).
+  Andere Feldtypen lehnt der Compiler ab (das Original meldet zur Laufzeit Fehler 32).
+- **Fehler** (probe17): 77 „Matrices are of different order“, 79 „Matrix product not defined“, 82
+  „Non square matrix“, 83 „Transposition not defined“ (auch für ein `INV`-Ziel falscher Größe).
+  Eine singuläre Matrix bei `INV` und eine Nullzeile bei `MAT NORM` sind Fehler 0; was bis dahin
+  geschrieben wurde, bleibt (`NORM`), sonst bleibt das Ziel unverändert (`INV`).
+- **`MAT PRINT`** trennt mit „,“, ohne Leerzeichen, und endet jede Zeile mit CR LF (probe17 T1);
+  Zahlen wie `PRINT`, mit `g,n` wie `STR$(x,g,n)`.
+- **`MAT ONE`** bringt das Original zum Absturz (probe17); wir folgen der Referenz: Einheitsmatrix,
+  bei nicht quadratischer Matrix Fehler 82.
+- **`MAT MUL x=a()*b()*c()`** verlangt für a und c Zeilenvektoren (das Original meldet 79 bei
+  `row(1,3)` × Matrix × `col(3,1)`, probe17 T8); zwei eindimensionale Felder in `MAT MUL a()=b()*c()`
+  ergeben das äußere Produkt.
+- **Numerik:** Wir rechnen in binary64 (D11). `MAT DET`, `MAT RANG` und `MAT INV` eliminieren mit
+  Spaltenpivotsuche (größter Betrag, bei Gleichstand der erste); ein Pivot mit
+  |p| ≤ n · 2⁻⁵² · max|aᵢⱼ| gilt als 0. So kommen die Ergebnisse des Originals für die singuläre
+  Matrix 1…9 heraus (`DET` 0, `RANG` 2, `INV` Fehler 0), die in binary64 ohne Schwelle 6,7·10⁻¹⁶,
+  3 und eine riesige Inverse ergäbe. `MAT QDET` nimmt das erste Element ungleich 0 als Pivot, ohne
+  Schwelle. Summen laufen in aufsteigender Indexfolge; die Reihenfolge jeder Operation steht in
+  `rt_mat.c`, damit die Assembler-Ziele bitgleich rechnen können.
+- **`MAT CPY`/`XCPY`:** h und w beschreiben den Block der Quelle; ohne Angabe so viel, wie in Quelle
+  und Ziel passt. `MAT TRANS a()` ohne Quelle transponiert in sich (quadratisch, sonst 83).
+- `MAT INPUT #` und die 68000-Ziele folgen.

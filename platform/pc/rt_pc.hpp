@@ -178,6 +178,30 @@ struct Output {
     void spc(f64 n);
 };
 
+// ---- matrices (chapter 13, D23) ----------------------------------------------------------------
+// A float array as seen by MAT: the elements (first index fastest), the upper bounds, OPTION BASE.
+// The matrix is the part from MAT BASE (at least OPTION BASE) to the upper bounds; a 1-D array is a
+// row vector (1 x n), for MAT CPY a column vector (n x 1).
+struct MatArray {
+    f64* data = nullptr;
+    const std::vector<std::int32_t>* upper = nullptr;
+    bool dimmed = false;
+};
+
+struct MatBase {
+    int mat = 1;     // MAT BASE
+    int option = 0;  // OPTION BASE
+};
+
+rt_mat matView(const MatArray& a, const MatBase& b, bool column = false);
+// view from the offsets (BASIC indices; none: from the start), at most n x n if n >= 0 (DET, RANG)
+rt_mat matSub(const MatArray& a, const MatBase& b, const std::vector<std::int32_t>& at, std::int32_t n);
+void matFill(const MatArray& a, const MatBase& b, f64 x);  // CLR, SET: the whole array, index 0 included (probe17 T3)
+void matCpy(const MatArray& d, const std::vector<std::int32_t>& dAt, const MatArray& s, const std::vector<std::int32_t>& sAt,
+            std::int32_t h, std::int32_t w, bool transpose, const MatBase& b);
+void matPrint(Output& out, const rt_mat& m, bool format, f64 g, f64 n);  // rows, elements with ','
+inline f64& matAt(const rt_mat& m, std::int32_t i, std::int32_t j) { return m.p[static_cast<long>(i) * m.rs + static_cast<long>(j) * m.cs]; }
+
 // ---- memory (group memory, stage 1 of D6) --------------------------------------------------------
 // There is no Amiga memory here: VARPTR/V: give every variable, string and array a window in an
 // emulated address space; PEEK/POKE on it read and write the bytes of the value in the Amiga layout

@@ -43,6 +43,22 @@ Knoten: `proc`, `func`, `local`, `assign`, `if/elseif/else`, `select/case/defaul
 
 Das C++-Backend arbeitet auf der HIR, damit der erzeugte Code die Struktur des BASIC-Programms behält.
 
+`MAT`-Befehle ([D23](decisions.md#d23)) sind `cmd "MAT …"`; Felder sind `Load` der Feldvariablen,
+mit Versatz-Indizes als `args`, Skalarziele `Load`/`LoadElem`:
+
+| Befehl | `mode` | `targets` | `args` |
+|---|---|---|---|
+| `MAT BASE n` | | | n |
+| `MAT CLR/ONE/READ a()` | | a | |
+| `MAT SET a()=x` | | a | x |
+| `MAT PRINT [#c,]a()[,g,n]` (`channel`) | | a | [g, n] |
+| `MAT CPY/XCPY a([i,j])=b([k,l])[,h,w]` | | a, b | [h, w] |
+| `MAT TRANS a()[=b()]`, `MAT INV b()=a()` | | a [, b] | |
+| `MAT ADD/SUB` | 0 `a()=b()±c()`, 1 `a(),b()`, 2 `a(),x` | a, b, c / a, b / a | x (2) |
+| `MAT MUL` | 0 `a()=b()*c()`, 1 `x=a()*b()`, 2 `x=a()*b()*c()`, 3 `a(),x` | … (Skalar zuerst) | x (3) |
+| `MAT NORM a(),k` | | a | k |
+| `MAT DET/QDET/RANG x=a([i,j])[,n]` | | x, a | [n] |
+
 ## LIR
 
 > Umgesetzt in `src/ir/lir.hpp` (Textform `basicc --emit-lir`), Lowering in `src/ir/lower.cpp`.

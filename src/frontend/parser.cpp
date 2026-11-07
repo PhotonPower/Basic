@@ -638,6 +638,12 @@ private:
             exprList(s);
             return s;
         }
+        if (word == "MAT" && peek(1).kind == Tok::Ident) {  // chapter 13
+            static const std::set<std::string_view> words = {"BASE", "CLR",  "SET",  "ONE",   "READ", "PRINT", "INPUT",
+                                                             "CPY",  "COPY", "XCPY", "TRANS", "ADD",  "SUB",   "MUL",
+                                                             "NORM", "DET",  "QDET", "RANG",  "INV"};
+            if (words.count(peek(1).text) != 0) return matStatement(p);
+        }
         if (kCommands.count(word) != 0 && !atPunct("=", 1)) {
             take();
             Stmt s = stmt(StmtKind::Command, p);
@@ -668,6 +674,45 @@ private:
         Stmt s = stmt(StmtKind::Call, p);
         s.name = take().text;
         callArgs(s);
+        return s;
+    }
+
+    // MAT w ...: args = target [, operands after '='] [, further arguments]; variant 0 without '=',
+    // else 1 + 2 * (number of operands after '='). PRINT/INPUT: optional channel, then a list.
+    Stmt matStatement(ast::Pos p) {
+        take();
+        std::string w = take().text;
+        if (w == "COPY") w = "CPY";
+        Stmt s = stmt(StmtKind::Command, p);
+        s.name = "MAT " + w;
+        if (w == "PRINT" || w == "INPUT") {
+            if (acceptPunct("#")) {
+                s.channel = expr();
+                expectPunct(",");
+            }
+            exprList(s);
+            return s;
+        }
+        if (w == "BASE") {
+            s.args.push_back(expr());
+            return s;
+        }
+        s.args.push_back(lvalue());
+        if (acceptPunct("=")) {
+            int n = 1;
+            if (w == "SET") {
+                s.args.push_back(expr());
+            } else {
+                s.args.push_back(lvalue());
+                const char* op = w == "ADD" ? "+" : w == "SUB" ? "-" : w == "MUL" ? "*" : nullptr;
+                while (op != nullptr && acceptPunct(op)) {
+                    s.args.push_back(lvalue());
+                    ++n;
+                }
+            }
+            s.variant = 1 + 2 * n;
+        }
+        while (acceptPunct(",")) s.args.push_back(expr());
         return s;
     }
 

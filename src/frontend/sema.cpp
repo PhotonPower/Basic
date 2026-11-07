@@ -644,6 +644,97 @@ private:
         out.push_back(std::move(h));
     }
 
+    // ---- MAT (chapter 13, D23) ----------------------------------------------------------------
+    // a() or a(i[,j]) (offsets): a float array as a Load of the array variable, offsets as args (Int)
+    hir::ExprPtr matArray(const ast::Expr& a, bool offsets) {
+        if (a.kind != ExprKind::Var || (!a.wholeArray && (!offsets || a.args.empty() || a.args.size() > 2)))
+            fail(a.pos, offsets ? "MAT expects an array a() or a(i,j)" : "MAT expects an array a()");
+        if (typeOf(a.text) != Type::Float) fail(a.pos, "MAT works on arrays of floats only");
+        auto v = makeExpr(Op::Load, Type::Float);
+        v->var = varId(a.text, true);
+        for (const auto& x : a.args) v->args.push_back(convertTo(expr(*x), Type::Int, x->pos));
+        return v;
+    }
+
+    static bool isArrayArg(const ast::Expr& a) { return a.kind == ExprKind::Var && a.wholeArray; }
+
+    // HIR layout (mode = form): see docs/ir.md, MAT
+    void matCommand(const ast::Stmt& s, hir::Stmt& h) {
+        const std::string w = s.name.substr(4);
+        const auto& a = s.args;
+        const bool eq = s.variant != 0;
+        const std::size_t rhs = eq ? static_cast<std::size_t>((s.variant - 1) / 2) : 0;  // operands after '='
+        const std::size_t extra = a.size() - (w == "PRINT" || w == "INPUT" || w == "BASE" ? 0 : 1 + rhs);
+        auto bad = [&]() { fail(s.pos, s.name + ": unexpected form"); };
+        auto num = [&](std::size_t k, Type t) { h.args.push_back(convertTo(expr(*a[k]), t, a[k]->pos)); };
+        if (w == "BASE") {
+            if (a.size() != 1) bad();
+            num(0, Type::Int);
+        } else if (w == "CLR" || w == "ONE" || w == "READ") {
+            if (eq || extra != 0) bad();
+            h.targets.push_back(matArray(*a[0], false));
+        } else if (w == "SET") {
+            if (rhs != 1 || extra != 0) bad();
+            h.targets.push_back(matArray(*a[0], false));
+            num(1, Type::Float);
+        } else if (w == "PRINT") {
+            if (a.size() != 1 && a.size() != 3) bad();
+            if (s.channel) h.channel = convertTo(expr(*s.channel), Type::Float, s.pos);
+            h.targets.push_back(matArray(*a[0], false));
+            for (std::size_t k = 1; k < a.size(); ++k) num(k, Type::Float);
+        } else if (w == "INPUT") {
+            fail(s.pos, "MAT INPUT is not supported yet");
+        } else if (w == "CPY" || w == "XCPY") {
+            if (rhs != 1 || (extra != 0 && extra != 2)) bad();
+            h.targets.push_back(matArray(*a[0], true));
+            h.targets.push_back(matArray(*a[1], true));
+            for (std::size_t k = 2; k < a.size(); ++k) num(k, Type::Int);
+        } else if (w == "TRANS" || w == "INV") {
+            if (extra != 0 || rhs > 1 || (w == "INV" && rhs != 1)) bad();
+            h.targets.push_back(matArray(*a[0], false));
+            if (rhs == 1) h.targets.push_back(matArray(*a[1], false));
+        } else if (w == "ADD" || w == "SUB") {
+            h.targets.push_back(matArray(*a[0], false));
+            if (rhs == 2 && extra == 0) {
+                h.mode = 0;
+                h.targets.push_back(matArray(*a[1], false));
+                h.targets.push_back(matArray(*a[2], false));
+            } else if (!eq && extra == 1 && isArrayArg(*a[1])) {
+                h.mode = 1;
+                h.targets.push_back(matArray(*a[1], false));
+            } else if (!eq && extra == 1) {
+                h.mode = 2;
+                num(1, Type::Float);
+            } else {
+                bad();
+            }
+        } else if (w == "MUL") {
+            if (eq && extra == 0 && isArrayArg(*a[0]) && rhs == 2) {
+                h.mode = 0;
+                for (std::size_t k = 0; k < 3; ++k) h.targets.push_back(matArray(*a[k], false));
+            } else if (eq && extra == 0 && !isArrayArg(*a[0]) && (rhs == 2 || rhs == 3)) {
+                h.mode = rhs == 2 ? 1 : 2;
+                h.targets.push_back(numericTarget(*a[0]));
+                for (std::size_t k = 1; k <= rhs; ++k) h.targets.push_back(matArray(*a[k], false));
+            } else if (!eq && extra == 1 && !isArrayArg(*a[1])) {
+                h.mode = 3;
+                h.targets.push_back(matArray(*a[0], false));
+                num(1, Type::Float);
+            } else {
+                bad();
+            }
+        } else if (w == "NORM") {
+            if (eq || extra != 1) bad();
+            h.targets.push_back(matArray(*a[0], false));
+            num(1, Type::Int);
+        } else if (w == "DET" || w == "QDET" || w == "RANG") {
+            if (rhs != 1 || extra > 1) bad();
+            h.targets.push_back(numericTarget(*a[0]));
+            h.targets.push_back(matArray(*a[1], true));
+            if (extra == 1) num(2, Type::Int);
+        }
+    }
+
     // ---- commands ---------------------------------------------------------------------------
     void command(const ast::Stmt& s, hir::Block& out) {
         if (isDef(s)) {
@@ -656,7 +747,9 @@ private:
         auto argc = [&](std::size_t lo, std::size_t hi) {
             if (s.args.size() < lo || s.args.size() > hi) fail(s.pos, n + ": wrong number of arguments");
         };
-        if (n == "INC" || n == "DEC") {
+        if (n.rfind("MAT ", 0) == 0) {
+            matCommand(s, *h);
+        } else if (n == "INC" || n == "DEC") {
             argc(1, 1);
             h->targets.push_back(numericTarget(*s.args[0]));
         } else if (n == "ADD" || n == "SUB" || n == "MUL" || n == "DIV") {

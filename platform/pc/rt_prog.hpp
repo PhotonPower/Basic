@@ -58,6 +58,7 @@ struct State {
     void (*onError)() = nullptr;
     int handlerDepth = 0;
     int base = 0;  // OPTION BASE
+    int matBase = 1;  // MAT BASE
     int line = 0;
     std::uint32_t seed = 1;
     const std::pair<const char*, bool>* data = nullptr;
@@ -228,6 +229,81 @@ inline f64 dataNumber() {
 }
 inline std::string dataString() { return dataItem().first; }
 inline void dataNext() { ++rt.dataPos; }
+
+// ---- MAT (D23): the same steps as the interpreter ------------------------------------------------
+inline MatArray mat(Array<f64>& a) { return MatArray{a.data.data(), &a.upper, a.dimmed}; }
+inline MatBase matBase() { return MatBase{rt.matBase, rt.base}; }
+inline rt_mat matV(Array<f64>& a, bool column = false) { return matView(mat(a), matBase(), column); }
+inline void matFill(Array<f64>& a, f64 x) { matFill(mat(a), matBase(), x); }
+inline void matOne(Array<f64>& a) {
+    const rt_mat m = matV(a);
+    rt_mat_one(&m);
+    check();
+}
+inline void matRead(Array<f64>& a) {
+    const rt_mat m = matV(a);
+    for (std::int32_t i = 0; i < m.rows; ++i)
+        for (std::int32_t j = 0; j < m.cols; ++j) {
+            matAt(m, i, j) = dataNumber();
+            dataNext();
+        }
+}
+inline void matPrint(Output& o, Array<f64>& a) { matPrint(o, matV(a), false, 0, 0); }
+inline void matPrint(Output& o, Array<f64>& a, f64 g, f64 n) { matPrint(o, matV(a), true, g, n); }
+inline void matCpy(Array<f64>& d, const std::vector<std::int32_t>& da, Array<f64>& s, const std::vector<std::int32_t>& sa,
+                   std::int32_t h, std::int32_t w, bool transpose) {
+    matCpy(mat(d), da, mat(s), sa, h, w, transpose, matBase());
+}
+inline void matTrans(Array<f64>& a, Array<f64>& b) {
+    const rt_mat x = matV(a), y = matV(b);
+    rt_mat_trans(&x, &y);
+    check();
+}
+inline void matInv(Array<f64>& b, Array<f64>& a) {
+    const rt_mat x = matV(b), y = matV(a);
+    rt_mat_inv(&x, &y);
+    check();
+}
+inline void matAddSub(Array<f64>& a, Array<f64>& b, Array<f64>& c, bool sub) {
+    const rt_mat x = matV(a), y = matV(b), z = matV(c);
+    rt_mat_addsub(&x, &y, &z, sub ? 1 : 0);
+    check();
+}
+inline void matScalar(Array<f64>& a, f64 v, int op) {
+    const rt_mat x = matV(a);
+    rt_mat_scalar(&x, v, op);
+    check();
+}
+inline void matMul(Array<f64>& a, Array<f64>& b, Array<f64>& c) {  // two vectors: outer product
+    const bool vectors = b.upper.size() == 1 && c.upper.size() == 1;
+    const rt_mat x = matV(a), y = matV(b, vectors), z = matV(c);
+    rt_mat_mul(&x, &y, &z);
+    check();
+}
+inline f64 matDot(Array<f64>& a, Array<f64>& b) {
+    const rt_mat x = matV(a), y = matV(b);
+    const f64 r = rt_mat_dot(&x, &y);
+    check();
+    return r;
+}
+inline f64 matTriple(Array<f64>& a, Array<f64>& b, Array<f64>& c) {
+    const rt_mat x = matV(a), y = matV(b), z = matV(c);
+    const f64 r = rt_mat_triple(&x, &y, &z);
+    check();
+    return r;
+}
+inline void matNorm(Array<f64>& a, std::int32_t byColumn) {
+    const rt_mat x = matV(a);
+    rt_mat_norm(&x, byColumn != 0 ? 1 : 0);
+    check();
+}
+// kind 0 DET, 1 QDET, 2 RANG
+inline f64 matDet(Array<f64>& a, const std::vector<std::int32_t>& at, std::int32_t n, int kind) {
+    const rt_mat x = matSub(mat(a), matBase(), at, n);
+    const f64 r = kind == 2 ? rt_mat_rank(&x) : rt_mat_det(&x, kind);
+    check();
+    return r;
+}
 inline void restore(std::size_t pos) { rt.dataPos = pos; }
 
 // ---- error handling ----------------------------------------------------------------------------

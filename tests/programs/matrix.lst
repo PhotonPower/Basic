@@ -1,0 +1,144 @@
+' test: groups core print matrix
+' Matrixbefehle (Kapitel 13, D23). Die Faelle T1-T10 entsprechen probe17 (Ausgabe dort am Original
+' Byte fuer Byte gleich); MAT ONE stuerzt am Original ab und folgt hier der Befehlsreferenz.
+ON ERROR GOSUB fehler
+DIM v(3),m(2,3)
+MAT READ v()
+MAT READ m()
+MAT PRINT v()
+MAT PRINT m()
+MAT PRINT m(),7,3
+PRINT v(0);" ";m(0,1);" ";m(2,3)
+DATA 1,2.5,-3
+DATA 1,2,3,4,5,6
+MAT BASE 0
+DIM w(2)
+MAT READ w()
+MAT PRINT w()
+MAT BASE 1
+DATA 7,8,9
+DIM a(3,3),b(3,3),c(2,3),t(3,2)
+MAT SET a()=2
+MAT ONE b()
+PRINT a(0,0);" ";b(1,1);" ";b(1,2);" ";b(0,0)
+MAT CPY c()=m()
+MAT TRANS t()=c()
+MAT PRINT t()
+MAT SET a()=1
+MAT ADD a(),b()
+MAT ADD a(),0.5
+MAT MUL a(),2
+MAT SUB a(),1
+MAT PRINT a()
+DIM p(2,2)
+MAT MUL p()=c()*t()
+MAT PRINT p()
+MAT MUL x=v()*v()
+PRINT "v*v=";x
+PRINT "Fehler:"
+MAT ADD c(),a()
+MAT MUL p()=c()*c()
+MAT DET x=c()
+MAT INV c()=a()
+MAT ONE c()
+DIM s(3,3),r(3,3)
+RESTORE m3
+MAT READ s()
+MAT DET x=s()
+MAT QDET y=s()
+MAT RANG z=s()
+PRINT "singulaer: ";x;" ";y;" ";z
+MAT INV r()=s()
+MAT PRINT r()
+RESTORE m4
+MAT READ s()
+MAT DET x=s()
+MAT QDET y=s()
+MAT RANG z=s()
+PRINT "regulaer: ";x;" ";y;" ";z
+MAT INV r()=s()
+MAT PRINT r(),20,15
+MAT DET x=s(2,2),2
+PRINT "Teil-DET ";x
+m3:
+DATA 1,2,3,4,5,6,7,8,9
+m4:
+DATA 2,1,1,1,3,2,1,0,0
+DIM n(2,2)
+n(1,1)=3
+n(1,2)=4
+MAT NORM n(),0
+PRINT n(1,1);" ";n(1,2);" ";n(2,1)
+n(1,1)=3
+n(1,2)=0
+n(2,1)=4
+n(2,2)=5
+MAT NORM n(),1
+PRINT n(1,1);" ";n(2,1);" ";n(1,2);" ";n(2,2)
+DIM u(2),col(3,1),row(1,3),o(2,2)
+u(1)=2
+u(2)=3
+MAT MUL o()=u()*u()
+MAT PRINT o()
+MAT CPY col()=v()
+MAT XCPY row()=col()
+PRINT row(1,1);" ";row(1,2);" ";row(1,3)
+MAT MUL x=row()*s()*col()
+MAT MUL x=v()*s()*v()
+PRINT "v*s*v=";x
+DIM g(4,4),h(4,4)
+FOR i%=1 TO 4
+  FOR j%=1 TO 4
+    h(i%,j%)=i%*10+j%
+  NEXT j%
+NEXT i%
+MAT CPY g(2,2)=h(1,1),2,3
+MAT PRINT g()
+MAT CLR g()
+MAT CPY g(3,3)=h()
+MAT PRINT g()
+MAT CLR g()
+MAT XCPY g(1,2)=h(2,1),2,3
+MAT PRINT g()
+DIM k(3)
+k(1)=1E20
+k(2)=1/3
+k(3)=-0.000012
+MAT PRINT k()
+PRINT "weitere:"
+MAT TRANS h()
+MAT PRINT h()
+DIM q(2,2),e(2,2)
+q(1,1)=4
+q(1,2)=7
+q(2,1)=2
+q(2,2)=6
+MAT INV e()=q()
+MAT PRINT e()
+MAT MUL q()=q()*e()
+MAT PRINT q()
+q(1,1)=1
+q(1,2)=2
+q(2,1)=2
+q(2,2)=4
+MAT RANG z=q()
+MAT DET x=q()
+PRINT "Rang 1: ";z;" ";x
+MAT CLR q()
+MAT RANG z=q()
+PRINT "Null: ";z
+OPTION BASE 1
+DIM f(2,3)
+MAT SET f()=5
+f(2,3)=-1
+MAT PRINT f()
+MAT BASE 0
+MAT PRINT f()
+MAT BASE 1
+PRINT "ende"
+END
+PROCEDURE fehler
+  PRINT "ERR ";ERR;" ";ERR$(ERR)
+  ON ERROR GOSUB fehler
+  RESUME NEXT
+RETURN

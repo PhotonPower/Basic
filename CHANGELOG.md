@@ -40,6 +40,9 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 - `RESUME` setzt `ERR` auf 0 (probe12 T1); damit ist `errors2` am Original gleich.
 - `gfa_run.py`: Startmenü der Diskette nach einem Kaltstart (`boot` in `keys.json`), längere
   Wartezeiten für den Merge-Dialog und das Einlesen.
+- Gruppe `matrix` (`MAT BASE CLR SET ONE READ PRINT CPY XCPY TRANS ADD SUB MUL NORM DET QDET RANG
+  INV`) im Interpreter und C++-Ziel (`runtime/ref/rt_mat.c`, D23); probe17 am Original, Ausgabe Byte
+  für Byte gleich. Testprogramm `matrix`.
 - MC68000: ganzzahlige Zwischenwerte in D4–D7 (D22), Rechnen direkt im Zielregister, `ASL` für
   `* 2^k`. Testprogramm `regs`.
 - MC68000: Ketten aus `+ - *` über Ganzzahlen rechnen in 32 Bit mit Rücksprung auf den Float-Weg bei

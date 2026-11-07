@@ -6,3 +6,7 @@
 *.bin binary
 *.hunk binary
 *.dsk binary
+
+# Expected outputs and results from the original: bytes as produced (MAT PRINT writes CR LF)
+tests/programs/*.out -text
+tests/probes/results/*.txt -text

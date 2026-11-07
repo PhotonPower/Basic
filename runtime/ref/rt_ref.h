@@ -31,7 +31,11 @@ enum {
     RT_ERR_STR_LONG = 10, /* string too long|max. 32767 chars */
     RT_ERR_INDEX = 16,    /* array index out of range */
     RT_ERR_NOT_OPEN = 24, /* file not open */
-    RT_ERR_ASIN = 67      /* asin/acos error (probe13 T5, T6) */
+    RT_ERR_ASIN = 67,     /* asin/acos error (probe13 T5, T6) */
+    RT_ERR_MAT_ORDER = 77,   /* Matrices are of different order (probe17) */
+    RT_ERR_MAT_PRODUCT = 79, /* Matrix product not defined */
+    RT_ERR_MAT_SQUARE = 82,  /* Non square matrix */
+    RT_ERR_MAT_TRANS = 83    /* Transposition not defined */
 };
 
 void rt_error(int code);
@@ -80,6 +84,26 @@ f64 rt_acos(f64 x);
 f64 rt_powf(f64 x, f64 y);         /* x^y for a non-integer y */
 f64 rt_deg(f64 x);
 f64 rt_rad(f64 x);
+
+/* ---- matrices (rt_mat.c, D23): a view, element (i, j) at p[i * rs + j * cs] ---------------------- */
+typedef struct {
+    f64* p;
+    int32_t rows, cols;
+    int32_t rs, cs;
+} rt_mat;
+void rt_mat_one(const rt_mat* a);                                        /* not square: 82 */
+void rt_mat_addsub(const rt_mat* a, const rt_mat* b, const rt_mat* c, int sub); /* 77 */
+void rt_mat_scalar(const rt_mat* a, f64 x, int op);                       /* 0 +, 1 -, 2 * */
+void rt_mat_mul(const rt_mat* a, const rt_mat* b, const rt_mat* c);      /* 77 */
+f64 rt_mat_dot(const rt_mat* a, const rt_mat* b);                        /* 77 */
+f64 rt_mat_triple(const rt_mat* a, const rt_mat* b, const rt_mat* c);    /* 79 */
+void rt_mat_norm(const rt_mat* a, int byColumn);                          /* zero line: 0 */
+f64 rt_mat_det(const rt_mat* a, int quick);                              /* 82 */
+f64 rt_mat_rank(const rt_mat* a);                                        /* 82 */
+void rt_mat_inv(const rt_mat* b, const rt_mat* a);                       /* 82, 83, singular 0 */
+void rt_mat_trans(const rt_mat* a, const rt_mat* b);                     /* 83 */
+void rt_mat_cpy(const rt_mat* d, int32_t di, int32_t dj, const rt_mat* s, int32_t si, int32_t sj, int32_t h, int32_t w,
+                int transpose);
 
 /* ---- binary strings (rt_mk.c): MKD$/CVD in the GFA 8-byte format, MKS$/CVS IEEE single -------- */
 void rt_mkd(f64 x, unsigned char out[8]);

@@ -1,0 +1,103 @@
+probe17
+T1 v:
+1,2.5,-3
+T1 m:
+1,2,3
+4,5,6
+T1 m,7,3:
+  1.000,  2.000,  3.000
+  4.000,  5.000,  6.000
+T1 v(0)=0 m(0,1)=0 m(1,0)=0 m(2,3)=6
+T2 w:7 8 9
+7,8,9
+> MAT SET a()=2
+T3 a(1,1)=2 a(0,0)=2 b(1,1)=1 b(1,2)=0 b(0,0)=0
+> MAT CPY c()=m()
+> MAT TRANS t()=c()
+1,4
+2,5
+3,6
+> MAT CLR a()
+T3 nach CLR a(2,2)=0
+> MAT SET a()=1
+> MAT ADD a(),b()
+> MAT ADD a(),0.5
+> MAT MUL a(),2
+> MAT SUB a(),1
+4,2,2
+2,4,2
+2,2,4
+> MAT MUL p()=c()*t()
+14,32
+32,77
+> MAT MUL x=v()*v()
+T4 v*v=16.25
+T5 ADD 2x3+3x3:
+> MAT ADD c(),a()
+   -> ERR 77 Matrices are of different order
+T5 MUL 2x3*2x3:
+> MAT MUL p()=c()*c()
+   -> ERR 77 Matrices are of different order
+T5 DET 2x3:
+> MAT DET x=c()
+   -> ERR 82 Non square matrix
+T5 INV in falsche Groesse:
+> MAT INV c()=a()
+   -> ERR 83 Transposition not defined
+T5 Integerfeld:
+> MAT CLR i%()
+   -> ERR 32 ==> syntax error|program aborted
+> MAT READ s()
+> MAT DET x=s()
+> MAT QDET y=s()
+> MAT RANG z=s()
+T6 singulaer: DET 0 QDET 0 RANG 2
+T6 INV singulaer:
+> MAT INV r()=s()
+   -> ERR 0 divide by zero
+0,0,0
+0,0,0
+0,0,0
+> MAT READ s()
+> MAT DET x=s()
+> MAT QDET y=s()
+> MAT RANG z=s()
+T6 regulaer: DET -1 QDET -1 RANG 3
+> MAT INV r()=s()
+   0.000000000000000,   0.000000000000000,   1.000000000000000
+  -2.000000000000000,   1.000000000000000,   3.000000000000000
+   3.000000000000000,  -1.000000000000000,  -5.000000000000000
+> MAT DET x=s(2,2),2
+T6 Teil-DET 0
+> MAT DET x=e()
+> MAT QDET y=e()
+T6 Pivot 0: DET -1 QDET -1
+> MAT NORM n(),0
+   -> ERR 0 divide by zero
+T7 zeilen: 0.6 0.8 0 0
+> MAT NORM n(),1
+T7 spalten: 0.6 0.8 0 1
+> MAT MUL o()=u()*u()
+T8 aeusseres:
+4,6
+6,9
+> MAT CPY col()=v()
+T8 col: 1 2.5 -3
+> MAT XCPY row()=col()
+T8 row: 1 2.5 -3
+> MAT MUL x=row()*s()*col()
+   -> ERR 79 Matrix product not defined
+T8 row*s*col=-1
+> MAT CPY g(2,2)=h(1,1),2,3
+0,0,0,0
+0,11,12,13
+0,21,22,23
+0,0,0,0
+> MAT CLR g()
+> MAT CPY g(3,3)=h()
+0,0,0,0
+0,0,0,0
+0,0,11,12
+0,0,21,22
+1.0E+20,0.3333333333333,-0.000012
+ende
