@@ -458,7 +458,15 @@ private:
             case SKind::Goto: jump(gotoLabel(s.label)); return;
             case SKind::Label: place(gotoLabel(s.label)); return;
             case SKind::Read:
-            case SKind::Restore: unsupported("DATA/READ");
+                for (const auto& t : s.targets) {
+                    const Type ty = var(t->var).type;
+                    if (ty == Type::Str) storeTarget(*t, rtcall("rt_data_str", {}, VT::Str));
+                    else storeTarget(*t, convF(rtcall("rt_data_num", {}, VT::F64), ty));
+                }
+                return;
+            case SKind::Restore:
+                rtcallVoid("rt_data_restore", {constI(s.label < 0 ? 0 : p_.labels[static_cast<std::size_t>(s.label)].data)});
+                return;
             case SKind::OnError:
             case SKind::Resume: unsupported("ON ERROR");
             case SKind::Cmd: return command(s);
@@ -762,11 +770,12 @@ private:
         return cmp(cond, rtcall(a.type == VT::Str ? "rt_str_cmp" : "fp_cmp", {a, b}, VT::I32), constI(0));
     }
 
-    Reg conv(const hir::Expr& e) {
-        const hir::Expr& x = *e.args[0];
-        Reg v = expr(x);
+    Reg conv(const hir::Expr& e) { return convF(expr(*e.args[0]), e.type); }
+
+    // conversion with the semantics of an assignment (truncation, range errors 2/3/4)
+    Reg convF(Reg v, Type to) {
         const bool fromF = v.type == VT::F64;
-        switch (e.type) {
+        switch (to) {
             case Type::Float: return fromF ? v : rtcall("fp_from_i32", {v}, VT::F64);
             case Type::Int: return fromF ? rtcall("fp_to_i32", {v}, VT::I32) : v;
             case Type::Word: return rtcall(fromF ? "fp_to_i16" : "rt_conv_word", {v}, VT::I32);
@@ -875,6 +884,8 @@ private:
         const std::string& n = e.sval;
         const std::size_t argc = e.args.size();
         if (n == "MIN" || n == "MAX") return minMax(e, n == "MAX");
+        if (n == "VAL") return rtcall("rt_str_val", {arg(e, 0)}, VT::F64);
+        if (n == "VAL?") return rtcall("rt_str_valq", {arg(e, 0)}, VT::I32);
         if (n == "DIM?") return rtcall("rt_arr_count", {addrOf(e.args[0]->var)}, VT::I32);
         if (n == "LEN") return rtcall("rt_str_len", {arg(e, 0)}, VT::I32);
         if (n == "ASC") return rtcall("rt_str_asc", {arg(e, 0)}, VT::I32);

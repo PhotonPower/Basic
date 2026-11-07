@@ -64,7 +64,10 @@ public:
         mods.insert(mods.end(), stub.begin(), stub.end());
         for (const link::Module& m : mods) link::checkLabels(m, d);
         const link::Library lib = link::makeLibrary(std::move(mods), d);
-        const link::Result r = link::link(lib, {}, all, link::Layout::Plain, "        ORG $1000\n", d);
+        link::Program prog;  // what a compiled program provides for the runtime (rt_data): no DATA items
+        prog.data = "prg_data_count:\n        DC.L    0\nprg_data:\n";
+        prog.provides = {"prg_data", "prg_data_count"};
+        const link::Result r = link::link(lib, prog, all, link::Layout::Plain, "        ORG $1000\n", d);
         for (const Diagnostic& x : d) std::cerr << "link: " << x.message << "\n";
         CHECK(d.empty());
         if (const char* dump = std::getenv("BASIC_DUMP_SOURCE")) {
@@ -410,6 +413,113 @@ extern "C" void rt_error(int code) {
     if (g_error < 0) g_error = code;
 }
 
+// VAL: text at $78000; value and number of characters read against the reference.
+void valTest(Runtime& rt, int cases) {
+    Rng r;
+    int failures = 0;
+    std::uint64_t instr = 0, maxInstr = 0;
+    int calls = 0;
+    auto one = [&](const std::string& text) {
+        std::int32_t used = 0;
+        const f64 expect = rt_val(text.data(), static_cast<std::int32_t>(text.size()), &used);
+        for (std::size_t k = 0; k < text.size(); ++k) rt.rt().write8(0x78000 + static_cast<std::uint32_t>(k), static_cast<std::uint8_t>(text[k]));
+        M68kRegs in;
+        in.d = {static_cast<std::uint32_t>(text.size()), 0, 0, 0, 0x44444444, 0x55555555, 0x66666666, 0x77777777};
+        in.a = {0x78000, 0, 0xA2A2A2A2, 0xA3A3A3A3, 0xA4A4A4A4, 0xA5A5A5A5, 0xA6A6A6A6};
+        const auto res = rt.rt().call("rt_val", in, 50'000'000);
+        ++g_checks;
+        const f64 got = (static_cast<f64>(res.regs.d[0]) << 32) | res.regs.d[1];
+        bool ok = res.ok && got == expect && static_cast<std::int32_t>(res.regs.d[2]) == used;
+        for (int k = 4; k < 8; ++k) ok = ok && res.regs.d[static_cast<std::size_t>(k)] == in.d[static_cast<std::size_t>(k)];
+        for (int k = 2; k < 7; ++k) ok = ok && res.regs.a[static_cast<std::size_t>(k)] == in.a[static_cast<std::size_t>(k)];
+        instr += res.instructions;
+        maxInstr = std::max<std::uint64_t>(maxInstr, res.instructions);
+        ++calls;
+        if (!ok) {
+            ++g_failures;
+            if (++failures <= 10)
+                std::fprintf(stderr, "rt_val(\"%.60s\" len %zu): %016llX used %d, expected %016llX used %d %s\n", text.c_str(), text.size(),
+                             static_cast<unsigned long long>(got), static_cast<int>(res.regs.d[2]), static_cast<unsigned long long>(expect),
+                             used, res.error.c_str());
+        }
+    };
+    for (const char* t : {"", " ", "-", "+", ".", "-.", "1E", "1e+", "1E-", "1E-x", "-&H10", "&H", "&", "&Z1", "&HFFFFFFFF", "&h7fffffff",
+                          "$ff", "$", "%101", "%2", "&O17", "&o8", "&X11", "&x", "  12", "0.0", "000", "-0", "1E309", "1E-330", ".5x",
+                          "1.7976931348623157E308", "1.7976931348623158E308", "1.7976931348623159E308", "4.9E-324", "2.4703282292062327E-324",
+                          "2.4703282292062328E-324", "1E-400", "00001.5000", "1e5000000", "1e-5000000", "3.00 DM", "x", "123456789012345678901234567890",
+                          "0.000000000000000000000000000001", "9007199254740993", "9007199254740992.5", "1.5E3", "-2.5", "  -  1", "1.e5", "1.2.3", "+.5e-3"})
+        one(t);
+    // random decimals
+    for (int i = 0; i < cases / 4; ++i) {
+        std::string t;
+        if (r.range(0, 3) == 0) t += ' ';
+        if (r.range(0, 2) == 0) t += r.range(0, 1) ? '-' : '+';
+        const int nd = r.range(1, i % 10 == 0 ? 60 : 20);
+        const int point = r.range(-1, nd);
+        for (int k = 0; k < nd; ++k) {
+            if (k == point) t += '.';
+            t += static_cast<char>('0' + r.range(0, 9));
+        }
+        if (r.range(0, 1)) {
+            t += r.range(0, 1) ? 'E' : 'e';
+            if (r.range(0, 1)) t += r.range(0, 1) ? '-' : '+';
+            t += std::to_string(r.range(0, 340));
+        }
+        if (r.range(0, 4) == 0) t += "x1";
+        one(t);
+    }
+    // exact halfway points between neighbouring doubles (and just below/above), fixed notation
+    for (int i = 0; i < cases / 40; ++i) {
+        const f64 x = randomF64(r, 1023 - 60, 1023 + 60) & ~(std::uint64_t{1} << 63);
+        double xd, ud;
+        std::memcpy(&xd, &x, 8);
+        const f64 next = x + 1;
+        double nd;
+        std::memcpy(&nd, &next, 8);
+        ud = (nd - xd) / 2;  // half an ulp: exact
+        char a[1400], b[1400];
+        std::snprintf(a, sizeof a, "%.1100f", xd);
+        std::snprintf(b, sizeof b, "%.1100f", ud);
+        std::string sa = a, sb = b;
+        while (sb.size() < sa.size()) sb.insert(0, 1, '0');
+        while (sa.size() < sb.size()) sa.insert(0, 1, '0');
+        std::string sum(sa.size(), '0');
+        int carry = 0;
+        for (std::size_t k = sa.size(); k-- > 0;) {
+            if (sa[k] == '.') {
+                sum[k] = '.';
+                continue;
+            }
+            const int d = (sa[k] - '0') + (sb[k] - '0') + carry;
+            sum[k] = static_cast<char>('0' + d % 10);
+            carry = d / 10;
+        }
+        if (carry) sum.insert(0, 1, '1');
+        while (!sum.empty() && sum.back() == '0') sum.pop_back();
+        one(sum);
+        one(sum + "0000001");
+        std::string below = sum;  // drop the last digit: just below the midpoint
+        below.pop_back();
+        one(below);
+        if (i % 4 == 0) {  // more than 800 significant digits: the tail decides
+            std::string longer = sum;
+            while (longer.size() < 900) longer += '0';
+            one(longer + "1");
+            one(longer);
+        }
+    }
+    // long digit strings around the 800 limit and extreme exponents
+    for (int i = 0; i < 12; ++i) {
+        std::string t = std::to_string(r.range(1, 9));
+        const int len = 780 + r.range(0, 60);
+        for (int k = 1; k < len; ++k) t += static_cast<char>('0' + r.range(0, 9));
+        t += "E" + std::to_string(r.range(-1130, -700));
+        one(t);
+        one("0." + t);
+    }
+    std::cout << "rt_val: " << instr / std::max(calls, 1) << " instructions per call on average, at most " << maxInstr << "\n";
+}
+
 // Bit functions against the semantics of platform/pc (brt::shift, brt::bitOp; that library cannot
 // be linked here because it defines rt_error itself).
 std::uint32_t refShift(std::uint32_t x, std::uint32_t count, int width, int kind) {
@@ -483,6 +593,7 @@ int main() {
     roundTest(rt, cases);
     randomTest(rt);
     bitsTest(rt, cases);
+    valTest(rt, cases);
     formatTest(rt, cases / 4);
     std::cout << "68000 instructions executed: " << rt.instructions() << "\n";
     return report("conformance_m68k");

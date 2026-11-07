@@ -44,7 +44,8 @@ Wurzel, Vergleiche, Konvertierungen, Rundungsfunktionen, Zufall), ✔ Zahlenausg
 ✔ Strings (Heap mit Speicherbereinigung, D18); `control` läuft im Emulator.
 ✔ Bit- und Ganzzahlfunktionen; `arith` läuft im Emulator.
 ✔ `VAR`, Arrays, `SWAP`, `CLR`, `ERASE`; `procs` läuft im Emulator.
-Weiter: `DATA` und `VAL`, `ON ERROR`, `PRINT USING`,
+✔ `VAL`, `DATA`/`READ`; `dataread` läuft im Emulator.
+Weiter: `ON ERROR`, `PRINT USING` (auch für `STR$(x,y,z)`), `MID$=`, `LSET`/`RSET`,
 dann das Amiga-Ziel.
 
 - Quelltext-Linker (`src/link`) mit Map-Datei und Label-Prüfung.

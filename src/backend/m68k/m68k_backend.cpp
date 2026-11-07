@@ -31,6 +31,7 @@ public:
         }
         for (const lir::Function& f : p_.functions) function(f);
         out_.provides.push_back("main");
+        if (uses_.count("rt_data_str") + uses_.count("rt_data_num") + uses_.count("rt_data_restore") != 0) dataTable();
         out_.uses.assign(uses_.begin(), uses_.end());
         return out_;
     }
@@ -95,6 +96,22 @@ private:
     }
 
     int local_ = 0;  // numbering of local labels of the backend itself
+
+    // DATA items for rt_data: descriptors (address, length, quoted) and their characters
+    void dataTable() {
+        const auto& items = p_.hir->data;
+        out_.data += "prg_data_count:\n        DC.L    " + std::to_string(items.size()) + "\nprg_data:\n";
+        std::string texts;
+        for (std::size_t k = 0; k < items.size(); ++k) {
+            const std::string l = "d" + std::to_string(k);
+            out_.data += "        DC.L    " + (items[k].text.empty() ? std::string("0") : l) + "\n        DC.W    " +
+                         std::to_string(items[k].text.size()) + "," + (items[k].quoted ? "1" : "0") + "\n";
+            if (!items[k].text.empty()) texts += l + ":\n        DC.B    " + bytes(items[k].text) + "\n";
+        }
+        out_.data += texts + "        EVEN\n";
+        out_.provides.push_back("prg_data");
+        out_.provides.push_back("prg_data_count");
+    }
 
     static std::string bytes(const std::string& t) {
         std::string b;
