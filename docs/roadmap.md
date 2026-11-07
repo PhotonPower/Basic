@@ -47,7 +47,12 @@ Wurzel, Vergleiche, Konvertierungen, Rundungsfunktionen, Zufall), ✔ Zahlenausg
 ✔ `VAL`, `DATA`/`READ`; `dataread` läuft im Emulator.
 ✔ `ON ERROR`, `RESUME`, `ERR`, `ERR$`; `errors` läuft im Emulator.
 ✔ `PRINT USING`, `STR$(x,y,z)`, `MID$=`, `LSET`/`RSET`; alle Testprogramme laufen im Emulator.
-Weiter: das Amiga-Ziel (Hunk-Programm über `dos.library`, Abschnitte), schnellere Zahlenausgabe.
+✔ Amiga-Ziel: `basicc --target amiga` schreibt ein AmigaDOS-Programm (Hunk, `platform/amiga`:
+`dos.library`, gepufferte Ausgabe, eigener Stapel, Speicher über `AllocMem`). Alle Testprogramme
+laufen in der OS-Emulation (`test_m68k_programs`) und unter Kickstart 1.2 im FS-UAE
+(`tools/gfa/amiga_run.py`) mit der Ausgabe des Originals.
+Weiter: schnellere Zahlenausgabe, Registerzuteilung im Backend, dann die Gruppen `float`
+(Transzendente), `input` und Dateien.
 
 - Quelltext-Linker (`src/link`) mit Map-Datei und Label-Prüfung.
 - LIR → 68000-Assembler, `runtime/m68k` (Integer, Strings, Ausgabe, Fließkomma-Kern), `platform/amiga`

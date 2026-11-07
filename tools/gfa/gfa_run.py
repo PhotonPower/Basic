@@ -49,7 +49,7 @@ MAC_KEYCODES = {
     "q": 12, "w": 13, "e": 14, "r": 15, "y": 16, "t": 17, "1": 18, "2": 19, "3": 20, "4": 21,
     "6": 22, "5": 23, "=": 24, "9": 25, "7": 26, "-": 27, "8": 28, "0": 29, "o": 31, "u": 32,
     "i": 34, "p": 35, "l": 37, "j": 38, "k": 40, ";": 41, ",": 43, "/": 44, "n": 45, "m": 46,
-    ".": 47,
+    ".": 47, " ": 49,
 }
 NAMED_KEYS = {
     "return": 36, "tab": 48, "space": 49, "backspace": 51, "escape": 53, "delete": 117,
@@ -61,7 +61,7 @@ NAMED_KEYS = {
 # Amiga keymap. Only the characters needed for file names and simple answers are listed.
 def _layout_us() -> dict[str, tuple[str, bool]]:
     table = {c: (c, False) for c in "abcdefghijklmnopqrstuvwxyz0123456789.-/"}
-    table.update({":": (";", True), "_": ("-", True)})
+    table.update({":": (";", True), "_": ("-", True), " ": (" ", False), ">": (".", True)})
     return table
 
 

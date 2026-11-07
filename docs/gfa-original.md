@@ -67,6 +67,21 @@ Einrichtungsfehler, `3` FS-UAE hat während der Tastenfolge den Fokus verloren.
   neu (siehe `probe1.lst`, Prozedur `fehler`).
 - Jeder Test hat eine Kennung (`T1`, `T2` …), damit Ergebnisse eindeutig zugeordnet werden können.
 
+## Eigene Programme auf dem Amiga
+
+`tools/gfa/amiga_run.py` startet mit `basicc --target amiga` übersetzte Programme im FS-UAE unter
+AmigaOS: Kaltstart, an der Shell (`1>`) für jedes Programm `dh0:<name> >dh0:<name>.txt`, dann
+Warten, bis alle Ergebnisdateien fertig sind, zuletzt `1` (GFA-BASIC wieder starten).
+
+```sh
+basicc --target amiga tests/programs/numbers.lst -o build/numbers
+python3 tools/gfa/amiga_run.py build/numbers --out-dir build/amiga-results
+```
+
+Stand 2026-11-07: alle Programme unter `tests/programs` laufen so unter Kickstart 1.2 und geben Byte
+für Byte die erwartete Ausgabe aus. Gefunden dabei: Die Shell gibt einem Programm nur 4000 Bytes
+Stapel; die Plattform holt sich deshalb einen eigenen (`platform/amiga/plat_start.s`).
+
 ## Auswertung
 
 Die Ergebnisdatei wird unter `tests/probes/results/<name>.txt` eingecheckt (Kopf:

@@ -33,6 +33,7 @@ Für die Grundoperationen genügt es, das **exakte** Ergebnis und ein korrektes 
 | `rt_data` | `DATA`/`READ`/`RESTORE` über die Tabelle `prg_data` des Programms (Fehler 34, 35) |
 | `rt_err`, `rt_onerr`, `rt_resume`, `rt_errtext` | Laufzeitfehler, `ON ERROR GOSUB`, `RESUME` (auch `NEXT`, Marke), `ERR`, `ERR$` |
 | `rt_using`, `rt_strfmt` | `PRINT USING` (Nachbau von `rt_using.c`, Zustand auf einem kleinen Stapel), `MODE`, `STR$(x,n)`, `STR$(x,y,z)` |
+| (Plattform) | `plat_putc`, `plat_exit`, `plat_error`, `plat_alloc` (Speicher für String-Heap und Array-Bereich beim ersten Gebrauch) aus `platform/m68k-test` bzw. `platform/amiga` |
 | `rt_bits` | `BTST`/`BCLR`/`BSET`/`BCHG`, `SHL`/`SHR`/`ROL`/`ROR` (8/16/32 Bit), `SWAP`, `WORD`, `CARD`, `BYTE` |
 | `rt_print`, `rt_int`, `rt_for`, `rt_power`, `rt_end` | Ausgabe, Ganzzahlhilfen, `FOR`, Potenz, Programmende |
 

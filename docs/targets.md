@@ -26,7 +26,10 @@ außerhalb dieses Speichers lösen einen Fehler aus.
 
 ## amiga (MC68000)
 
-- Ausgabe: AmigaDOS-Hunk-Programm, erzeugt über `SECTION` mit dem Assembler von PhotonPower/MC68000.
+- Ausgabe: AmigaDOS-Hunk-Programm, erzeugt über `SECTION` mit dem Assembler von PhotonPower/MC68000
+  (`basicc --target amiga`). Start aus der Shell; das Programm holt sich 64 KiB Stapel (die Shell
+  gibt nur 4000 Bytes), 64 KiB String-Heap und 64 KiB Array-Bereich über `AllocMem` und gibt alles
+  am Ende frei. Rückgabewert 0, nach einem nicht abgefangenen Laufzeitfehler 10.
 - Big-Endian, 32-Bit-Adressen und Deskriptor-Layout entsprechen dem Original; `PEEK`/`POKE` usw.
   greifen direkt auf den Speicher zu.
 - Kapitel 11 (Exec, DOS, Graphics, Intuition, Layers, DiskFont) wird zu Bibliotheksaufrufen über

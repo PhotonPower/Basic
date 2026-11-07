@@ -1,13 +1,14 @@
 ;! module    rt_str
 ;! provides  rt_str_alloc rt_str_gc rt_str_newtemp rt_str_mark rt_str_release rt_str_assign rt_str_free rt_str_relink rt_str_set_ret rt_str_take_ret rt_print_sdesc rt_str_ret rt_str_swap
-;! requires  rt_error rt_print_str
+;! requires  rt_error rt_print_str plat_alloc
 ;! group     string
 ;! clobbers  D0-D3/A0-A1
 ;! doc       String heap (decision D18): descriptors, blocks with a back reference, compaction, temporaries.
 
 ; Descriptor (8 bytes): +0 address of the characters (0: empty), +4 length (word), +6 unused.
 ; Block in the heap: +0 owner (descriptor address, 0: garbage), +4 length (word), +6 characters,
-; padded to an even size. Temporaries live in rt_str__temps with stack discipline.
+; padded to an even size. Temporaries live in rt_str__temps with stack discipline. The heap
+; (rt_str__lo .. rt_str__hi) comes from plat_alloc on first use.
 
 rt_str__HEAPSIZE EQU 65536
 rt_str__TEMPS    EQU 128
@@ -40,10 +41,16 @@ rt_str_alloc:
 rt_str__room:
         TST.L   rt_str__top
         BNE     .init
-        MOVE.L  #rt_str__heap,rt_str__top
+        MOVE.L  #rt_str__HEAPSIZE,D0    ; first use: the heap from the platform
+        JSR     plat_alloc
+        MOVE.L  A0,rt_str__lo
+        MOVE.L  A0,rt_str__top
+        BEQ     .no
+        ADD.L   #rt_str__HEAPSIZE,A0
+        MOVE.L  A0,rt_str__hi
 .init:  MOVE.L  rt_str__top,A0
         LEA     0(A0,D3.L),A0
-        CMP.L   #rt_str__heap+rt_str__HEAPSIZE,A0
+        CMP.L   rt_str__hi,A0
         BHI     .no
         ANDI    #$FE,CCR
         RTS
@@ -53,7 +60,7 @@ rt_str__room:
 ; compaction: move all blocks with an owner down, update the owners' addresses
 rt_str_gc:
         MOVEM.L D2-D3/A2-A3,-(SP)
-        LEA     rt_str__heap,A0         ; A0 = source, A1 = destination
+        MOVE.L  rt_str__lo,A0           ; A0 = source, A1 = destination
         MOVE.L  A0,A1
         MOVE.L  rt_str__top,A3
 .walk:  CMP.L   A3,A0                   ; A0 >= top: done
@@ -103,9 +110,9 @@ rt_str_relink:
 
 ; carry clear if the address D0 lies in the heap
 rt_str__inheap:
-        CMP.L   #rt_str__heap,D0
+        CMP.L   rt_str__lo,D0
         BCS     .no
-        CMP.L   #rt_str__heap+rt_str__HEAPSIZE,D0
+        CMP.L   rt_str__hi,D0
         BCC     .no
         ANDI    #$FE,CCR
         RTS
@@ -260,11 +267,13 @@ rt_str__top:
         DC.L    0
 rt_str__ttop:
         DC.L    0
+rt_str__lo:
+        DC.L    0
+rt_str__hi:
+        DC.L    0
 
 ;! section bss
 rt_str_ret:
         DS.L    2
 rt_str__temps:
         DS.L    2*rt_str__TEMPS
-rt_str__heap:
-        DS.B    rt_str__HEAPSIZE

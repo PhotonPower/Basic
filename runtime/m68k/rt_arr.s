@@ -1,6 +1,6 @@
 ;! module    rt_arr
 ;! provides  rt_arr_dim rt_arr_elem rt_arr_count rt_arr_erase rt_arr_base rt_arr_set_base rt_swap8
-;! requires  rt_error rt_imul rt_idiv rt_str_free
+;! requires  rt_error rt_imul rt_idiv rt_str_free plat_alloc
 ;! group     core
 ;! clobbers  D0-D3/A0-A1
 ;! doc       Arrays: DIM, element address with checks (errors 14-18), DIM?, ERASE, OPTION BASE.
@@ -8,9 +8,10 @@
 ; An array variable is an 8-byte slot: +0 address of the array block (0: not dimensioned).
 ; Block in the array area: +0 number of dimensions (word), +2 element size (word),
 ; +4 upper bounds (long each), then the elements (cleared at DIM; strings: descriptors).
-; The area is used like a stack; ERASE of the most recent array gives its room back.
+; The area (from plat_alloc on first use) is used like a stack; ERASE of the most recent array
+; gives its room back.
 
-rt_arr__AREASIZE EQU 131072
+rt_arr__AREASIZE EQU 65536
 
 ; A0 = slot, D0 = element size << 8 | number of dimensions (1-3), D1-D3 = upper bounds
 rt_arr_dim:
@@ -56,10 +57,17 @@ rt_arr_dim:
         ADD.L   D1,D0                   ; D0 = block size
         MOVE.L  rt_arr__top,D1
         BNE     .t
-        MOVE.L  #rt_arr__area,D1
+        MOVE.L  D0,-(SP)                ; first use: the area from the platform
+        MOVE.L  #rt_arr__AREASIZE,D0
+        JSR     plat_alloc
+        MOVE.L  (SP)+,D0
+        MOVE.L  A0,D1
+        BEQ     .mem
+        ADD.L   #rt_arr__AREASIZE,A0
+        MOVE.L  A0,rt_arr__hi
 .t:     MOVE.L  D1,A0
         ADD.L   D0,D1
-        CMP.L   #rt_arr__area+rt_arr__AREASIZE,D1
+        CMP.L   rt_arr__hi,D1
         BHI     .mem
         MOVE.L  D1,rt_arr__top
         MOVE.L  A0,(A2)
@@ -233,9 +241,9 @@ rt_arr_base:
         DC.L    0
 rt_arr__top:
         DC.L    0
+rt_arr__hi:
+        DC.L    0
 
 ;! section bss
 rt_arr__dummy:
         DS.L    2
-rt_arr__area:
-        DS.B    rt_arr__AREASIZE

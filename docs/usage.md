@@ -3,8 +3,9 @@
 > Stand: Umgesetzt sind `--version`, `--help`, `--targets`, `--emit-ast <programm.lst>` und
 > `--emit-hir <programm.lst>`, `--run <programm.lst> [--seed <n>]` (Referenz-Interpreter) und
 > `--target pc <programm.lst> [-o <datei.cpp>]` (C++-Quelltext, siehe `platform/pc/README.md`),
-> `--target m68k-test <programm.lst> [-o <datei.s>]` (MC68000-Assembler, bisher Zahlen,
-> Kontrollfluss, Prozeduren und `PRINT`) und `--emit-lir <programm.lst>`
+> `--target amiga <programm.lst> [-o <programm>]` (AmigaDOS-Programm als Hunk-Datei; mit `-o x.s`
+> der Assembler-Quelltext), `--target m68k-test <programm.lst> [-o <datei.s>]` (MC68000-Assembler
+> für den nackten Prozessor) und `--emit-lir <programm.lst>`
 > (Syntaxbaum, eine Zeile je Anweisung; Syntaxfehler als `datei:zeile:spalte: meldung` auf stderr,
 > Rückgabewert 1). Der Rest beschreibt die geplante Kommandozeile.
 

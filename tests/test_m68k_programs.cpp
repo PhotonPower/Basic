@@ -28,8 +28,9 @@ std::string read(const fs::path& p) {
     return ss.str();
 }
 
-// Compiles a program for m68k-test; empty result and `unsupported` set if the backend cannot yet.
-std::string compile(const std::string& src, bool& unsupported, std::string& message) {
+// Compiles a program for the MC68000 target; empty result and `unsupported` set if the backend
+// cannot yet.
+std::string compile(const std::string& src, M68kTarget target, bool& unsupported, std::string& message) {
     Diagnostics d;
     const ast::Program a = parseProgram(src, d);
     const hir::Program h = analyze(a, d);
@@ -37,18 +38,12 @@ std::string compile(const std::string& src, bool& unsupported, std::string& mess
         message = d[0].message;
         return "";
     }
-    const lir::Program l = lower(h, d);
+    const std::string source = buildM68kProgram(h, target, d);
     if (!d.empty()) {
-        unsupported = true;
+        unsupported = d[0].message.find("not supported") != std::string::npos;
         message = d[0].message;
-        return "";
     }
-    const link::Program prog = generateM68k(l);
-    std::vector<link::Module> mods = link::embeddedModulesOf({"runtime/m68k", "platform/m68k-test"}, d);
-    const link::Library lib = link::makeLibrary(std::move(mods), d);
-    const link::Result r = link::link(lib, prog, {"plat_start"}, link::Layout::Plain, "        ORG     $1000\n", d);
-    if (!d.empty()) message = d[0].message;
-    return r.source;
+    return source;
 }
 
 }  // namespace
@@ -60,30 +55,38 @@ int main() {
         if (entry.path().extension() != ".lst") continue;
         if (const char* only = std::getenv("BASIC_M68K_PROGRAM"); only && entry.path().filename() != only) continue;
         const std::string name = entry.path().stem().string();
-        bool unsupported = false;
-        std::string message;
-        const std::string source = compile(read(entry.path()), unsupported, message);
-        if (unsupported) {
-            std::cout << name << ": skipped (" << message << ")\n";
-            ++skipped;
-            continue;
-        }
-        ++g_checks;
-        if (source.empty()) {
-            ++g_failures;
-            std::cerr << name << ": " << message << "\n";
-            continue;
-        }
-        harness::M68kOptions opt;
-        opt.maxInstructions = 500'000'000;
-        const harness::M68kRun run = harness::runM68kSource(source, harness::M68kPlatform::Test, opt);
         const std::string expected = read(fs::path(entry.path()).replace_extension(".out"));
-        ++ran;
-        if (!run.error.empty() || run.console != expected) {
-            ++g_failures;
-            std::cerr << name << ": " << run.error << "\n--- expected\n" << expected << "--- actual\n" << run.console << "\n";
-        } else {
-            std::cout << name << ": ok (" << run.instructions << " instructions)\n";
+        for (const M68kTarget target : {M68kTarget::Test, M68kTarget::Amiga}) {
+            const bool amiga = target == M68kTarget::Amiga;
+            const std::string label = name + (amiga ? " (amiga)" : " (m68k-test)");
+            bool unsupported = false;
+            std::string message;
+            const std::string source = compile(read(entry.path()), target, unsupported, message);
+            if (unsupported) {
+                std::cout << label << ": skipped (" << message << ")\n";
+                ++skipped;
+                continue;
+            }
+            ++g_checks;
+            if (source.empty()) {
+                ++g_failures;
+                std::cerr << label << ": " << message << "\n";
+                continue;
+            }
+            harness::M68kOptions opt;
+            opt.maxInstructions = 500'000'000;
+            if (amiga) opt.origin = 0x20000;  // hunk standard (docs/amiga500.md)
+            const harness::M68kRun run = harness::runM68kSource(source, amiga ? harness::M68kPlatform::Amiga : harness::M68kPlatform::Test, opt);
+            ++ran;
+            std::string unemulated;
+            for (const std::string& c : run.unemulatedCalls) unemulated += " " + c;
+            if (!run.error.empty() || run.console != expected || !unemulated.empty()) {
+                ++g_failures;
+                std::cerr << label << ": " << run.error << (unemulated.empty() ? "" : " unemulated calls:" + unemulated)
+                          << "\n--- expected\n" << expected << "--- actual\n" << run.console << "\n";
+            } else {
+                std::cout << label << ": ok (" << run.instructions << " instructions)\n";
+            }
         }
     }
     std::cout << ran << " programs run, " << skipped << " skipped (not yet supported by the backend)\n";

@@ -40,6 +40,11 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 - `RESUME` setzt `ERR` auf 0 (probe12 T1); damit ist `errors2` am Original gleich.
 - `gfa_run.py`: Startmenü der Diskette nach einem Kaltstart (`boot` in `keys.json`), längere
   Wartezeiten für den Merge-Dialog und das Einlesen.
+- Amiga-Ziel: `basicc --target amiga` schreibt ein AmigaDOS-Programm (Hunk). `platform/amiga`:
+  `dos.library`, gepufferte Ausgabe über `Write()`, eigener Stapel von 64 KiB, Speicher über
+  `AllocMem`, Ende aus jeder Tiefe. String-Heap und Array-Bereich kommen jetzt von `plat_alloc`
+  der Plattform. Alle Testprogramme laufen in der OS-Emulation und unter Kickstart 1.2 im FS-UAE
+  (neues Werkzeug `tools/gfa/amiga_run.py`) mit der Ausgabe des Originals.
 - Testprogramm `strheap` für den String-Heap; dabei behoben: `rt_str_set_ret` erwartete den
   Deskriptor in A1 statt A0, das Ergebnis von String-Funktionen ging verloren (Fehler 8).
 - MC68000, erster Teil: Quelltext-Linker `src/link` (Modulköpfe, Hülle über `requires`,
