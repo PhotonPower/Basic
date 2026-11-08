@@ -17,26 +17,39 @@ zi_addv:
         JP      PE,zi__ovf              ; V of the highest byte
         OR      A
         RET
-zi__add:
-        OR      A
-        PUSH    AF
-        LD      A,4
-zi__a1:
-        LD      (zi__n),A
-        POP     AF
-        LD      A,(BC)
-        EX      DE,HL
-        ADC     A,(HL)
-        EX      DE,HL
-        LD      (HL),A
-        PUSH    AF
-        INC     HL
+zi__add:                                ; (HL) = (DE) + (BC); flags of the highest byte (unrolled)
+        PUSH    HL
+        LD      H,B
+        LD      L,C
+        LD      A,(DE)
+        ADD     A,(HL)
+        LD      C,A
         INC     DE
-        INC     BC
-        LD      A,(zi__n)
-        DEC     A
-        JR      NZ,zi__a1
-        POP     AF
+        INC     HL
+        LD      A,(DE)
+        ADC     A,(HL)
+        LD      B,A
+        INC     DE
+        INC     HL
+        LD      A,(DE)
+        ADC     A,(HL)
+        LD      (zi__t),A
+        INC     DE
+        INC     HL
+        LD      A,(DE)
+        ADC     A,(HL)
+zi__put4:                               ; (SP) -> result: C, B, (zi__t), A; keeps the flags
+        POP     HL
+        LD      (HL),C
+        INC     HL
+        LD      (HL),B
+        INC     HL
+        LD      E,A
+        LD      A,(zi__t)
+        LD      (HL),A
+        INC     HL
+        LD      (HL),E
+        LD      A,E
         RET
 
 zi_sub:
@@ -47,30 +60,28 @@ zi_subv:
         JP      PE,zi__ovf
         OR      A
         RET
-zi__sub:                                ; (HL) = (DE) - (BC)
-        OR      A
-        PUSH    AF
-        LD      A,4
-zi__s1:
-        LD      (zi__n),A
-        LD      A,(BC)
-        LD      (zi__t),A
-        POP     AF
-        LD      A,(DE)
+zi__sub:                                ; (HL) = (DE) - (BC); flags of the highest byte (unrolled)
         PUSH    HL
-        LD      HL,zi__t
-        SBC     A,(HL)
-        POP     HL
-        LD      (HL),A
-        PUSH    AF
-        INC     HL
+        LD      H,B
+        LD      L,C
+        LD      A,(DE)
+        SUB     (HL)
+        LD      C,A
         INC     DE
-        INC     BC
-        LD      A,(zi__n)
-        DEC     A
-        JR      NZ,zi__s1
-        POP     AF
-        RET
+        INC     HL
+        LD      A,(DE)
+        SBC     A,(HL)
+        LD      B,A
+        INC     DE
+        INC     HL
+        LD      A,(DE)
+        SBC     A,(HL)
+        LD      (zi__t),A
+        INC     DE
+        INC     HL
+        LD      A,(DE)
+        SBC     A,(HL)
+        JR      zi__put4
 zi__ovf:
         SCF
         RET
@@ -250,6 +261,19 @@ zi__fl: SBC     A,A                     ; L = -1 if less
         RLA                             ; CF = less (RLA keeps Z)
         RET
 
+; HL -> the highest byte of a 32-bit value -> A = number of bytes up to its highest non-zero one
+zi__nb:
+        LD      B,4
+zi__nb1:
+        LD      A,(HL)
+        OR      A
+        LD      A,B
+        RET     NZ
+        DEC     HL
+        DJNZ    zi__nb1
+        XOR     A
+        RET
+
 ; signed multiplication with overflow: |a| * |b| as 64 bits, then the range
 zi_mulv:
         LD      (zi__dst),HL
@@ -274,7 +298,55 @@ zi__m0:
         LD      (HL),0
         INC     HL
         DJNZ    zi__m0
-        LD      A,32
+        LD      HL,zi__a+3              ; the factor with fewer significant bytes as the multiplier b
+        CALL    zi__nb
+        LD      C,A
+        LD      HL,zi__b+3
+        CALL    zi__nb
+        CP      C
+        JR      C,zi__mb                ; b has fewer bytes already
+        JR      Z,zi__mb
+        LD      HL,zi__a                ; swap a and b
+        LD      DE,zi__b
+        LD      B,4
+zi__sw:
+        LD      A,(DE)
+        LD      C,(HL)
+        LD      (HL),A
+        LD      A,C
+        LD      (DE),A
+        INC     HL
+        INC     DE
+        DJNZ    zi__sw
+zi__mb:
+        LD      HL,zi__b+3              ; A = significant bytes of b: its top byte to zi__b+3
+        CALL    zi__nb
+        OR      A
+        JP      Z,zi__m9                ; b = 0: p = 0
+        LD      (zi__n),A               ; (the count, before the shift)
+        LD      C,A
+zi__mt:
+        CP      4
+        JR      Z,zi__mg
+        LD      HL,zi__b+2              ; b <<= 8
+        LD      DE,zi__b+3
+        LD      B,3
+zi__ms:
+        LD      A,(HL)
+        LD      (DE),A
+        DEC     HL
+        DEC     DE
+        DJNZ    zi__ms
+        XOR     A
+        LD      (zi__b),A
+        INC     C
+        LD      A,C
+        JR      zi__mt
+zi__mg:
+        LD      A,(zi__n)               ; 8 bits per significant byte
+        ADD     A,A
+        ADD     A,A
+        ADD     A,A
 zi__m1:
         PUSH    AF
         LD      HL,zi__p                ; p <<= 1
@@ -314,6 +386,7 @@ zi__m5:
         POP     AF
         DEC     A
         JR      NZ,zi__m1
+zi__m9:
         LD      HL,(zi__dst)            ; the low 32 bits with the sign (also on overflow: rt_imul)
         LD      DE,zi__p
         EX      DE,HL

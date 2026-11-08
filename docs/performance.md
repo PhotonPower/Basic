@@ -69,6 +69,14 @@ Auf einem CPC (rund 4 MHz) wären das für `bench_float` etwa 10 Minuten, für `
    mit Großzahlen; bei kleinerem `DEFNUM` bleibt der Weg über Fließkomma (dort wird gerundet,
    probe2 T33). Grenzfälle in `intfast`: `bench_string` Z80 −71 % T-States, 68000 −41 % Befehle.
 
+9. Z80, Laden von Variablen: Liest nur dieselbe Anweisung den geladenen Wert, und ändert bis dahin
+   nichts die Variable (kein Speichern in sie, kein Schreiben über eine Adresse, kein Aufruf, keine
+   Laufzeitroutine mit einer Adresse, kein Sprung), wird er nicht in einen Stapelplatz kopiert: Der
+   Operand ist die Variable selbst. Fehler kommen nicht dazwischen, weil die Fehlerroutine an einer
+   Anweisungsgrenze fortsetzt.
+10. Z80, `zi_add`/`zi_sub` ohne Schleife, `zi_mulv` nur über die signifikanten Bytes des kleineren
+    Faktors (für `*2` 8 statt 32 Schritte); im Konformanztest gegen C.
+
 Werkzeug dafür: `BASIC_Z80_PROFILE=1 BASIC_Z80_PROGRAM=<datei> build/tests/test_z80_programs` zeigt
 die T-States je Routine (Marke im Quelltext; `modul__x` zählt zum Modul, Programmcode als
 `program`); `BASIC_Z80_PROFILE=2` zeigt jede Marke einzeln. Für den 68000 zeigt

@@ -24,7 +24,9 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
   ohne Schleifen, Tabelle der Viertelquadrate (Mandelbrot: Z80 −65 % Takte, bitgleich); 68000:
   `fp_round_pack` normalisiert in großen Schritten, `rt_arr_elem` ohne unnötige Multiplikationen,
   `BASIC_M68K_PROFILE` (Befehle und Zugriffe je Routine); `STR$`/`PRINT` einer Ganzzahl schreiben
-  bei `DEFNUM` 13 die Ziffern direkt (`rt_fmt_int`, `rt_str_int`; Strings: Z80 −71 %).
+  bei `DEFNUM` 13 die Ziffern direkt (`rt_fmt_int`, `rt_str_int`; Strings: Z80 −71 %); Z80:
+  Variablen als Operanden ohne Kopie in einen Stapelplatz, `zi_add`/`zi_sub` ohne Schleife,
+  `zi_mulv` nur über die signifikanten Bytes.
 - MC68000, zweiter Teil: LIR mit Lowering (`--emit-lir`), 68000-Backend
   (`basicc --target m68k-test`), Runtime-Module für `PRINT`, Ganzzahlhilfen, `FOR`, Potenz; die
   Module sind in `basicc` eingebettet. Das erste Golden-Programm (`numbers`) läuft übersetzt im

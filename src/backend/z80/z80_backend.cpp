@@ -238,7 +238,54 @@ private:
                 else if (i->kind == Kind::RoutineAddr) constCell_[k] = cell("DW      " + fname(i->routine) + ",0,0,0");
             }
         }
+        aliasLoads(f, defs);
         shareSlots(f);
+    }
+
+    // A load of an Int or Float variable (not VAR-bound) whose value is only read in the same
+    // statement, before anything could change the variable (a store to it, a store through an
+    // address, a call, a runtime routine that gets an address, a jump or label in between), is not
+    // copied: the operand is the variable itself (like a constant cell). Errors cannot get between,
+    // as the error routine resumes at a statement boundary.
+    void aliasLoads(const lir::Function& f, const std::vector<int>& defs) {
+        const std::size_t n = static_cast<std::size_t>(f.regs);
+        std::vector<std::vector<std::size_t>> readAt(n);
+        for (std::size_t k = 0; k < f.code.size(); ++k) {
+            const Instr& i = f.code[k];
+            for (const Reg* r : {&i.a, &i.b})
+                if (r->id >= 0) readAt[static_cast<std::size_t>(r->id)].push_back(k);
+            for (const Reg& r : i.args)
+                if (r.id >= 0) readAt[static_cast<std::size_t>(r.id)].push_back(k);
+        }
+        for (std::size_t k = 0; k < f.code.size(); ++k) {
+            const Instr& ld = f.code[k];
+            if (ld.kind != Kind::Load || ld.dst.id < 0) continue;
+            const auto r = static_cast<std::size_t>(ld.dst.id);
+            const hir::Type t = varType(ld.var);
+            if (defs[r] != 1 || indirect(ld.var) || (t != hir::Type::Int && t != hir::Type::Float) || !constCell_[r].empty()) continue;
+            const std::vector<std::size_t>& reads = readAt[r];
+            if (reads.empty()) continue;
+            bool ok = true;
+            std::size_t last = 0;
+            for (std::size_t u : reads) {
+                if (u <= k) ok = false;
+                last = std::max(last, u);
+            }
+            for (std::size_t j = k + 1; ok && j < last; ++j) {
+                const Instr& x = f.code[j];
+                switch (x.kind) {
+                    case Kind::Store: ok = x.var != ld.var; break;
+                    case Kind::RtCall:
+                        for (const Reg& a : x.args)
+                            if (a.type == VT::Addr) ok = false;
+                        break;
+                    case Kind::ConstI: case Kind::ConstF: case Kind::ConstS: case Kind::Load: case Kind::Op:
+                    case Kind::Cmp: case Kind::PrintStr: case Kind::Addr: case Kind::LoadAt: case Kind::RoutineAddr: break;
+                    default: ok = false;  // labels, jumps, calls, stores through addresses, LOCAL, ...
+                }
+            }
+            if (ok) constCell_[r] = var(ld.var);
+        }
     }
 
     // slots by lifetime: registers whose live ranges (as intervals over the code, from liveness on the
