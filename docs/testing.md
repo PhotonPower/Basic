@@ -87,3 +87,11 @@ Größe unerwartet, zeigt die Map-Datei des Linkers, welches Modul hereingezogen
 - Jede Optimierung muss die Differenztests bestehen.
 - Eine Änderung an `runtime/ref` ist eine Änderung der Semantik: Sie braucht einen Eintrag in
   [decisions.md](decisions.md) und neue Sollwerte für alle Ports.
+
+## Z80
+
+`test_conformance_z80` vergleicht die Module von `runtime/z80` mit `runtime/ref` (wie beim 68000,
+zusätzlich die Integer-Routinen `zi_*`/`rt_int` gegen C). `test_z80_programs` übersetzt jedes
+Testprogramm für z80-test und vergleicht die Ausgabe; was Backend oder Laufzeit noch nicht können,
+wird übersprungen und mit dem Grund aufgeführt (`BASIC_Z80_PROGRAM=<datei>` für ein einzelnes
+Programm).

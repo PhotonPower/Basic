@@ -42,7 +42,9 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
   Wartezeiten für den Merge-Dialog und das Einlesen.
 - Z80 (Meilenstein 0.5, D30): Fließkomma-Kern in `runtime/z80` (Addition, Subtraktion,
   Multiplikation, Division, Vergleich, Umwandlungen, Wurzel, `TRUNC`/`INT`/`FRAC`/`CINT`, `==`,
-  `ABS`), bitgenau zur C-Referenz; Aufrufhilfe
+  `ABS`), bitgenau zur C-Referenz; Backend `src/backend/z80`, Plattform z80-test, 32-Bit-Integer
+  (`zi`, `rt_int`), `PRINT` von Strings und Integern; `basicc --target z80-test`; Testtreiber
+  `z80_programs` und Testprogramm `intcore`; Aufrufhilfe
   `Z80Routines`, Konformanztest `conformance_z80`; Linker-Anordnung `PlainZ80`.
 - Maus und Joystick (D29): `MOUSEX`, `MOUSEY`, `MOUSEK`, `MOUSE`, `STICK()`, `STRIG()` statt Variablen
   und Feldern; auf dem Amiga aus der Window-Struktur und der Hardware. Testprogramm `mouse`.

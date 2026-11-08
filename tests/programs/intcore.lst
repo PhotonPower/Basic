@@ -1,0 +1,32 @@
+' test: groups core print
+' Integer-Kern ohne Fliesskomma-Ausgabe: Schleifen, Bedingungen, Vergleiche, Ueberlauf, PRINT mit
+' Komma, TAB und SPC (erstes Programm des Z80-Ziels).
+PRINT "Hallo Z80"
+FOR i%=1 TO 5
+  a%=i%*7-2
+  PRINT i%;" ";a%
+NEXT i%
+b%=2147483647
+c%=b%-1
+PRINT c%;" ";-b%
+x%=-12345
+PRINT x%,x%*2;TAB(30);"t"
+PRINT "a";SPC(3);"b"
+IF a%>10 AND x%<0
+  PRINT "gross und negativ"
+ELSE
+  PRINT "nein"
+ENDIF
+n%=0
+WHILE n%<3
+  INC n%
+WEND
+PRINT "n=";n%
+REPEAT
+  DEC n%
+UNTIL n%=0
+PRINT n%
+d%=1000*1000
+PRINT d%
+PRINT 7 MOD 3;" ";-7 DIV 2;" ";7 AND 3;" ";5 OR 2;" ";5 XOR 1
+PRINT "ende"

@@ -15,6 +15,7 @@
 #include "frontend/sema.hpp"
 #include "backend/cpp/cpp_backend.hpp"
 #include "backend/m68k/m68k_backend.hpp"
+#include "backend/z80/z80_backend.hpp"
 #include "ir/interp.hpp"
 #include "ir/lower.hpp"
 #include "link/embedded.hpp"
@@ -161,6 +162,30 @@ int compileM68k(const std::string& path, std::string output, bool amiga) {
     return diags.empty() ? 0 : 1;
 }
 
+// Z80 (z80-test): lowering, backend, source-level linker; writes the assembler source (ORG &4000).
+int compileZ80(const std::string& path, std::string output) {
+    basic::hir::Program h;
+    if (!frontEnd(path, h)) return 1;
+    basic::Diagnostics diags;
+    const std::string source = basic::buildZ80Program(h, basic::Z80Target::Test, diags);
+    if (diags.empty()) {
+        if (output.empty()) {
+            output = path;
+            const auto dot = output.rfind('.');
+            if (dot != std::string::npos && output.find('/', dot) == std::string::npos) output.resize(dot);
+            output += ".s";
+        }
+        std::ofstream out(output, std::ios::binary);
+        if (!out) {
+            std::cerr << "basicc: cannot write '" << output << "'\n";
+            return 2;
+        }
+        out << source;
+    }
+    for (const basic::Diagnostic& d : diags) std::cerr << basic::formatDiagnostic(path, d) << "\n";
+    return diags.empty() ? 0 : 1;
+}
+
 int emitLir(const std::string& path) {
     basic::hir::Program h;
     if (!frontEnd(path, h)) return 1;
@@ -257,6 +282,7 @@ int main(int argc, char** argv) {
     }
     if (target == "pc") return compilePc(input, output);
     if (target == "m68k-test" || target == "amiga") return compileM68k(input, output, target == "amiga");
+    if (target == "z80-test") return compileZ80(input, output);
     std::cerr << "basicc: target '" << target << "' is not implemented yet (see docs/roadmap.md)\n";
     return 2;
 }

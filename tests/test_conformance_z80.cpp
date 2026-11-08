@@ -69,9 +69,13 @@ class Runtime {
 public:
     Runtime() {
         Diagnostics d;
-        std::vector<link::Module> mods = link::loadModules(std::string(BASIC_SOURCE_DIR) + "/runtime/z80", d);
+        std::vector<link::Module> mods;
+        for (link::Module& m : link::loadModules(std::string(BASIC_SOURCE_DIR) + "/runtime/z80", d))
+            if (m.name != "rt_err") mods.push_back(std::move(m));
         std::vector<std::string> all;
         for (const link::Module& m : mods) all.insert(all.end(), m.provides.begin(), m.provides.end());
+        for (link::Module& m : link::loadModules(std::string(BASIC_SOURCE_DIR) + "/platform/z80-test", d))
+            if (m.name != "plat_error" && m.name != "plat_start") mods.push_back(std::move(m));
         std::vector<link::Module> stub = link::loadModules(std::string(BASIC_SOURCE_DIR) + "/tests/conformance/z80", d);
         mods.insert(mods.end(), stub.begin(), stub.end());
         for (const link::Module& m : mods) link::checkLabels(m, d);
@@ -115,11 +119,14 @@ public:
         }
         cycles_ += res.cycles;
         ++calls_;
+        carry_ = (res.regs.af & 1) != 0;
         const std::uint8_t e = rt_->read8(kErr);
         return {rt_->read64(kDst), e == 0xFF ? -1 : e};
     }
 
     std::uint64_t cycles_ = 0, calls_ = 0;
+    bool carry_ = false;
+    void poke(const std::string& sym, std::uint8_t v) { rt_->write8(rt_->symbol(sym), v); }
 
 private:
     std::unique_ptr<Z80Routines> rt_;
@@ -261,6 +268,65 @@ int main() {
         for (const auto& [a, b] : ops) {
             const auto [got, err] = rt.call("fp_approx_eq", a, b);
             report("fp_approx_eq", a, b, got & 0xFFFFFFFFu, err, static_cast<std::uint32_t>(fp_approx_eq(a, b)), -1);
+        }
+    }
+    {  // 32-bit integers of the generated code (zi): results, overflow in CF, comparisons
+        Rng rng;
+        std::vector<std::int32_t> vals = {0, 1, -1, 2, -2, 7, 46341, -46341, 65535, 65536, INT32_MAX, INT32_MIN, INT32_MAX - 1, INT32_MIN + 1};
+        for (int k = 0; k < 60; ++k) vals.push_back(static_cast<std::int32_t>(rng.next() >> (rng.next() % 40)));
+        const auto u = [](std::int32_t v) { return static_cast<std::uint32_t>(v); };
+        for (std::int32_t a : vals)
+            for (std::int32_t b : vals) {
+                const std::int64_t sum = std::int64_t{a} + b, dif = std::int64_t{a} - b, pro = std::int64_t{a} * b;
+                const auto fits = [](std::int64_t v) { return v >= INT32_MIN && v <= INT32_MAX; };
+                auto r = rt.call("zi_add", u(a), u(b));
+                report("zi_add", u(a), u(b), r.first & 0xFFFFFFFFu, r.second, static_cast<std::uint32_t>(sum), -1);
+                r = rt.call("zi_addv", u(a), u(b));
+                report("zi_addv carry", u(a), u(b), rt.carry_, 0, !fits(sum), 0);
+                r = rt.call("zi_sub", u(a), u(b));
+                report("zi_sub", u(a), u(b), r.first & 0xFFFFFFFFu, r.second, static_cast<std::uint32_t>(dif), -1);
+                r = rt.call("zi_subv", u(a), u(b));
+                report("zi_subv carry", u(a), u(b), rt.carry_, 0, !fits(dif), 0);
+                r = rt.call("zi_mulv", u(a), u(b));
+                report("zi_mulv carry", u(a), u(b), rt.carry_, 0, !fits(pro), 0);
+                if (fits(pro)) report("zi_mulv", u(a), u(b), r.first & 0xFFFFFFFFu, r.second, static_cast<std::uint32_t>(pro), -1);
+                r = rt.call("rt_imul", u(a), u(b));
+                report("rt_imul", u(a), u(b), r.first & 0xFFFFFFFFu, r.second, u(a) * u(b), -1);
+                if (b != 0) {
+                    r = rt.call("rt_idiv", u(a), u(b));
+                    const std::int64_t q = std::int64_t{a} / b, m = std::int64_t{a} % b;
+                    report("rt_idiv", u(a), u(b), r.first & 0xFFFFFFFFu, r.second, static_cast<std::uint32_t>(q), -1);
+                    r = rt.call("rt_imod", u(a), u(b));
+                    report("rt_imod", u(a), u(b), r.first & 0xFFFFFFFFu, r.second, static_cast<std::uint32_t>(m), -1);
+                } else {
+                    r = rt.call("rt_idiv", u(a), u(b));
+                    report("rt_idiv /0", u(a), u(b), r.first & 0xFFFFFFFFu, r.second, 0, 0);
+                }
+                r = rt.call("zi_and", u(a), u(b));
+                report("zi_and", u(a), u(b), r.first & 0xFFFFFFFFu, r.second, u(a & b), -1);
+                r = rt.call("zi_or", u(a), u(b));
+                report("zi_or", u(a), u(b), r.first & 0xFFFFFFFFu, r.second, u(a | b), -1);
+                r = rt.call("zi_xor", u(a), u(b));
+                report("zi_xor", u(a), u(b), r.first & 0xFFFFFFFFu, r.second, u(a ^ b), -1);
+                const bool want[6] = {a == b, a != b, a < b, a <= b, a > b, a >= b};
+                for (int c = 0; c < 6; ++c) {
+                    rt.poke("zi_cmp_code", static_cast<std::uint8_t>(c));
+                    r = rt.call("zi_cmp", u(a), u(b));
+                    report("zi_cmp " + std::to_string(c), u(a), u(b), r.first & 0xFFFFFFFFu, r.second, want[c] ? 0xFFFFFFFFu : 0u, -1);
+                }
+            }
+        for (std::int32_t a : vals) {
+            auto r = rt.call("zi_neg", u(a));
+            report("zi_neg", u(a), 0, r.first & 0xFFFFFFFFu, r.second, static_cast<std::uint32_t>(0u - u(a)), -1);
+            r = rt.call("zi_not", u(a));
+            report("zi_not", u(a), 0, r.first & 0xFFFFFFFFu, r.second, ~u(a), -1);
+            r = rt.call("zi_mov", u(a));
+            report("zi_mov", u(a), 0, r.first & 0xFFFFFFFFu, r.second, u(a), -1);
+            const bool w = a >= -32768 && a <= 32767, by = a >= 0 && a <= 255;
+            r = rt.call("rt_conv_word", u(a));
+            report("rt_conv_word", u(a), 0, r.first & 0xFFFFFFFFu, r.second, w ? u(a) : 0u, w ? -1 : 4);
+            r = rt.call("rt_conv_byte", u(a));
+            report("rt_conv_byte", u(a), 0, r.first & 0xFFFFFFFFu, r.second, by ? u(a) : 0u, by ? -1 : 3);
         }
     }
     if (rt.calls_ > 0) std::fprintf(stderr, "average %llu T-states per call\n", static_cast<unsigned long long>(rt.cycles_ / rt.calls_));

@@ -68,7 +68,7 @@ target_compile_features(basic_rt_pc PUBLIC cxx_std_17)
 basic_set_warnings(basic_rt_pc)
 
 # ---- runtime modules built into the compiler ---------------------------------------------
-set(BASIC_MODULE_DIRS runtime/m68k platform/m68k-test platform/amiga)
+set(BASIC_MODULE_DIRS runtime/m68k platform/m68k-test platform/amiga runtime/z80 platform/z80-test)
 string(REPLACE ";" "," BASIC_MODULE_DIRS_ARG "${BASIC_MODULE_DIRS}")
 set(BASIC_MODULE_FILES "")
 foreach(dir ${BASIC_MODULE_DIRS})
@@ -99,6 +99,7 @@ add_library(basiccore STATIC
   src/ir/lir.cpp
   src/ir/lower.cpp
   src/backend/m68k/m68k_backend.cpp
+  src/backend/z80/z80_backend.cpp
   ${CMAKE_CURRENT_BINARY_DIR}/embedded_modules.cpp)
 target_include_directories(basiccore PUBLIC include src)
 target_link_libraries(basiccore PUBLIC basic_rt_pc)

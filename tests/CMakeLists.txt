@@ -85,6 +85,12 @@ if(BASIC_WITH_EMULATORS)
   target_compile_definitions(test_m68k_programs PRIVATE BASIC_SOURCE_DIR="${PROJECT_SOURCE_DIR}")
   basic_set_warnings(test_m68k_programs)
   add_test(NAME m68k_programs COMMAND test_m68k_programs)
+
+  add_executable(test_z80_programs test_z80_programs.cpp)
+  target_link_libraries(test_z80_programs PRIVATE basic_harness basiccore)
+  target_compile_definitions(test_z80_programs PRIVATE BASIC_SOURCE_DIR="${PROJECT_SOURCE_DIR}")
+  basic_set_warnings(test_z80_programs)
+  add_test(NAME z80_programs COMMAND test_z80_programs)
 endif()
 
 # Tools written in Python (standard library only); skipped without Python 3.

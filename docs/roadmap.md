@@ -94,7 +94,10 @@ Weiter: Menüauswahl mit der Maus prüfen (von Hand); Felder mit mehr als 3 Dime
 Stand: ✔ Konvention (D30), ✔ Aufrufhilfe `Z80Routines` und Konformanztest, ✔ Fließkomma-Kern
 `fp_add`/`fp_sub`/`fp_neg`/`fp_mul`/`fp_div`/`fp_cmp`/`fp_from_i32`/`fp_to_i32`/`i16`/`u8`
 bitgenau zur Referenz, ✔ `fp_sqrt` (Stelle für Stelle), `fp_trunc`/`int`/`frac`/`cint`, `fp_canon`,
-`fp_abs`, `==` (`fp_approx_eq`). Weiter: Backend und Plattform z80-test, Integer- und String-Laufzeit.
+`fp_abs`, `==` (`fp_approx_eq`), ✔ Backend `src/backend/z80` (Stapelplätze über IX, Laufzeit mit Zeigern),
+✔ Plattform z80-test, ✔ 32-Bit-Integer (`zi`, `rt_int`), ✔ `PRINT` von Strings und Integern,
+✔ `basicc --target z80-test`, Testtreiber `z80_programs` (überspringt, was noch fehlt). Weiter:
+Fließkomma-Ausgabe (`rt_fmt_flt`), Strings, Felder, Prozeduren mit Parametern, `ON ERROR`.
 
 - LIR → Z80-Assembler, `runtime/z80`, `platform/cpc` (AMSDOS-Header, `.sna`) und `platform/z80-test`.
 - Konformanz- und Differenztests, Größenbudgets.
