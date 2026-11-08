@@ -590,5 +590,11 @@ kopieren.
   (+0 Beschreibung `vd<k>`, +2 nächster Eintrag, +4 Daten), `RESUME` setzt SP und IX zurück und
   holt gesicherte Variablen zurück. `ERROR n` übergibt die Nummer in A. Die Fehlernummer -1
   („RESUME“ außerhalb der Fehlerroutine) kommt als 255 bei `plat_error` an.
+- `VAL` (und damit `READ`) behält auf dem Z80 40 signifikante Ziffern (weitere Ziffern ungleich 0
+  setzen das Sticky-Bit) statt 800: exakt für jede Eingabe mit bis zu 40 Ziffern; erst bei längeren
+  Eingaben, die extrem nah an einem Halbpunkt zweier binary64-Zahlen liegen, kann die Rundung
+  abweichen. Exponenten wachsen ab 3000 nicht mehr (die Referenz: 100000); das ändert nur Eingaben mit
+  Tausenden von Ziffern. Die großen Ganzzahlen haben dafür 176 Bytes.
+- Der Linker meldet in Z80-Modulen Labels, die sich nur in Groß-/Kleinschreibung unterscheiden.
 - Der erzeugte Code ist noch groß (jeder Zugriff berechnet die Adresse des Stapelplatzes): `arrays.lst`
   braucht 24,7 KB mit Laufzeit. Für den CPC (rund 40 KB) muss das Backend später sparsamer werden.

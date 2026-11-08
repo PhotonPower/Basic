@@ -49,7 +49,8 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
   Strings nach D18 (`rt_str`, `rt_strfn`, Halde der Plattform), Testprogramm `strcore`; Felder
   (`rt_arr`, Feldbereich der Plattform), Testprogramm `arrcore`; Prozeduren und Funktionen mit
   Parametern, `LOCAL`, `VAR`-Parameter; Linker-Label `prg_end`; `ON ERROR`/`RESUME`/`ERR`/`ERR$`
-  (`rt_err`, `rt_onerr`, `rt_resume`, `rt_errtext`); Aufrufhilfe
+  (`rt_err`, `rt_onerr`, `rt_resume`, `rt_errtext`); `FOR` mit Integer-Variable (`rt_for`), `ROUND`,
+  `VAL`/`VAL?` (`rt_val` mit 40 Ziffern, D30), `DATA`/`READ`/`RESTORE`; Aufrufhilfe
   `Z80Routines`, Konformanztest `conformance_z80`; Linker-Anordnung `PlainZ80`.
 - Maus und Joystick (D29): `MOUSEX`, `MOUSEY`, `MOUSEK`, `MOUSE`, `STICK()`, `STRIG()` statt Variablen
   und Feldern; auf dem Amiga aus der Window-Struktur und der Hardware. Testprogramm `mouse`.

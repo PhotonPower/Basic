@@ -80,7 +80,10 @@ public:
         mods.insert(mods.end(), stub.begin(), stub.end());
         for (const link::Module& m : mods) link::checkLabels(m, d);
         const link::Library lib = link::makeLibrary(std::move(mods), d);
-        const link::Result r = link::link(lib, link::Program{}, all, link::Layout::PlainZ80, "        ORG &4000\n", d);
+        link::Program prog;  // what a compiled program provides for the runtime (rt_data): no DATA items
+        prog.data = "prg_data_count:\n        DW      0\nprg_data:\n";
+        prog.provides = {"prg_data", "prg_data_count"};
+        const link::Result r = link::link(lib, prog, all, link::Layout::PlainZ80, "        ORG &4000\n", d);
         for (const Diagnostic& x : d) std::cerr << "link: " << x.message << "\n";
         CHECK(d.empty());
         if (const char* dump = std::getenv("BASIC_DUMP_SOURCE")) {
@@ -400,6 +403,50 @@ int main() {
             const std::uint32_t want = static_cast<std::uint32_t>(fp_to_i32(t));
             const auto [got, err] = rt.call("rt_for_wrap_int", x);
             report("rt_for_wrap_int", x, 0, got & 0xFFFFFFFFu, err, want, g_error);
+        }
+    }
+    {  // rt_val: text -> binary64 and the number of characters read (inputs of up to 40 digits, D30)
+        std::vector<std::string> texts = {"0", "1", "-1", "+2.5", "  3.25", "1E", "1E+", "1E-5", "1e300", "1E309", "1E-330",
+                                          "2.2250738585072014E-308", "4.9E-324", "1.7976931348623157E308", "1.7976931348623159E308",
+                                          "0.1", ".5", "5.", "-.", "", "abc", "12abc", "&H7FFFFFFF", "&HFFFFFFFF", "&h10",
+                                          "$FF", "%1011", "&O777", "&X101", "&Q", "&", "-&H10", "9007199254740993",
+                                          "9007199254740992.5", "123456789012345678901234567890", "0.000000000000000000001",
+                                          "1.5E-7", "3.14159265358979323846", "1E-1000", "1E3000", "00012.3400", "1.0000000000000002",
+                                          "4.4501477170144023E-308", "2.4703282292062327E-324", " -0", "1e5x", "1E2E3"};
+        Rng rng;
+        for (int k = 0; k < cases; ++k) {  // random values in the format of PRINT and with 17 digits
+            const f64 x = randomF64(rng, k % 2 == 0 ? 1 : 900, k % 2 == 0 ? 2046 : 1150);
+            char b[64];
+            rt_fmt_flt(b, x, 13);
+            texts.emplace_back(b);
+            const std::uint64_t m = rng.next() % 100000000000000000ULL;
+            std::snprintf(b, sizeof b, "%llu.%lluE%d", static_cast<unsigned long long>(m / 10000000000000000ULL),
+                          static_cast<unsigned long long>(m % 10000000000000000ULL), rng.range(-320, 300));
+            texts.emplace_back(b);
+        }
+        for (const std::string& t : texts) {
+            std::int32_t used = 0;
+            g_error = -1;
+            const f64 want = rt_val(t.data(), static_cast<std::int32_t>(t.size()), &used);
+            for (std::size_t i = 0; i < t.size(); ++i) rt.raw().write8(static_cast<std::uint16_t>(0xE200 + i), static_cast<std::uint8_t>(t[i]));
+            rt.raw().write64(kDst, 0xA5A5A5A5A5A5A5A5u);
+            Z80Regs in;
+            in.hl = kDst;
+            in.de = 0xE200;
+            in.bc = static_cast<std::uint16_t>(t.size());
+            in.ix = 0x1357;
+            in.iy = 0x2468;
+            const auto res = rt.raw().call("rt_val", in, 50'000'000);
+            const std::uint64_t got = res.ok ? rt.raw().read64(kDst) : 0;
+            const std::uint16_t usedAt = rt.raw().symbol("rt_val_used");
+            const int gotUsed = rt.raw().read8(usedAt) | rt.raw().read8(static_cast<std::uint16_t>(usedAt + 1)) << 8;
+            ++g_checks;
+            if (!res.ok || got != want || gotUsed != used) {
+                ++g_failures;
+                if (g_shown++ < 20)
+                    std::fprintf(stderr, "rt_val(\"%s\"): got %016llX used %d, want %016llX used %d %s\n", t.c_str(),
+                                 static_cast<unsigned long long>(got), gotUsed, static_cast<unsigned long long>(want), used, res.error.c_str());
+            }
         }
     }
     if (rt.calls_ > 0) std::fprintf(stderr, "average %llu T-states per call\n", static_cast<unsigned long long>(rt.cycles_ / rt.calls_));

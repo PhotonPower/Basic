@@ -346,8 +346,8 @@ rt_flt_dec__plo:
 rt_flt_dec__q:
         DS      8
 rt_flt_dec__t:
-        DS      160
+        DS      176
 rt_flt_dec__num:
-        DS      160
+        DS      176
 rt_flt_dec__den:
-        DS      160
+        DS      176

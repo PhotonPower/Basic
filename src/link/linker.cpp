@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <map>
 #include <filesystem>
 #include <fstream>
 #include <set>
@@ -104,11 +105,21 @@ std::vector<Module> loadModules(const std::string& dir, Diagnostics& diags) {
 void checkLabels(const Module& m, Diagnostics& diags) {
     const std::set<std::string> provided(m.provides.begin(), m.provides.end());
     const std::string prefix = m.name + "__";
+    // the Z80 assembler ignores the case of labels: two names that differ only in it collide
+    const bool z80 = m.file.find("z80") != std::string::npos || m.file.find("cpc") != std::string::npos;
+    std::map<std::string, std::string> folded;
     for (const Module::Part& part : m.parts) {
         std::istringstream in(part.text);
         std::string line;
         while (std::getline(in, line)) {
             const std::string l = labelOf(line);
+            if (z80 && !l.empty()) {
+                std::string f;
+                for (char c : l) f += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+                const auto [it, fresh] = folded.emplace(f, l);
+                if (!fresh && it->second != l)
+                    diags.push_back({0, 0, m.file + ": labels '" + it->second + "' and '" + l + "' differ only in case (the Z80 assembler ignores it)"});
+            }
             if (l.empty() || l[0] == '.' || provided.count(l) != 0 || l.rfind(prefix, 0) == 0) continue;
             diags.push_back({0, 0, m.file + ": label '" + l + "' is neither provided nor prefixed with '" + prefix + "'"});
         }

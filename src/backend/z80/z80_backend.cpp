@@ -53,6 +53,21 @@ public:
                 }
             }
         }
+        // the DATA table for rt_data: READ, RESTORE, MAT READ
+        if (uses_.count("rt_data_str") + uses_.count("rt_data_num") + uses_.count("rt_data_restore") + uses_.count("rt_mat_read") != 0) {
+            const auto& items = p_.hir->data;
+            out_.data += "prg_data_count:\n        DW      " + std::to_string(items.size()) + "\nprg_data:\n";
+            std::string texts;
+            for (std::size_t k = 0; k < items.size(); ++k) {
+                const std::string l = "d" + std::to_string(k);
+                out_.data += "        DW      " + (items[k].text.empty() ? std::string("0") : l) + "," + std::to_string(items[k].text.size()) +
+                             "\n        DB      " + (items[k].quoted ? "1" : "0") + ",0\n";
+                if (!items[k].text.empty()) texts += l + ":\n        DB      " + dbBytes(items[k].text) + "\n";
+            }
+            out_.data += texts;
+            out_.provides.push_back("prg_data");
+            out_.provides.push_back("prg_data_count");
+        }
         if (uses_.count("rt_resume") != 0) {  // RESUME label: per HIR label its address and routine
             out_.bss += "prg_rlab:\n        DS      " + std::to_string(4 * std::max<std::size_t>(1, p_.hir->labels.size())) + "\n";
             out_.provides.push_back("prg_rlab");

@@ -102,7 +102,8 @@ Plattform, Bereinigung, Zwischenergebnisse; `rt_strfn`: Verkettung, Vergleich, `
 `LEFT$`/`RIGHT$`/`MID$`, `SPACE$`, `STRING$`, `INSTR`, `UPPER$`, `TRIM$`, `STR$`), ✔ Felder (`rt_arr`:
 `DIM`, Elemente mit Prüfung, `DIM?`, `ERASE`, `OPTION BASE`, `SWAP`; Feldbereich der Plattform),
 ✔ Prozeduren und Funktionen mit Parametern, `LOCAL`, `VAR`-Parameter, String-Funktionen, ✔ `ON ERROR`,
-`RESUME`, `ERR`, `ERR$`, `ERROR`. Weiter: Prozeduren mit Parametern und `LOCAL`, `ON ERROR`, `DATA`, Eingabe.
+`RESUME`, `ERR`, `ERR$`, `ERROR`, ✔ `FOR` mit Integer-Variable, `ROUND`, `VAL`/`VAL?`, `DATA`/`READ`/
+`RESTORE`. Weiter: Prozeduren mit Parametern und `LOCAL`, `ON ERROR`, `DATA`, Eingabe.
 
 - LIR → Z80-Assembler, `runtime/z80`, `platform/cpc` (AMSDOS-Header, `.sna`) und `platform/z80-test`.
 - Konformanz- und Differenztests, Größenbudgets.
