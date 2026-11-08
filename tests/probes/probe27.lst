@@ -1,0 +1,76 @@
+' probe27 - Stifte von PRINT im Fenster: Vorder- und Hintergrund nach COLOR (GFA-BASIC 3.5, Amiga).
+' Ergebnisdatei DH0:probe27.txt. Ein Zeichen "#" (volle Zelle mit Luecken) wird ausgezaehlt.
+'
+datei$="DH0:probe27.txt"
+OPEN "O",#1,datei$
+ON ERROR GOSUB fehler
+PRINT #1,"probe27"
+@flush
+OPENS 1,0,0,320,256,2,0
+OPENW #1,0,0,320,256,0,&H1140
+' T1 COLOR 2,1
+COLOR 3
+PBOX 0,0,100,60
+COLOR 2,1
+LOCATE 2,2
+PRINT "#";
+@zellen("T1 COLOR 2,1")
+' T2 COLOR 0,3 (Vordergrund 0)
+COLOR 3
+PBOX 0,0,100,60
+COLOR 0,3
+LOCATE 2,2
+PRINT "#";
+@zellen("T2 COLOR 0,3")
+' T3 nur COLOR 3 (Hintergrund wie vorher)
+COLOR 1
+PBOX 0,0,100,60
+COLOR 3
+LOCATE 2,2
+PRINT "#";
+@zellen("T3 COLOR 3")
+' T4 DEFFILL 2 nach COLOR 1,0: aendert DEFFILL den Textstift?
+COLOR 3
+PBOX 0,0,100,60
+COLOR 1,0
+DEFFILL 2
+LOCATE 2,2
+PRINT "#";
+@zellen("T4 COLOR 1,0 DEFFILL 2")
+CLOSEW #1
+CLOSES 1
+PRINT #1,"ende"
+CLOSE #1
+END
+' Haeufigkeit der Werte im Rechteck 0..60 x 0..40
+PROCEDURE zellen(t$)
+  LOCAL x%,y%,p%,s$
+  DIM h%(16)
+  FOR y%=0 TO 40
+    FOR x%=0 TO 60
+      p%=POINT(x%,y%)
+      IF p%>=0 AND p%<16
+        INC h%(p%)
+      ENDIF
+    NEXT x%
+  NEXT y%
+  s$=""
+  FOR p%=0 TO 3
+    s$=s$+" "+STR$(p%)+":"+STR$(h%(p%))
+  NEXT p%
+  PRINT #1,t$;s$
+  ERASE h%()
+  @flush
+RETURN
+PROCEDURE flush
+  CLOSE #1
+  OPEN "A",#1,datei$
+RETURN
+PROCEDURE fehler
+  e%=ERR
+  CLOSE #1
+  OPEN "A",#1,datei$
+  PRINT #1,"   -> ERR ";e%;" ";ERR$(e%)
+  ON ERROR GOSUB fehler
+  RESUME NEXT
+RETURN

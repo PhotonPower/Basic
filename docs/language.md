@@ -178,6 +178,9 @@ Diese Punkte sind aus dem Handbuch nicht sicher zu entnehmen und werden am Origi
   `OUT #n,b,...` lesen/schreiben Bytes. `NAME a$ AS b$` auf ein vorhandenes Ziel: −53 „object
   already exists“ (203). `ERR$(50)` ist im Original verstümmelt („file isn4fields greater than
   record“); wir liefern „fields greater than record“.
+- **Text im Grafikfenster** (probe26, probe27, [D25](decisions.md#d25)): Auf dem Amiga erscheint
+  `PRINT` auch im aktuellen Fenster, Stift 1 auf 0 (JAM2), Zellen 8 × 8, `LOCATE` 1,1 im Fenster mit
+  Flags bei (4, 11). `CIRCLE` auf LowRes rund (ry = r), Interlace doppelt hoch.
 - **Requester und Menüs** (Stufe 1, [D26](decisions.md#d26)): `ALERT`, `FILESELECT`, `FORM INPUT`,
   `MENU`, `ON MENU`, `MENU()` als Textdialoge im Interpreter, C++-Ziel und auf m68k-test; auf dem
   Amiga als Intuition-Fenster und -Menüs (die Menüauswahl mit der Maus ist noch ungeprüft).

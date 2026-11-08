@@ -40,6 +40,10 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 - `RESUME` setzt `ERR` auf 0 (probe12 T1); damit ist `errors2` am Original gleich.
 - `gfa_run.py`: Startmenü der Diskette nach einem Kaltstart (`boot` in `keys.json`), längere
   Wartezeiten für den Merge-Dialog und das Einlesen.
+- `PRINT` im Grafikfenster auf dem Amiga (probe26, probe27): Zellen 8 × 8, `LOCATE`/`PRINT AT`/`CLS`,
+  Rollen, Stift 1 auf 0; `OPENS` mit Bildschirmart, `OPENW` mit Flags (Rahmenkoordinaten) und auf
+  dem zuletzt geöffneten Screen; `CIRCLE` nach dem Seitenverhältnis des Screens (auch PC-Modell).
+  SCENERY_GENERATOR zeigt damit seinen Startbildschirm.
 - Verzeichnisbefehle auf dem 68000: `MKDIR`, `RMDIR`, `CHDIR`, `FILES`/`DIR [TO]` (`rt_dir`); Amiga
   über dos.library, m68k-test mit Verzeichnissen in der RAM-Disk. `dirs` läuft auf m68k-test und
   unter Kickstart 1.2.

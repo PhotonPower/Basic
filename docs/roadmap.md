@@ -77,8 +77,9 @@ am Original; Polygone in allen Ausführungen, `RESERVE`/`FRE`/`CLEAR`/`SOUND` au
 ✔ Requester und Menüs auf dem 68000 (D26 Stufe 2a/2b): m68k-test über Ports, Amiga über Intuition
 (Menüauswahl mit der Maus noch ungeprüft).
 ✔ Verzeichnisbefehle auf dem 68000 (Amiga: dos.library; m68k-test: RAM-Disk mit Verzeichnissen).
-Weiter: `PRINT`/`LOCATE` im Grafikfenster auf dem Amiga und `OPENS` mit eigener Größe und Tiefe
-(SCENERY_GENERATOR schreibt so); Bibliotheksaufrufe (`~ActivateWindow(…)`) und `WINDOW(n)`; Felder
+✔ `PRINT`/`LOCATE` im Grafikfenster auf dem Amiga, `OPENS`/`OPENW` mit Modus und Flags (probe26,
+probe27).
+Weiter: Bibliotheksaufrufe (`~ActivateWindow(…)`) und `WINDOW(n)`; Felder
 mit mehr als 3 Dimensionen auf dem 68000; `ABSOLUTE` mit dem vollen Speicherabbild nach D6; weitere Optimierungen (Variablen in Registern innerhalb von Schleifen ohne Aufrufe, Fließkomma inline).
 
 - Quelltext-Linker (`src/link`) mit Map-Datei und Label-Prüfung.

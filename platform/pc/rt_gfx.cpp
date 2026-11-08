@@ -39,8 +39,11 @@ void Gfx::openScreen(int n, const std::vector<std::int32_t>& a) {
             s.height = a[3];
         }
         if (a.size() >= 5) s.depth = std::clamp<std::int32_t>(a[4], 1, 6);
+        s.hires = a.size() >= 6 ? (a[5] & 0x8000) != 0 : s.width > 320;
+        s.lace = a.size() >= 6 && (a[5] & 4) != 0;
         for (std::size_t k = 0; k < kDefaultPalette.size(); ++k) s.palette[k] = kDefaultPalette[k];
     }
+    lastScreen_ = n;
     used_ = true;
 }
 
@@ -56,7 +59,7 @@ void Gfx::openWindow(int n, const std::vector<std::int32_t>& a) {
     Window& w = windows_[static_cast<std::size_t>(n)];
     w = Window{};
     w.open = true;
-    w.screen = a.size() >= 7 && a[6] >= 0 ? a[6] : 0;
+    w.screen = a.size() >= 7 && a[6] >= 0 ? a[6] : screens_[static_cast<std::size_t>(lastScreen_)].open ? lastScreen_ : 0;
     const Screen& s = screens_[static_cast<std::size_t>(w.screen)];
     if (a.size() >= 4) {
         w.x = a[0];
@@ -317,9 +320,17 @@ void Gfx::polyfill(const std::vector<std::int32_t>& xy) {
     fillOutline(outline);
 }
 
-// CIRCLE: an ellipse with ry = 4r/9 (HiRes, probe23 T1: the height is exact for r = 1..40; some
+// CIRCLE: an ellipse with ry = 4r/9 on HiRes (circleRy; probe23 T1: the height is exact for r = 1..40; some
 // points near the change of direction differ from the original, D25)
-void Gfx::circle(std::int32_t x, std::int32_t y, std::int32_t r, bool filled) { ellipse(x, y, r, 4 * r / 9, filled); }
+void Gfx::circle(std::int32_t x, std::int32_t y, std::int32_t r, bool filled) { ellipse(x, y, r, circleRy(r), filled); }
+
+// LowRes r, HiRes 4r/9, Interlace twice that (probe26 T1, T4, T5)
+std::int32_t Gfx::circleRy(std::int32_t r) const {
+    const Screen& s = screens_[static_cast<std::size_t>(win().screen)];
+    std::int32_t ry = s.hires ? 4 * r / 9 : r;
+    if (s.lace) ry *= 2;
+    return ry;
+}
 
 void Gfx::text(std::int32_t x, std::int32_t y, const std::string& s) {
     used_ = true;

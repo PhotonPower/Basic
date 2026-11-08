@@ -82,6 +82,7 @@ private:
     struct Screen {
         bool open = false;
         int width = 640, height = 256, depth = 2;
+        bool hires = true, lace = false;  // view modes: OPENS 7th argument, else HiRes above 320 pixels
         std::array<std::uint16_t, 64> palette{};
         std::string title;
     };
@@ -104,6 +105,7 @@ private:
     std::array<Screen, 8> screens_{};
     std::array<Window, 16> windows_{};
     int current_ = 0;
+    int lastScreen_ = 0;  // OPENW without a screen opens there
     int apen_ = 1, bpen_ = 0, open_ = 1;
     int mode_ = 0;  // GRAPHMODE: 0 JAM1, 1 JAM2, 2 COMPLEMENT (bits), 4 INVERSVID
     std::uint16_t pattern_ = 0xFFFF;
@@ -124,6 +126,7 @@ private:
     void fillOutline(const std::vector<std::pair<std::int32_t, std::int32_t>>& outline);
     void span(std::int32_t x1, std::int32_t x2, std::int32_t y, int color);
     static std::vector<std::pair<std::int32_t, std::int32_t>> ellipsePoints(std::int32_t rx, std::int32_t ry);
+    std::int32_t circleRy(std::int32_t r) const;  // by the mode of the screen (probe26)
 };
 
 }  // namespace brt

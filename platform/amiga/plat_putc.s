@@ -1,5 +1,5 @@
 ;! module    plat_putc
-;! provides  plat_putc plat_flush
+;! provides  plat_putc plat_flush plat_putc_gfx
 ;! requires  plat_dosbase plat_out
 ;! group     core
 ;! clobbers  -
@@ -17,7 +17,11 @@ plat_putc:
         ADDQ.L  #1,D1
         MOVE.L  D1,plat_putc__n
         MOVE.L  (SP)+,D1
-        MOVE.L  (SP)+,A0
+        MOVE.L  plat_putc_gfx,A0        ; graphics open: also into the current window (plat_gfx)
+        CMP.L   #0,A0
+        BEQ     .nogfx
+        JSR     (A0)
+.nogfx: MOVE.L  (SP)+,A0
         CMP.B   #10,D0
         BEQ     plat_flush
         CMP.L   #plat_putc__SIZE,plat_putc__n
@@ -40,6 +44,8 @@ plat_flush:
 
 ;! section data
 plat_putc__n:
+        DC.L    0
+plat_putc_gfx:
         DC.L    0
 
 ;! section bss

@@ -430,6 +430,24 @@ Punkt, was das Original nicht tut (unter Kickstart 1.2 im FS-UAE gesehen). Mit d
 Die OS-Emulation des Schwesterprojekts kennt `intuition.library` nicht; `test_m68k_programs`
 überspringt Grafikprogramme dort, geprüft wird mit `tools/gfa/amiga_run.py`.
 
+Text und Screens (probe26, probe27):
+
+- `PRINT` schreibt auf dem Amiga zusätzlich in das aktuelle Grafikfenster, in Zellen von 8 × 8 Punkten
+  (topaz 8). `LOCATE`/`PRINT AT`/`CLS` kommen als ESC-Folgen von `rt_print` an; LF beginnt die nächste
+  Zeile und rollt am unteren Rand (`ScrollRaster`). Jedes Fenster hat seinen eigenen Textcursor.
+- Das Zeichen hat immer Stift 1 auf Hintergrund 0 und zeichnet den Hintergrund mit (JAM2), gleich was
+  `COLOR` oder `DEFFILL` sagen (probe27 T1–T4). Unter `GRAPHMODE` XOR wird es verknüpft (probe26 T3).
+- Ein mit Flags geöffnetes Fenster (`OPENW n,x,y,w,h,idcmp,flags`) hat in GFA Fensterkoordinaten
+  mit Rahmen: `LOCATE 1,1` beginnt bei x = 4, Oberkante y = 11, `POINT` im Rahmen ist -1 (probe26
+  T2, T3). Wir öffnen solche Fenster ohne GIMMEZEROZERO und beginnen den Text bei BorderLeft/
+  BorderTop. Fenster 0 und die Standardfenster bleiben bei inneren Koordinaten.
+- `CIRCLE` hängt vom Screen ab: LowRes ry = r, HiRes 4r/9, Interlace doppelt (probe26 T1, T4, T5;
+  HiRes mit Interlace 8r/9 ist abgeleitet, nicht gemessen). `OPENS` nimmt die Bildschirmart aus dem
+  7. Argument (&H8000 HiRes, &H4 Interlace), sonst HiRes über 320 Punkte Breite. `OPENW` ohne
+  Screen-Nummer öffnet auf dem zuletzt geöffneten Screen.
+- Interpreter und C++-Ziel zeichnen keinen Text ins Raster und kennen keine Fenster mit Rahmen-
+  koordinaten; die Regel für `CIRCLE` und den Screen von `OPENW` haben sie auch.
+
 Ergebnis: Mit `basicc --run p.lst --gfx bild` (Interpreter) bzw. `BASIC_GFX_OUT=bild` (C++-Ziel)
 entstehen `bild.ppm` und `bild.txt`, eine Zusammenfassung je Fenster (Größe, Zahl und FNV-Prüfsumme
 der Pixel, Texte) und je Screen (Palette). Testprogramme halten sie in `<name>.gfx` fest.

@@ -1,11 +1,13 @@
 // Graphics of platform/pc (rt_gfx, D25) against the original: the same drawings as the probe
 // programs probe22-24, the rasters read back with POINT compared with their result files.
 
+#include <algorithm>
 #include <fstream>
 #include <functional>
 #include <map>
 #include <sstream>
 #include <string>
+#include <vector>
 
 #include "rt_gfx.hpp"
 #include "test_util.hpp"
@@ -225,6 +227,29 @@ void probe25() {
     raster(g, "probe25", "T8 line2", 6, 22, 8, 14);
 }
 
+// T1, T4, T5: the extent of CIRCLE r on LowRes, HiRes and LowRes Interlace
+void probe26() {
+    const auto extent = [](const brt::Gfx& g, int r) {
+        int top = 9999, bottom = -1, left = 9999, right = -1;
+        for (int y = 0; y < 200; ++y)
+            for (int x = 0; x < 200; ++x)
+                if (g.point(x, y) > 0) top = std::min(top, y), bottom = std::max(bottom, y), left = std::min(left, x), right = std::max(right, x);
+        CHECK_EQ(right - left, 2 * r);
+        return bottom - top;
+    };
+    struct Case { std::vector<std::int32_t> screen; int r, height; };
+    const Case cases[] = {{{0, 0, 320, 256, 4, 0}, 20, 40}, {{0, 0, 320, 256, 4, 0}, 9, 18},
+                          {{0, 0, 640, 256, 2, 0x8000}, 20, 16}, {{0, 0, 320, 512, 2, 4}, 20, 80}};
+    for (const Case& c : cases) {
+        brt::Gfx g;
+        g.openScreen(1, c.screen);
+        g.openWindow(1, {0, 0, c.screen[2], c.screen[3], 0, 0x1140});
+        g.color({1, 0}, 3);
+        g.circle(100, 100, c.r, false);
+        CHECK_EQ(extent(g, c.r), c.height);
+    }
+}
+
 }  // namespace
 
 int main() {
@@ -236,5 +261,6 @@ int main() {
     probe23();
     probe24();
     probe25();
+    probe26();
     return report("gfx");
 }

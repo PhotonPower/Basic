@@ -24,6 +24,8 @@ Ausführen mit `tools/gfa/gfa_run.py`, Einrichtung und Regeln in [docs/gfa-origi
 | `probe23.lst` | Grafik: Seitenverhältnis von `CIRCLE` (r = 1…40), Gleichstand bei `LINE`, Stiftmodell, erster Punkt bei XOR – ausgewertet (2026-11-07) |
 | `probe24.lst` | Grafik: Raster von `CIRCLE`, `PCIRCLE`/`PELLIPSE` mit und ohne `BOUNDARY`, `PBOX` mit Rand – ausgewertet (2026-11-07) |
 | `probe25.lst` | `FRE`/`RESERVE`, `MKDIR`/`RMDIR`/`CHDIR`, Format von `FILES`/`DIR`, wartet `SOUND`?, Raster von `POLYLINE`/`POLYFILL` – ausgewertet (2026-11-08); `RESERVE` ohne Argument stürzt ab, `RAM:` fehlt auf der GFA-Diskette |
+| `probe26.lst` | `CIRCLE` auf LowRes-/HiRes-/Interlace-Screens, `PRINT` im Fenster: Zelle von `LOCATE`, Grundlinie, Hintergrund – ausgewertet (2026-11-08) |
+| `probe27.lst` | Stifte von `PRINT` im Fenster nach `COLOR`/`DEFFILL`: immer 1 auf 0 – ausgewertet (2026-11-08) |
 | `probe10.lst` | `VAR`-Parameter: Geltung für folgende Parameter, Referenz oder Kopie, unzulässige Argumente – ausgewertet (2026-11-07) |
 
 Ergebnisse: `results/<name>.txt` (erzeugt am Original).

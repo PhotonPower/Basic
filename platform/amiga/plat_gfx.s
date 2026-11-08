@@ -1,6 +1,6 @@
 ;! module    plat_gfx
-;! provides  plat_gfx plat_gfx_point plat_gfx_window
-;! requires  plat_exit_gfx
+;! provides  plat_gfx plat_gfx_point plat_gfx_window plat_gfx_putc
+;! requires  plat_exit_gfx plat_putc_gfx
 ;! group     graphics
 ;! clobbers  D0-D3/A0-A1
 ;! doc       amiga: graphics (D25 stage 2) with intuition.library and graphics.library, as the original.
@@ -36,6 +36,8 @@ plat_gfx__AreaEllipse   EQU -186
 plat_gfx__LoadRGB4      EQU -192
 plat_gfx__SetRast       EQU -234
 plat_gfx__Draw          EQU -246
+plat_gfx__Move          EQU -240
+plat_gfx__ScrollRaster  EQU -396
 plat_gfx__AreaMove      EQU -252
 plat_gfx__AreaDraw      EQU -258
 plat_gfx__AreaEnd       EQU -264
@@ -114,6 +116,182 @@ plat_gfx_window:
 .out:   MOVEM.L (SP)+,D3-D7/A2-A6
         RTS
 
+; D0.B = character of PRINT (all registers are kept): also into the current window, in cells of
+; 8 x 8 pixels (topaz 8) at its text cursor, JAM2 with pen 1 on 0 (probe26 T3, probe27). ESC [ line ; column H moves
+; the cursor (LOCATE, PRINT AT, CLS from rt_print), LF begins the next line and scrolls at the
+; bottom, CR goes to column 0, BS one back.
+plat_gfx_putc:
+        MOVEM.L D0-D4/A0-A1/A6,-(SP)
+        TST.L   plat_gfx__gb
+        BEQ     .out
+        MOVE.L  plat_gfx__cur,D4
+        MOVE.L  D4,D1
+        LSL.L   #2,D1
+        LEA     plat_gfx__win,A0
+        MOVE.L  0(A0,D1.L),D1
+        BEQ     .out
+        MOVE.L  D1,A0                   ; A0 = window
+        ADD.L   D4,D4                   ; D4 = offset of its cursor
+        AND.L   #$FF,D0
+        MOVE.W  plat_gfx__es,D1         ; inside an escape sequence?
+        BEQ     .plain
+        CMP.W   #1,D1
+        BNE     .csi
+        CLR.W   plat_gfx__es
+        CMP.B   #'[',D0
+        BNE     .out
+        MOVE.W  #2,plat_gfx__es
+        CLR.L   plat_gfx__ep
+        CLR.L   plat_gfx__ep+4
+        CLR.W   plat_gfx__en
+        BRA     .out
+.csi:   CMP.B   #'0',D0
+        BCS     .nd
+        CMP.B   #'9',D0
+        BHI     .nd
+        SUB.B   #'0',D0
+        LEA     plat_gfx__ep,A1
+        MOVE.W  plat_gfx__en,D1
+        LSL.W   #2,D1
+        MOVE.L  0(A1,D1.W),D2
+        MULU    #10,D2
+        ADD.L   D0,D2
+        MOVE.L  D2,0(A1,D1.W)
+        BRA     .out
+.nd:    CMP.B   #';',D0
+        BNE     .fin
+        MOVE.W  #1,plat_gfx__en
+        BRA     .out
+.fin:   CLR.W   plat_gfx__es            ; the end of the sequence
+        CMP.B   #'H',D0
+        BNE     .out
+        MOVE.L  plat_gfx__ep,D0         ; line, column from 1 (0 counts as 1)
+        BEQ     .l0
+        SUBQ.L  #1,D0
+.l0:    LEA     plat_gfx__crow,A1
+        MOVE.W  D0,0(A1,D4.L)
+        MOVE.L  plat_gfx__ep+4,D0
+        BEQ     .c0
+        SUBQ.L  #1,D0
+.c0:    LEA     plat_gfx__ccol,A1
+        MOVE.W  D0,0(A1,D4.L)
+        BRA     .out
+.plain: CMP.B   #27,D0
+        BNE     .nesc
+        MOVE.W  #1,plat_gfx__es
+        BRA     .out
+.nesc:  CMP.B   #10,D0
+        BEQ     .lf
+        CMP.B   #13,D0
+        BNE     .nbs
+        LEA     plat_gfx__ccol,A1
+        CLR.W   0(A1,D4.L)
+        BRA     .out
+.nbs:   CMP.B   #8,D0
+        BNE     .ch
+        LEA     plat_gfx__ccol,A1
+        TST.W   0(A1,D4.L)
+        BEQ     .out
+        SUBQ.W  #1,0(A1,D4.L)
+        BRA     .out
+.ch:    CMP.B   #32,D0
+        BCS     .out
+        MOVE.B  D0,plat_gfx__ch
+        MOVE.L  A0,D3                   ; D3 = window
+        MOVE.L  50(A0),A1               ; its RastPort
+        MOVE.L  plat_gfx__gb,A6
+        MOVEQ   #0,D0                   ; x = column * 8, base line = line * 8 + 6, from the inner
+        LEA     plat_gfx__ccol,A0       ; edge (a window without GIMMEZEROZERO: its borders, probe26 T2)
+        MOVE.W  0(A0,D4.L),D0
+        LSL.L   #3,D0
+        MOVEQ   #0,D1
+        LEA     plat_gfx__crow,A0
+        MOVE.W  0(A0,D4.L),D1
+        LSL.L   #3,D1
+        ADDQ.L  #6,D1
+        MOVE.L  D3,A0
+        BTST    #2,25(A0)               ; Window->Flags: GIMMEZEROZERO ($400)
+        BNE     .gzz
+        MOVEQ   #0,D2
+        MOVE.B  54(A0),D2               ; BorderLeft
+        ADD.L   D2,D0
+        MOVE.B  55(A0),D2               ; BorderTop
+        ADD.L   D2,D1
+.gzz:   MOVE.L  A1,-(SP)
+        JSR     plat_gfx__Move(A6)
+        MOVE.L  (SP),A1
+        MOVEQ   #0,D0                   ; JAM2 for the text (the background too, probe26 T3), XOR
+        MOVE.B  28(A1),D0               ; stays; then the mode of GRAPHMODE again
+        MOVE.L  D0,-(SP)
+        BTST    #1,D0
+        BNE     .cmp
+        MOVEQ   #1,D0
+.cmp:   JSR     plat_gfx__SetDrMd(A6)
+        MOVE.L  4(SP),A1                ; pen 1 on 0, whatever COLOR says (probe27)
+        MOVEQ   #0,D0
+        MOVE.B  25(A1),D0               ; RastPort FgPen, BgPen
+        MOVE.L  D0,-(SP)
+        MOVE.B  26(A1),D0
+        MOVE.L  D0,-(SP)
+        MOVEQ   #1,D0
+        JSR     plat_gfx__SetAPen(A6)
+        MOVE.L  12(SP),A1
+        MOVEQ   #0,D0
+        JSR     plat_gfx__SetBPen(A6)
+        MOVE.L  12(SP),A1
+        LEA     plat_gfx__ch,A0
+        MOVEQ   #1,D0
+        JSR     plat_gfx__Text(A6)
+        MOVE.L  12(SP),A1               ; the pens and the mode back
+        MOVE.L  (SP)+,D0
+        JSR     plat_gfx__SetBPen(A6)
+        MOVE.L  8(SP),A1
+        MOVE.L  (SP)+,D0
+        JSR     plat_gfx__SetAPen(A6)
+        MOVE.L  (SP)+,D0
+        MOVE.L  (SP)+,A1
+        JSR     plat_gfx__SetDrMd(A6)
+        LEA     plat_gfx__ccol,A0       ; next column; at the right edge the next line
+        ADDQ.W  #1,0(A0,D4.L)
+        MOVE.L  D3,A0
+        MOVE.W  112(A0),D0              ; Window->GZZWidth
+        LSR.W   #3,D0
+        LEA     plat_gfx__ccol,A1
+        CMP.W   0(A1,D4.L),D0
+        BHI     .out
+.lf:    LEA     plat_gfx__ccol,A1
+        CLR.W   0(A1,D4.L)
+        LEA     plat_gfx__crow,A1
+        ADDQ.W  #1,0(A1,D4.L)
+        MOVEQ   #0,D0                   ; below the last whole line: scroll up by one
+        MOVE.W  0(A1,D4.L),D0
+        ADDQ.L  #1,D0
+        LSL.L   #3,D0
+        MOVEQ   #0,D1
+        MOVE.W  114(A0),D1              ; Window->GZZHeight
+        CMP.L   D1,D0
+        BLE     .out
+        SUBQ.W  #1,0(A1,D4.L)
+        MOVE.L  50(A0),A1
+        MOVEQ   #0,D2
+        MOVE.W  112(A0),D2
+        SUBQ.L  #1,D2
+        MOVEQ   #0,D3
+        MOVE.W  114(A0),D3
+        SUBQ.L  #1,D3
+        MOVEM.L D4-D5,-(SP)
+        MOVE.L  D2,D4                   ; ScrollRaster(rp, 0, 8, 0, 0, w-1, h-1)
+        MOVE.L  D3,D5
+        MOVEQ   #0,D0
+        MOVEQ   #8,D1
+        MOVEQ   #0,D2
+        MOVEQ   #0,D3
+        MOVE.L  plat_gfx__gb,A6
+        JSR     plat_gfx__ScrollRaster(A6)
+        MOVEM.L (SP)+,D4-D5
+.out:   MOVEM.L (SP)+,D0-D4/A0-A1/A6
+        RTS
+
 plat_gfx__table:
         DC.W    plat_gfx__opens-plat_gfx__table, plat_gfx__closes-plat_gfx__table
         DC.W    plat_gfx__openw-plat_gfx__table, plat_gfx__closew-plat_gfx__table
@@ -164,6 +342,7 @@ plat_gfx__init:
         MOVE.L  (SP)+,D5
 .out:   RTS
 .first: MOVE.L  #plat_gfx__close,plat_exit_gfx
+        MOVE.L  #plat_gfx_putc,plat_putc_gfx
         MOVE.L  4,A6
         LEA     plat_gfx__intname,A1
         MOVEQ   #0,D0
@@ -208,6 +387,7 @@ plat_gfx__openscreen:
         LEA     plat_gfx__ns,A0
         MOVE.L  #$02800100,4(A0)        ; Width 640, Height 256
         MOVE.W  #2,8(A0)                ; Depth
+        MOVE.W  #$8000,12(A0)           ; HIRES
         CMP.L   #6,D5
         BLT     .def
         MOVEQ   #3,D0
@@ -219,6 +399,16 @@ plat_gfx__openscreen:
         MOVEQ   #5,D0
         BSR     plat_gfx__arg
         MOVE.W  D0,8(A0)
+        CLR.W   12(A0)                  ; view modes: the 7th argument (&H8000 HIRES, &H4 LACE),
+        CMP.L   #7,D5                   ; else HIRES above 320 pixels
+        BLT     .vm
+        MOVEQ   #6,D0
+        BSR     plat_gfx__arg
+        MOVE.W  D0,12(A0)
+        BRA     .def
+.vm:    CMP.W   #320,4(A0)
+        BLE     .def
+        MOVE.W  #$8000,12(A0)
 .def:   MOVE.L  plat_gfx__ib,A6
         JSR     plat_gfx__OpenScreen(A6)
         LEA     plat_gfx__scr,A0
@@ -226,6 +416,7 @@ plat_gfx__openscreen:
         LSL.L   #2,D1
         MOVE.L  D0,0(A0,D1.L)
         BEQ     .out
+        MOVE.L  D4,plat_gfx__lscr       ; OPENW without a screen goes there
         MOVE.L  D0,A0                   ; the palette of Kickstart 1.x
         LEA     44(A0),A0               ; Screen->ViewPort
         LEA     plat_gfx__palette,A1
@@ -238,7 +429,13 @@ plat_gfx__openscreen:
 plat_gfx__openwindow:
         MOVE.L  D0,D4                   ; D4 = n
         LEA     plat_gfx__nw,A0
-        MOVEQ   #0,D3                   ; D3 = screen number
+        MOVE.L  #$00001402,14(A0)       ; WINDOWDRAG, GIMMEZEROZERO, ACTIVATE
+        CMP.L   #7,D5                   ; the flags of OPENW
+        BLT     .fl
+        MOVEQ   #6,D0                   ; as given: no GIMMEZEROZERO, the coordinates count from the
+        BSR     plat_gfx__arg           ; edge of the window (probe26 T2, T3)
+        MOVE.L  D0,14(A0)
+.fl:    MOVE.L  plat_gfx__lscr,D3       ; D3 = screen number: the last opened one
         CMP.L   #8,D5
         BLT     .scr0
         MOVEQ   #7,D0
@@ -280,6 +477,12 @@ plat_gfx__openwindow:
         MOVE.L  D0,0(A0,D1.L)
         BEQ     .out
         MOVE.L  D4,plat_gfx__cur
+        MOVE.L  D4,D1                   ; the text cursor at the top left
+        ADD.L   D1,D1
+        LEA     plat_gfx__ccol,A0
+        CLR.W   0(A0,D1.L)
+        LEA     plat_gfx__crow,A0
+        CLR.W   0(A0,D1.L)
         BSR     plat_gfx__state         ; area buffers and pens for its RastPort
 .out:   RTS
 
@@ -308,6 +511,7 @@ plat_gfx__state:
 
 ; at the end of the program: everything back
 plat_gfx__close:
+        CLR.L   plat_putc_gfx
         MOVEM.L D2/A2/A6,-(SP)
         MOVE.L  plat_gfx__ib,D0
         BEQ     .libs
@@ -756,16 +960,28 @@ plat_gfx__circle:
 plat_gfx__pcircle:
         BSR     plat_gfx__ry
         BRA     plat_gfx__fill
+; ry by the mode of the screen (probe26): LowRes r, HiRes 4r/9, Interlace twice that
 plat_gfx__ry:
         BSR     plat_gfx__rp
         MOVE.L  (A2),D0
         MOVE.L  4(A2),D1
         MOVE.L  8(A2),D2
         MOVE.L  D2,D3
+        MOVE.L  plat_gfx__cur,D4
+        LSL.L   #2,D4
+        LEA     plat_gfx__win,A0
+        MOVE.L  0(A0,D4.L),A0
+        MOVE.L  46(A0),A0               ; Window->WScreen
+        MOVE.W  76(A0),D4               ; Screen->ViewPort.Modes
+        BTST    #15,D4                  ; HIRES
+        BEQ     .lo
         LSL.L   #2,D3
         DIVS    #9,D3
         EXT.L   D3
-        RTS
+.lo:    BTST    #2,D4                   ; LACE
+        BEQ     .out
+        ADD.L   D3,D3
+.out:   RTS
 
 plat_gfx__ellipse:
         BSR     plat_gfx__radii
@@ -883,6 +1099,20 @@ plat_gfx__pat:
         EVEN
 
 ;! section bss
+plat_gfx__lscr:
+        DS.L    1
+plat_gfx__es:
+        DS.W    1
+plat_gfx__en:
+        DS.W    1
+plat_gfx__ep:
+        DS.L    2
+plat_gfx__ccol:
+        DS.W    plat_gfx__NWIN
+plat_gfx__crow:
+        DS.W    plat_gfx__NWIN
+plat_gfx__ch:
+        DS.W    1
 plat_gfx__ib:
         DS.L    1
 plat_gfx__gb:

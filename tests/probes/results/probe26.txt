@@ -1,0 +1,10 @@
+probe26
+T1 circle r=20 lowres: x 40..80 y 40..80
+T1 circle r=9 lowres: x 51..69 y 51..69
+T2 X bei 3,2: x 20..27 y 19..25
+T2 _ bei 1,1: x 4..10 y 18..18
+T3 Leerzeichen auf 3, COLOR 1,2: -1 -1
+T3 X mit GRAPHMODE 2 (Werte /= 3): x 4..27 y 11..18
+T4 circle r=20 hires: x 40..80 y 52..68
+T5 circle r=20 lowres lace: x 40..80 y 40..120
+ende

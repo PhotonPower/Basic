@@ -1,0 +1,101 @@
+' probe26 - CIRCLE auf LowRes- und HiRes-Screens, PRINT im Fenster: Zelle von LOCATE, Grundlinie,
+' Hintergrund (JAM1/JAM2) (GFA-BASIC 3.5, Amiga). Ergebnisdatei DH0:probe26.txt.
+'
+datei$="DH0:probe26.txt"
+OPEN "O",#1,datei$
+ON ERROR GOSUB fehler
+PRINT #1,"probe26"
+@flush
+' T1 Screen 1 LowRes 320 x 256, 4 Bitplanes, Fenster 1 darauf
+OPENS 1,0,0,320,256,4,0
+OPENW #1,0,0,320,256,0,&H1140
+COLOR 1,0
+CLEARW #1
+CIRCLE 60,60,20
+@ausmass("T1 circle r=20 lowres",0,140,0,120)
+CLEARW #1
+CIRCLE 60,60,9
+@ausmass("T1 circle r=9 lowres",0,140,0,120)
+' T2 PRINT nach LOCATE: Lage des Zeichens
+CLEARW #1
+LOCATE 3,2
+PRINT "X";
+@ausmass("T2 X bei 3,2",0,80,0,40)
+CLEARW #1
+LOCATE 1,1
+PRINT "_";
+@ausmass("T2 _ bei 1,1",0,80,0,40)
+' T3 Hintergrund: Leerzeichen auf Farbe 3
+CLEARW #1
+COLOR 3
+PBOX 0,0,79,39
+COLOR 1,2
+LOCATE 1,1
+PRINT " ";
+PRINT #1,"T3 Leerzeichen auf 3, COLOR 1,2: ";POINT(2,2);" ";POINT(5,5)
+GRAPHMODE 2
+LOCATE 3,1
+PRINT "X";
+GRAPHMODE 1
+@ausmass("T3 X mit GRAPHMODE 2 (Werte /= 3)",0,79,0,39)
+@flush
+' T4 Screen 2 HiRes 640 x 256 zum Vergleich
+OPENS 2,0,0,640,256,2,&H8000
+OPENW #2,0,0,640,256,0,&H1140
+COLOR 1,0
+CLEARW #2
+CIRCLE 60,60,20
+@ausmass("T4 circle r=20 hires",0,140,0,120)
+' T5 Screen 3 LowRes mit Interlace 320 x 512
+OPENS 3,0,0,320,512,2,&H4
+OPENW #3,0,0,320,512,0,&H1140
+COLOR 1,0
+CLEARW #3
+CIRCLE 60,80,20
+@ausmass("T5 circle r=20 lowres lace",0,140,0,160)
+CLOSEW #3
+CLOSES 3
+CLOSEW #2
+CLOSES 2
+CLOSEW #1
+CLOSES 1
+PRINT #1,"ende"
+CLOSE #1
+END
+' kleinstes Rechteck um alle Punkte /= 0 (bei T3: /= 3)
+PROCEDURE ausmass(t$,x0%,x1%,y0%,y1%)
+  LOCAL x%,y%,p%,ax%,bx%,ay%,by%,bg%
+  ax%=9999
+  ay%=9999
+  bx%=-1
+  by%=-1
+  bg%=0
+  IF LEFT$(t$,2)="T3"
+    bg%=3
+  ENDIF
+  FOR y%=y0% TO y1%
+    FOR x%=x0% TO x1%
+      p%=POINT(x%,y%)
+      IF p%<>bg% AND p%>=0
+        ax%=MIN(ax%,x%)
+        bx%=MAX(bx%,x%)
+        ay%=MIN(ay%,y%)
+        by%=MAX(by%,y%)
+      ENDIF
+    NEXT x%
+  NEXT y%
+  PRINT #1,t$;": x ";ax%;"..";bx%;" y ";ay%;"..";by%
+  @flush
+RETURN
+PROCEDURE flush
+  CLOSE #1
+  OPEN "A",#1,datei$
+RETURN
+PROCEDURE fehler
+  e%=ERR
+  CLOSE #1
+  OPEN "A",#1,datei$
+  PRINT #1,"   -> ERR ";e%;" ";ERR$(e%)
+  ON ERROR GOSUB fehler
+  RESUME NEXT
+RETURN
