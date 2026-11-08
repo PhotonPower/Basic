@@ -172,6 +172,47 @@ private:
                 slotToHL(i.dst);
                 line("EX      DE,HL");
                 line("LD      HL," + var(i.var));
+                loadFromHL(t);
+                return;
+            }
+            case Kind::LoadAt: {  // the element type from the address in slot a
+                argToHL(i.a);
+                line("PUSH    HL");
+                slotToHL(i.dst);
+                line("EX      DE,HL");
+                line("POP     HL");
+                loadFromHL(i.mem);
+                return;
+            }
+            case Kind::StoreAt: {
+                if (i.mem == hir::Type::Str) unsupported("string elements");
+                argToHL(i.a);
+                line("PUSH    HL");
+                slotToHL(i.b);
+                line("POP     DE");
+                storeToDE(i.mem);
+                return;
+            }
+            case Kind::Addr:
+                if (p_.indirect[static_cast<std::size_t>(i.var)]) unsupported("VAR parameters");
+                line("LD      HL," + var(i.var));
+                storeHL(i.dst);
+                return;
+            case Kind::Store: {
+                const hir::Type t = varType(i.var);
+                if (t == hir::Type::Str) unsupported("string variables");
+                slotToHL(i.a);
+                line("LD      DE," + var(i.var));
+                storeToDE(t);
+                return;
+            }
+            default: break;
+        }
+        instr2(i);
+    }
+
+    // DE = destination slot, HL = source of type t: the value widened to 32 bits (Float: 8 bytes)
+    void loadFromHL(hir::Type t) {
                 switch (t) {
                     case hir::Type::Float: line("LD      BC,8"); line("LDIR"); return;
                     case hir::Type::Int: line("LD      BC,4"); line("LDIR"); return;
@@ -208,18 +249,23 @@ private:
                         line("LD      (DE),A");
                         return;
                 }
-            }
-            case Kind::Store: {
-                const hir::Type t = varType(i.var);
-                if (t == hir::Type::Str) unsupported("string variables");
-                slotToHL(i.a);
-                line("LD      DE," + var(i.var));
-                const int n = t == hir::Type::Float ? 8 : t == hir::Type::Int ? 4 : t == hir::Type::Word ? 2 : 1;
-                line("LD      BC," + std::to_string(n));
-                line("LDIR");
-                return;
-            }
+    }
+
+    // HL = slot with the value, DE = destination of type t (the value already fits)
+    void storeToDE(hir::Type t) {
+        const int n = t == hir::Type::Float ? 8 : t == hir::Type::Int ? 4 : t == hir::Type::Word ? 2 : 1;
+        line("LD      BC," + std::to_string(n));
+        line("LDIR");
+    }
+
+    void instr2(const Instr& i) {
+        switch (i.kind) {
             case Kind::Op: {
+                if (i.op == "mov" && (i.dst.type == VT::Str || i.dst.type == VT::Addr)) {  // a 16-bit address
+                    argToHL(i.a);
+                    storeHL(i.dst);
+                    return;
+                }
                 static const std::set<std::string> two = {"add", "sub", "and", "or", "xor"};
                 if (two.count(i.op) != 0) call("zi_" + i.op, {i.a, i.b}, i.dst);
                 else if (i.op == "not" || i.op == "neg" || i.op == "mov") call("zi_" + i.op, {i.a}, i.dst);
@@ -296,10 +342,8 @@ private:
             case Kind::Clear:
             case Kind::Restore: unsupported("LOCAL and parameters");
             case Kind::Bind: unsupported("VAR parameters");
-            case Kind::Addr:
-            case Kind::LoadAt:
-            case Kind::StoreAt: unsupported("arrays and addresses");
             case Kind::RoutineAddr: unsupported("ON ERROR GOSUB");
+            default: break;
         }
     }
 };

@@ -46,7 +46,8 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
   (`zi`, `rt_int`), `PRINT` von Strings und Integern; `basicc --target z80-test`; Testtreiber
   `z80_programs` und Testprogramm `intcore`; Fließkomma-Ausgabe (`ix_bn` mit 1280 Bit,
   `rt_flt_dec`, `rt_fmt_flt`, `rt_print_flt`, `DEFNUM`), Text für Text gleich der Referenz;
-  Strings nach D18 (`rt_str`, `rt_strfn`, Halde der Plattform), Testprogramm `strcore`; Aufrufhilfe
+  Strings nach D18 (`rt_str`, `rt_strfn`, Halde der Plattform), Testprogramm `strcore`; Felder
+  (`rt_arr`, Feldbereich der Plattform), Testprogramm `arrcore`; Aufrufhilfe
   `Z80Routines`, Konformanztest `conformance_z80`; Linker-Anordnung `PlainZ80`.
 - Maus und Joystick (D29): `MOUSEX`, `MOUSEY`, `MOUSEK`, `MOUSE`, `STICK()`, `STRIG()` statt Variablen
   und Feldern; auf dem Amiga aus der Window-Struktur und der Hardware. Testprogramm `mouse`.

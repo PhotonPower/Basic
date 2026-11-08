@@ -1,0 +1,48 @@
+' test: groups core print string
+' Felder: alle Elementtypen, 1-3 Dimensionen, DIM?, ERASE und erneutes DIM, OPTION BASE, Stringfelder
+' (auch mit Speicherbereinigung der Halde, die auf dem Z80 nur 12 KB hat).
+DIM f(10),i%(5),w&(3),b|(4),s$(6),m(2,3),k%(1,2,3)
+FOR j%=0 TO 10
+  f(j%)=j%*1.5
+NEXT j%
+PRINT f(0);" ";f(7);" ";f(10)
+FOR j%=0 TO 5
+  i%(j%)=j%*j%-3
+NEXT j%
+PRINT i%(0);" ";i%(5)
+w&(2)=-1234
+b|(3)=200
+PRINT w&(2);" ";b|(3);" ";w&(0);" ";b|(0)
+FOR r%=0 TO 2
+  FOR c%=0 TO 3
+    m(r%,c%)=r%*10+c%
+  NEXT c%
+NEXT r%
+PRINT m(1,2);" ";m(2,3);" ";m(0,0)
+k%(1,2,3)=99
+k%(0,1,2)=7
+PRINT k%(1,2,3);" ";k%(0,1,2);" ";k%(1,0,0)
+PRINT DIM?(f());" ";DIM?(m());" ";DIM?(k%())
+FOR j%=0 TO 6
+  s$(j%)=STRING$(j%,"x")+"|"
+NEXT j%
+PRINT s$(0);s$(3);s$(6)
+FOR n%=1 TO 400
+  s$(n% MOD 7)=LEFT$(SPACE$(n% MOD 23)+s$(n% MOD 7),300)
+NEXT n%
+PRINT LEN(s$(0));" ";LEN(s$(6));" ";RIGHT$(s$(3),5)
+ERASE f()
+PRINT DIM?(f())
+DIM f(3)
+f(3)=2.5
+PRINT f(3)
+ERASE s$()
+DIM s$(2)
+s$(2)="neu"
+PRINT s$(2);"[";s$(1);"]"
+OPTION BASE 1
+DIM q%(3)
+q%(1)=11
+q%(3)=33
+PRINT q%(1);" ";q%(3);" ";DIM?(q%())
+PRINT "ende"

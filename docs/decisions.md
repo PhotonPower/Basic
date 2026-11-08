@@ -579,3 +579,6 @@ kopieren.
   Länge (4 Bytes) vor den Zeichen. Die Halde legt die Plattform fest (`plat_heap`, `plat_heap_end`;
   z80-test &C000–&EFFF). Labels sind im Z80-Assembler unabhängig von Groß-/Kleinschreibung: eine
   Konstante darf nicht wie ein Label heißen.
+- Felder wie auf dem 68000 (Ausdehnungen vor den Elementen, die letzte Dimension zuerst), Elemente im
+  Little-Endian-Format; ein Feld darf höchstens 64 KB groß sein. Der Feldbereich kommt von der
+  Plattform (`plat_arr`, `plat_arr_end`; z80-test &A000–&BFFF).

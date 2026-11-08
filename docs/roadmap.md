@@ -99,7 +99,8 @@ bitgenau zur Referenz, ✔ `fp_sqrt` (Stelle für Stelle), `fp_trunc`/`int`/`fra
 ✔ `basicc --target z80-test`, Testtreiber `z80_programs` (überspringt, was noch fehlt), ✔ Fließkomma-Ausgabe (`ix_bn`, `rt_flt_dec`,
 `rt_fmt_flt`, `rt_print_flt`, `DEFNUM`) bitgenau zur Referenz, ✔ Strings nach D18 (`rt_str`: Halde der
 Plattform, Bereinigung, Zwischenergebnisse; `rt_strfn`: Verkettung, Vergleich, `LEN`, `ASC`, `CHR$`,
-`LEFT$`/`RIGHT$`/`MID$`, `SPACE$`, `STRING$`, `INSTR`, `UPPER$`, `TRIM$`, `STR$`). Weiter: Felder, Prozeduren mit Parametern und `LOCAL`, `ON ERROR`, `DATA`, Eingabe.
+`LEFT$`/`RIGHT$`/`MID$`, `SPACE$`, `STRING$`, `INSTR`, `UPPER$`, `TRIM$`, `STR$`), ✔ Felder (`rt_arr`:
+`DIM`, Elemente mit Prüfung, `DIM?`, `ERASE`, `OPTION BASE`, `SWAP`; Feldbereich der Plattform). Weiter: Prozeduren mit Parametern und `LOCAL`, `ON ERROR`, `DATA`, Eingabe.
 
 - LIR → Z80-Assembler, `runtime/z80`, `platform/cpc` (AMSDOS-Header, `.sna`) und `platform/z80-test`.
 - Konformanz- und Differenztests, Größenbudgets.
