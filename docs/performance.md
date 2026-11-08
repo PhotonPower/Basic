@@ -54,8 +54,9 @@ Auf einem CPC (rund 4 MHz) wären das für `bench_float` etwa 10 Minuten, für `
    ausgeschriebene 8×8-Multiplikation, Null-Bytes übersprungen) statt 53 Schritten über das ganze
    Produkt; nach dem Produkt nur die 9 gebrauchten Bytes verschieben. `fp_w_shl1`/`fp_w_shr1` und
    das Entpacken des Exponenten ohne Schleife. Bitgleich (Konformanztest): `bench_float` −59 %.
-   Eine Tabelle der Viertelquadrate (a·b = ⌊(a+b)²/4⌋ − ⌊(a−b)²/4⌋) würde `fp_mul` noch etwa um
-   ein Drittel beschleunigen, kostet aber 1,3 KB Speicher; offen.
+6. Z80, `fp_mul` mit einer Tabelle der Viertelquadrate (a·b = T[a+b] − T[|a−b|], T[n] = ⌊n²/4⌋,
+   1 KB an einer Seitengrenze im BSS, beim ersten Aufruf gefüllt): `fp_mul` −24 %, `bench_float`
+   −13 %; die Programme brauchen gut 1,2 KB mehr Speicher (nicht in der Datei).
 
 Werkzeug dafür: `BASIC_Z80_PROFILE=1 BASIC_Z80_PROGRAM=<datei> build/tests/test_z80_programs` zeigt
 die T-States je Routine (Marke im Quelltext; `modul__x` zählt zum Modul, Programmcode als

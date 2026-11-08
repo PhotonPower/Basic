@@ -5,8 +5,9 @@
 ;! clobbers  AF BC DE HL
 ;! doc       Multiplication, correctly rounded (ties to even): HL = destination, DE = a, BC = b.
 
-; P = a.m * b.m (106 bits): schoolbook over bytes, row i adds a[i] * b (7 bytes each, 8 x 8 bit
-; products unrolled) at byte i with the carry in one byte, zero bytes are skipped; m = P >> 42 with
+; P = a.m * b.m (106 bits): schoolbook over bytes, row i adds a[i] * b (7 bytes each) at byte i with
+; the carry in one byte, zero bytes are skipped; the 8 x 8 bit products from a table of quarter
+; squares (a*b = T[a+b] - T[|a-b|], 1 KB on a page boundary, filled on the first call); m = P >> 42 with
 ; the lost bits as sticky bit, e = a.e + b.e + 42 (as fp_mul of runtime/ref). IX and IY are
 ; pointers here (saved).
 fp_mul:
@@ -26,6 +27,9 @@ fp_mul:
         LD      HL,(fp_mul__dst)
         JP      fp_zero8
 fp_mul__go:
+        LD      A,(fp_mul__ready)       ; the table on the first call
+        OR      A
+        CALL    Z,fp_mul__init
         LD      HL,fp_mul__p            ; P = 0
         LD      B,16
 fp_mul__c:
@@ -42,15 +46,15 @@ fp_mul__c:
         LD      (fp_mul__i),A
 fp_mul__row:
         LD      HL,(fp_mul__ap)
-        LD      E,(HL)                  ; DE = a[i]
+        LD      C,(HL)                  ; C = a[i]
         INC     HL
         LD      (fp_mul__ap),HL
-        LD      D,0
-        LD      A,E
+        LD      A,C
         OR      A
         JR      Z,fp_mul__nr            ; a zero byte adds nothing (P[i+7] stays 0)
         LD      IX,(fp_mul__pp)
         LD      IY,fp_xb
+        LD      D,fp_mul__tab/256       ; D = the page of the table
         LD      B,0
         LD      A,7
         LD      (fp_mul__j),A
@@ -59,47 +63,34 @@ fp_mul__st1:
         INC     IY
         OR      A
         JR      Z,fp_mul__z
-        LD      HL,0                    ; HL = a[i] * b[j] (8 x 8 bits, unrolled)
-        ADD     HL,HL
-        RLA
-        JR      NC,fp_mul__k0
-        ADD     HL,DE
-fp_mul__k0:
-        ADD     HL,HL
-        RLA
-        JR      NC,fp_mul__k1
-        ADD     HL,DE
-fp_mul__k1:
-        ADD     HL,HL
-        RLA
-        JR      NC,fp_mul__k2
-        ADD     HL,DE
-fp_mul__k2:
-        ADD     HL,HL
-        RLA
-        JR      NC,fp_mul__k3
-        ADD     HL,DE
-fp_mul__k3:
-        ADD     HL,HL
-        RLA
-        JR      NC,fp_mul__k4
-        ADD     HL,DE
-fp_mul__k4:
-        ADD     HL,HL
-        RLA
-        JR      NC,fp_mul__k5
-        ADD     HL,DE
-fp_mul__k5:
-        ADD     HL,HL
-        RLA
-        JR      NC,fp_mul__k6
-        ADD     HL,DE
-fp_mul__k6:
-        ADD     HL,HL
-        RLA
-        JR      NC,fp_mul__k7
-        ADD     HL,DE
-fp_mul__k7:
+        LD      L,A                     ; HL = a[i] * b[j] = T[a+b] - T[|a-b|], T[n] = n*n/4
+        SUB     C
+        JR      NC,fp_mul__d
+        NEG
+fp_mul__d:
+        LD      E,A                     ; DE -> TL[d]
+        LD      A,L
+        ADD     A,C
+        LD      L,A
+        SBC     A,A                     ; s >= 256: two pages further
+        AND     2
+        ADD     A,D
+        LD      H,A                     ; HL -> TL[s]
+        LD      A,(HL)
+        INC     H
+        LD      H,(HL)
+        LD      L,A                     ; HL = T[s]
+        EX      DE,HL                   ; DE = T[s], HL -> TL[d]
+        LD      A,E
+        SUB     (HL)
+        LD      E,A
+        INC     H
+        LD      A,D
+        SBC     A,(HL)
+        DEC     H
+        LD      D,H                     ; the page again
+        LD      H,A
+        LD      L,E
         LD      A,L                     ; + carry
         ADD     A,B
         LD      L,A
@@ -198,6 +189,39 @@ fp_mul__e:
         LD      HL,(fp_mul__dst)
         JP      fp_finish
 
+; the table T[n] = n*n/4 (n = 0..511): page P low bytes of 0..255, P+1 their high bytes, P+2 and
+; P+3 the same for 256..511; T[n+1] = T[n] + (n+1)/2
+fp_mul__init:
+        LD      A,1
+        LD      (fp_mul__ready),A
+        LD      HL,0                    ; HL = T[n]
+        LD      BC,0                    ; BC = n
+        LD      DE,fp_mul__tab
+        LD      A,2
+fp_mul__ih:
+        PUSH    AF
+fp_mul__il:
+        LD      A,L
+        LD      (DE),A
+        INC     D
+        LD      A,H
+        LD      (DE),A
+        DEC     D
+        INC     BC
+        PUSH    BC
+        SRL     B
+        RR      C
+        ADD     HL,BC
+        POP     BC
+        INC     E
+        JR      NZ,fp_mul__il
+        INC     D
+        INC     D
+        POP     AF
+        DEC     A
+        JR      NZ,fp_mul__ih
+        RET
+
 ;! section bss
 fp_mul__dst:
         DS      2
@@ -211,5 +235,11 @@ fp_mul__j:
         DS      1
 fp_mul__sk:
         DS      1
+fp_mul__ready:
+        DS      1
+fp_mul__pad:                            ; the table on a page boundary
+        DS      (256-($ & 255)) & 255
+fp_mul__tab:
+        DS      1024
 fp_mul__p:
         DS      16
