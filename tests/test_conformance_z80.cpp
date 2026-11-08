@@ -490,6 +490,130 @@ int main() {
                     }
                 }
     }
+    {  // PRINT USING: random formats from building blocks, numbers and strings, all four modes; the
+       // buffer variants (rt_using_numb ...) against runtime/ref/rt_using.c; STR$(x,y,z), STR$(x,n)
+        Rng r;
+        int shown = 0;
+        auto put = [&](std::uint16_t at, const std::string& t) {
+            for (std::size_t k = 0; k < t.size(); ++k) rt.raw().write8(static_cast<std::uint16_t>(at + k), static_cast<std::uint8_t>(t[k]));
+        };
+        auto desc = [&](std::uint16_t d, std::uint16_t at, const std::string& t) {
+            put(at, t);
+            rt.raw().write8(d, at & 0xFF);
+            rt.raw().write8(d + 1, at >> 8);
+            rt.raw().write8(d + 2, t.size() & 0xFF);
+            rt.raw().write8(d + 3, static_cast<std::uint8_t>(t.size() >> 8));
+        };
+        auto call = [&](const char* name, Z80Regs in, std::string* text) {
+            in.ix = 0x1357;
+            in.iy = 0x2468;
+            const auto res = rt.raw().call(name, in, 50'000'000);
+            const bool ok = res.ok && res.regs.ix == 0x1357 && res.regs.iy == 0x2468;
+            if (text != nullptr && ok) {
+                text->clear();
+                for (std::uint16_t k = 0; k < res.regs.bc && k < 5000; ++k)
+                    *text += static_cast<char>(rt.raw().read8(static_cast<std::uint16_t>(res.regs.hl + k)));
+            }
+            if (!ok) std::cerr << name << ": " << (res.ok ? "IX/IY not preserved" : res.error) << "\n";
+            return ok;
+        };
+        auto strOf = [&](std::uint16_t d) {
+            std::string t;
+            const std::uint16_t at = static_cast<std::uint16_t>(rt.raw().read8(d) | rt.raw().read8(d + 1) << 8);
+            const int len = rt.raw().read8(d + 2) | rt.raw().read8(d + 3) << 8;
+            for (int k = 0; k < len; ++k) t += static_cast<char>(rt.raw().read8(static_cast<std::uint16_t>(at + k)));
+            return t;
+        };
+        static const char* blocks[] = {"#", "##", "###", "####", "#,###", ",", ".", ".#", ".##", "*", "**", "$", "+", "-", "^^^^", "^^^", "^^^^^",
+                                       "^^", "&", "!", "\\\\", "\\  \\", "_", "_#", "x", " ", "abc", "#.#", "+##.##", "##.##-", "**$#,##.##",
+                                       "#.##^^^^", "###.##^^^^", "-#.#", "$##", "#.###,##", "##,##", "+.##", "*$#", "_!", "%",
+                                       "#.##^^^^^^^^^^^^", "##########.##########", "^^^^^^^^^^^^"};
+        const int nblocks = static_cast<int>(sizeof blocks / sizeof blocks[0]);
+        static const f64 special[] = {0, 0x8000000000000000u, 0x3FF0000000000000u, 0xBFF0000000000000u, 0x3FC0000000000000u,
+                                      0x4004000000000000u, 0x4058FFAE147AE148u, 0x4415AF1D78B58C40u, 0x3DDB7CDFD9D7BDBBu,
+                                      0x7E37E43C8800759Cu, 0x408F400000000000u, 0xC0C3880000000000u, 0x3FE0000000000000u,
+                                      0x3FEFFFFFFFFFFFFFu, 0x4023FFFFFFFFFFFFu, 0x7FEFFFFFFFFFFFFFu, 0x0010000000000000u};
+        const int nspecial = static_cast<int>(sizeof special / sizeof special[0]);
+        static char buf[4096];
+        for (int i = 0; i < cases / 2; ++i) {
+            std::string f;
+            const int nb = r.range(1, 4);
+            for (int k = 0; k < nb; ++k) f += blocks[r.range(0, nblocks - 1)];
+            const int mode = r.range(0, 3);
+            rt_using u;
+            rt_using_begin(&u, f.data(), static_cast<std::int32_t>(f.size()), mode);
+            rt.raw().write32(kA, static_cast<std::uint32_t>(mode));
+            Z80Regs in;
+            in.de = kA;
+            if (!call("rt_set_mode", in, nullptr)) break;
+            desc(0xE040, 0xE200, f);
+            in.de = 0xE040;
+            if (!call("rt_using_begin", in, nullptr)) break;
+            std::string expect, got, part;
+            const int nv = r.range(1, 3);
+            for (int k = 0; k < nv; ++k) {
+                Z80Regs v;
+                if (r.range(0, 4) == 0) {
+                    static const char* strs[] = {"", "a", "hello world", "xy"};
+                    const std::string sv = strs[r.range(0, 3)];
+                    expect += std::string(buf, static_cast<std::size_t>(rt_using_str(&u, buf, 512, sv.data(), static_cast<std::int32_t>(sv.size()))));
+                    desc(0xE048, 0xE300, sv);
+                    v.de = 0xE048;
+                    if (!call("rt_using_strb", v, &part)) break;
+                } else {
+                    const f64 x = r.range(0, 2) == 0 ? special[r.range(0, nspecial - 1)] : randomF64(r, 1023 - 40, 1023 + 70);
+                    expect += std::string(buf, static_cast<std::size_t>(rt_using_num(&u, buf, 512, x)));
+                    rt.raw().write64(kA, x);
+                    v.de = kA;
+                    if (!call("rt_using_numb", v, &part)) break;
+                }
+                got += part;
+            }
+            expect += std::string(buf, static_cast<std::size_t>(rt_using_end(&u, buf, 512)));
+            if (call("rt_using_endb", Z80Regs{}, &part)) got += part;
+            ++g_checks;
+            if (got != expect) {
+                ++g_failures;
+                if (++shown <= 10) std::cerr << "PRINT USING \"" << f << "\" mode " << mode << ": \"" << got << "\", expected \"" << expect << "\"\n";
+            }
+        }
+        const std::uint16_t kZ = 0xE030, argp = rt.raw().symbol("rt_argp");
+        for (int i = 0; i < cases / 4; ++i) {
+            const f64 x = r.range(0, 2) == 0 ? special[r.range(0, nspecial - 1)] : randomF64(r, 1023 - 20, 1023 + 40);
+            const int mode = r.range(0, 3);
+            const std::int32_t y = i % 50 == 0 ? r.range(250, 300) : r.range(-2, 30), z = i % 40 == 0 ? r.range(250, 400) : r.range(-2, 12),
+                               n = i % 50 == 0 ? r.range(100, 300) : r.range(-2, 30);
+            rt.raw().write32(kA, static_cast<std::uint32_t>(mode));
+            Z80Regs in;
+            in.de = kA;
+            call("rt_set_mode", in, nullptr);
+            const std::string expect(buf, static_cast<std::size_t>(rt_str_fmt(buf, 512, x, y, z, mode)));
+            rt.raw().write64(kA, x);
+            rt.raw().write32(kB, static_cast<std::uint32_t>(y));
+            rt.raw().write32(kZ, static_cast<std::uint32_t>(z));
+            rt.raw().write8(argp, kZ & 0xFF);
+            rt.raw().write8(argp + 1, kZ >> 8);
+            in.de = kA;
+            in.bc = kB;
+            const auto res = rt.raw().call("rt_str_fmt", in, 50'000'000);
+            const std::string got = res.ok ? strOf(res.regs.hl) : "(" + res.error + ")";
+            const std::string expectN(buf, static_cast<std::size_t>(rt_str_n(buf, 512, x, n)));
+            rt.raw().write32(kB, static_cast<std::uint32_t>(n));
+            const auto resN = rt.raw().call("rt_str_n", in, 5'000'000);
+            const std::string gotN = resN.ok ? strOf(resN.regs.hl) : "(" + resN.error + ")";
+            rt.raw().write32(kB, 0);
+            Z80Regs rel;
+            rel.de = kB;
+            (void)rt.raw().call("rt_str_release", rel);
+            g_checks += 2;
+            if (got != expect || gotN != expectN) {
+                ++g_failures;
+                if (++shown <= 10)
+                    std::cerr << "STR$(" << std::hex << x << std::dec << "," << y << "," << z << ") mode " << mode << ": \"" << got << "\", expected \""
+                              << expect << "\"; STR$(x," << n << "): \"" << gotN << "\", expected \"" << expectN << "\"\n";
+            }
+        }
+    }
     {  // rt_mkstr: MKD$/CVD (GFA 8-byte float), MKS$/CVS (IEEE single), MKI$/MKL$/CVI/CVL
         auto mk = [&](const char* name, std::uint64_t x, int n, std::vector<std::uint8_t>& got, int& err) {
             rt.raw().write64(kA, x);

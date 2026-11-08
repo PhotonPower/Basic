@@ -600,7 +600,9 @@ kopieren.
   `CALL`); sie rechnen bitgleich mit der Referenz.
 - Tastatur: eine Eingabezeile hat auf dem Z80 höchstens 255 Zeichen (der Rest wird übergangen),
   `INPUT$(n)` liefert höchstens 255. z80-test liest über die Ports &03 (Zeichen vorhanden) und &02.
-- `HEX$`/`BIN$`/`OCT$`: die Breite ist auf dem Z80 höchstens 32767.
+- `HEX$`/`BIN$`/`OCT$`: die Breite ist auf dem Z80 höchstens 32767, ebenso `STR$(x,n)`.
+- `PRINT USING` schreibt seinen Text in Stücken von 512 Zeichen (ohne Obergrenze); `STR$(x,y,z)`
+  liefert wie auf dem 68000 höchstens 512 Zeichen.
 - Der Linker meldet in Z80-Modulen Labels, die sich nur in Groß-/Kleinschreibung unterscheiden.
 - Der erzeugte Code ist noch groß (jeder Zugriff berechnet die Adresse des Stapelplatzes): `arrays.lst`
   braucht 24,7 KB mit Laufzeit. Für den CPC (rund 40 KB) muss das Backend später sparsamer werden.

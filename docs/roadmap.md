@@ -104,7 +104,9 @@ Plattform, Bereinigung, Zwischenergebnisse; `rt_strfn`: Verkettung, Vergleich, `
 ✔ Prozeduren und Funktionen mit Parametern, `LOCAL`, `VAR`-Parameter, String-Funktionen, ✔ `ON ERROR`,
 `RESUME`, `ERR`, `ERR$`, `ERROR`, ✔ `FOR` mit Integer-Variable, `ROUND`, `VAL`/`VAL?`, `DATA`/`READ`/
 `RESTORE`, ✔ transzendente Funktionen und `^` (bitgleich), ✔ Tastatur (`INPUT`, `LINE INPUT`, `INKEY$`,
-`INPUT$`), `WRITE`, ✔ Bitfunktionen, `SELECT` mit Strings, `MKx$`/`CVx`, `HEX$`/`BIN$`/`OCT$`. Weiter: Prozeduren mit Parametern und `LOCAL`, `ON ERROR`, `DATA`, Eingabe.
+`INPUT$`), `WRITE`, ✔ Bitfunktionen, `SELECT` mit Strings, `MKx$`/`CVx`, `HEX$`/`BIN$`/`OCT$`, ✔ `PRINT USING`/`MODE`/`STR$(x,y,z)`, `LSET`/`RSET`/`MID$()=`,
+`RESERVE`/`FRE`, `TIMER`. Weiter: Matrizen, Gruppe `memory` (Little-Endian, eigene erwartete Ausgaben),
+Plattform `cpc` (Firmware-Ausgabe und -Tastatur, Cursor, AMSDOS-Dateien), Codegröße.
 
 - LIR → Z80-Assembler, `runtime/z80`, `platform/cpc` (AMSDOS-Header, `.sna`) und `platform/z80-test`.
 - Konformanz- und Differenztests, Größenbudgets.
