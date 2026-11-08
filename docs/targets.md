@@ -64,8 +64,14 @@ außerhalb dieses Speichers lösen einen Fehler aus.
   für Dateien.
 - Einschränkungen:
   - **Dateien:** AMSDOS erlaubt nur je eine Eingabe- und eine Ausgabedatei und keinen wahlfreien
-    Zugriff. Gruppe `file-seq` ja (mit dieser Grenze, Fehler bei einem dritten Kanal),
-    `file-random` nein.
+    Zugriff. Gruppe `file-seq` ja (`platform/cpc/plat_file.s`), `file-random` nein. Eine zweite
+    Datei derselben Richtung oder eine Datei, die gerade in der anderen Richtung offen ist, ist
+    Fehler 202 (`ERR` −54). `OPEN "A"` kopiert die alte Datei in die neue und braucht dafür den
+    Eingabekanal. Die Dateien sind ASCII-Dateien ohne Kopf: Lesen endet beim ersten `&1A`; beim
+    Schließen macht AMSDOS aus einer älteren Datei gleichen Namens `NAME.BAK`. `LOF` einer
+    Eingabedatei liest sie ein zweites Mal. `EXIST`/`KILL` suchen über `CAS IN OPEN`: Bei offener
+    Eingabedatei werden nur die beiden offenen Dateien gefunden, und `KILL` (über `|ERA`) meldet
+    eine fehlende Datei dann nicht. Die Fehlermeldungen von AMSDOS sind abgeschaltet (`&BE78`).
   - **Grafik:** `PLOT`, `DRAW`, `LINE`, `BOX`, `CIRCLE`, `COLOR`, `CLS`, `TEXT` werden auf
     Firmware-Grafik abgebildet (Koordinaten skalieren, Farben auf die Palette des Modus);
     Screens, Fenster, Menüs, Sprites, BOBs und Kapitel 11 gibt es nicht.
@@ -80,7 +86,9 @@ außerhalb dieses Speichers lösen einen Fehler aus.
   allen Modellen gleich. Die Mathe-Sprungleiste der Firmware (die sich unterscheidet) wird nicht
   benutzt. Welche Modelle unterstützt werden, ist noch offen ([roadmap.md](roadmap.md#offene-fragen)).
 - Tests: In der Harness werden Firmware-Aufrufe als Stubs emuliert (`TXT OUTPUT` → Konsole,
-  `TXT SET CURSOR`/`TXT CLEAR WINDOW` → dieselben ANSI-Folgen wie auf dem Amiga); ein
+  `TXT SET CURSOR`/`TXT CLEAR WINDOW` → dieselben ANSI-Folgen wie auf dem Amiga, `CAS IN …`/
+  `CAS OUT …`, `KL FIND COMMAND` und `KL FAR PCHL` für `|ERA` → ein AMSDOS-Modell mit denselben
+  Grenzen); ein
   nicht emulierter Aufruf bricht den Lauf mit Meldung ab. Das Schwesterprojekt kann außerdem die echte
   6128-Firmware booten und den Bildschirm rendern, was für Grafiktests genutzt werden kann.
 

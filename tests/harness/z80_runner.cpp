@@ -24,6 +24,10 @@ constexpr std::uint16_t kKmReadChar = 0xBB09;
 constexpr std::uint16_t kKlTimePlease = 0xBD0D;
 constexpr std::uint16_t kTxtSetCursor = 0xBB75;
 constexpr std::uint16_t kTxtClearWindow = 0xBB6C;
+constexpr std::uint16_t kCasInOpen = 0xBC77, kCasInClose = 0xBC7A, kCasInAbandon = 0xBC7D, kCasInChar = 0xBC80;
+constexpr std::uint16_t kCasOutOpen = 0xBC8C, kCasOutClose = 0xBC8F, kCasOutAbandon = 0xBC92, kCasOutChar = 0xBC95;
+constexpr std::uint16_t kKlFindCommand = 0xBCD4, kKlFarPchl = 0x001B;
+constexpr std::uint16_t kEraAddress = 0xC123;  // what KL FIND COMMAND returns for |ERA (only called through KL FAR PCHL)
 constexpr std::uint8_t kTestConsolePort = 0x01;
 constexpr std::uint8_t kTestFilePort = 0x10;
 
@@ -31,6 +35,92 @@ constexpr std::uint8_t kTestFilePort = 0x10;
 // request block and OUT (C),L with B = H, C = &10 (block address HL): +0 command, +1 mode or
 // handle, +2 status (0 or the AmigaDOS error), +4 name address or byte, +6 name length; results
 // (handle, byte, size) as 32 bits at +4.
+// cpc files: AMSDOS as the firmware calls see it. One input and one output file; files written with
+// CAS OUT CHAR are ASCII files without a header (reading ends at the first &1A); CAS OUT CLOSE turns
+// an older file of the same name into NAME.BAK; |ERA deletes (no result, as on the CPC).
+class Amsdos {
+public:
+    // address: a stubbed call -> true if handled (registers set as the firmware returns)
+    bool call(z80::Word address, z80::Registers& r, z80::Memory& m) {
+        auto ok = [&](bool good, z80::Byte a) {  // CF set = success; on failure Z clear (no ESC), A = code
+            r.setAf(static_cast<z80::Word>(a << 8 | (good ? 0x01 : 0x00)));
+        };
+        switch (address) {
+            case kCasInOpen: {
+                const std::string n = name(m, r.hl(), r.bc() >> 8);
+                const auto it = files_.find(n);
+                if (in_ || it == files_.end()) return ok(false, 0x92), true;
+                in_ = true;
+                inData_ = it->second;
+                inPos_ = 0;
+                r.setBc(static_cast<z80::Word>(inData_.size()));
+                return ok(true, 0x16), true;  // ASCII file
+            }
+            case kCasInChar:
+                if (!in_ || inPos_ >= inData_.size() || inData_[inPos_] == 0x1A) return ok(false, 0x1A), true;
+                return ok(true, inData_[inPos_++]), true;
+            case kCasInClose:
+            case kCasInAbandon:
+                in_ = false;
+                return ok(true, 0), true;
+            case kCasOutOpen:
+                if (out_) return ok(false, 0x0E), true;
+                out_ = true;
+                outName_ = name(m, r.hl(), r.bc() >> 8);
+                outData_.clear();
+                return ok(true, 0), true;
+            case kCasOutChar:
+                if (!out_) return ok(false, 0x0E), true;
+                outData_.push_back(r.a());
+                return ok(true, r.a()), true;
+            case kCasOutClose:
+                if (out_) {
+                    if (const auto it = files_.find(outName_); it != files_.end()) {
+                        const std::size_t dot = outName_.find('.');
+                        files_[outName_.substr(0, dot) + ".BAK"] = it->second;
+                    }
+                    files_[outName_] = outData_;
+                }
+                out_ = false;
+                return ok(true, 0), true;
+            case kCasOutAbandon:
+                out_ = false;
+                return ok(true, 0), true;
+            case kKlFindCommand: {  // HL -> name, the last character with bit 7
+                std::string n;
+                for (z80::Word a = r.hl(); n.size() < 16; ++a) {
+                    n += static_cast<char>(m.read(a) & 0x7F);
+                    if (m.read(a) & 0x80) break;
+                }
+                if (n != "ERA") return ok(false, 0), true;
+                r.setHl(kEraAddress);
+                r.setBc(static_cast<z80::Word>((r.bc() & 0xFF00) | 7));
+                return ok(true, 0), true;
+            }
+            case kKlFarPchl: {  // only |ERA: A = 1, IX -> address of the string descriptor (length, address)
+                if (r.hl() != kEraAddress || r.a() != 1) return false;
+                const z80::Word d = static_cast<z80::Word>(m.read(r.ix) | m.read(static_cast<z80::Word>(r.ix + 1)) << 8);
+                files_.erase(name(m, static_cast<z80::Word>(m.read(static_cast<z80::Word>(d + 1)) | m.read(static_cast<z80::Word>(d + 2)) << 8), m.read(d)));
+                return true;
+            }
+            default:
+                return false;
+        }
+    }
+
+private:
+    static std::string name(z80::Memory& m, z80::Word a, unsigned n) {
+        std::string s;
+        for (unsigned k = 0; k < n; ++k) s += static_cast<char>(std::toupper(m.read(static_cast<z80::Word>(a + k))));
+        return s;
+    }
+    std::map<std::string, std::vector<std::uint8_t>> files_;
+    bool in_ = false, out_ = false;
+    std::vector<std::uint8_t> inData_, outData_;
+    std::size_t inPos_ = 0;
+    std::string outName_;
+};
+
 class RamDisk {
 public:
     void request(z80::Memory& m, z80::Word block) {
@@ -156,10 +246,12 @@ Z80Run runZ80Image(const std::vector<std::uint8_t>& image, Z80Platform platform,
         memory.write(r.sp, static_cast<z80::Byte>(kSentinel & 0xFF));
         memory.write(static_cast<z80::Word>(r.sp + 1), static_cast<z80::Byte>(kSentinel >> 8));
         cpu.addBreakpoint(kSentinel);
-        cpu.setExecHook(kFirmwareFirst, kFirmwareLast, [&, inputPos = std::size_t{0}, time = std::uint32_t{0}](z80::Cpu& c) mutable {
+        cpu.setExecHook(kKlFarPchl, kFirmwareLast, [&, inputPos = std::size_t{0}, time = std::uint32_t{0}, dos = Amsdos{}](z80::Cpu& c) mutable {
             z80::Registers& regs = c.regs();
             const z80::Word address = regs.pc;
-            if (address == kTxtOutput) {
+            if (address < kFirmwareFirst && address != kKlFarPchl) return false;  // the program itself
+            if (dos.call(address, regs, c.memory())) {
+            } else if (address == kTxtOutput) {
                 result.console += static_cast<char>(regs.a());
             } else if (address == kKmWaitChar || address == kKmReadChar) {
                 // the next byte of the input with CF set; at its end CF clear (KM WAIT CHAR never

@@ -99,6 +99,8 @@ einzelnes Programm). Auf cpc laufen die Firmware-Aufrufe als Stubs (`TXT OUTPUT`
 gefüllten Speicher geladen, und CR vor LF zählt nicht. Programme mit Tastatureingabe laufen nur auf
 z80-test, weil der CPC die getippten Zeichen auf dem Bildschirm wiederholt. Der Treiber nennt die
 Größe jedes Programms (`prg_end` minus Ladeadresse). Dateien landen auf z80-test in einer RAM-Disk
-des Testtreibers (Anfrageblock über Port `&10`, Fehler wie die RAM-Disk von m68k-test). Wo der Z80 andere Bytes sieht (Gruppe `memory`:
+des Testtreibers (Anfrageblock über Port `&10`, Fehler wie die RAM-Disk von m68k-test), auf cpc in
+einem AMSDOS-Modell (`CAS IN …`/`CAS OUT …`, `|ERA`). Wo die Grenzen von AMSDOS ein Programm
+treffen, gilt auf cpc `<name>.cpc.out` (`files`). Wo der Z80 andere Bytes sieht (Gruppe `memory`:
 Little-Endian, Deskriptoren mit 16-Bit-Adressen), gilt `<name>.z80.out` statt `<name>.out`; diese
 Dateien sind von Hand Zeile für Zeile gegen das Speicherlayout geprüft (`memory`, `ptr`).

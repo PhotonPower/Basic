@@ -3,7 +3,8 @@
 // PhotonPower/Z80 and its output compared with <name>.out (made on the original). On the CPC a line
 // ends with CR LF, so CR before LF is ignored there; programs with keyboard input run on z80-test only
 // (the CPC echoes the typed characters). A <name>.z80.out replaces <name>.out where the Z80 sees other
-// bytes (group memory). BASIC_Z80_PROGRAM=<file> runs one program.
+// bytes (group memory), a <name>.cpc.out on cpc where AMSDOS differs (one input and one output
+// file). BASIC_Z80_PROGRAM=<file> runs one program.
 
 #include <cstdlib>
 #include <filesystem>
@@ -68,9 +69,13 @@ int main() {
             const std::string label = name + (cpc ? " (cpc)" : " (z80-test)");
             const fs::path in = fs::path(entry.path()).replace_extension(".in");
             if (cpc && fs::exists(in)) continue;
-            // <name>.z80.out: the Z80 sees other bytes (little-endian, 16-bit descriptors; group memory)
+            // <name>.z80.out: the Z80 sees other bytes (little-endian, 16-bit descriptors; group memory);
+            // <name>.cpc.out: the CPC differs (AMSDOS: one input and one output file)
             const fs::path z80Out = fs::path(entry.path()).replace_extension(".z80.out");
-            std::string expected = read(fs::exists(z80Out) ? z80Out : fs::path(entry.path()).replace_extension(".out"));
+            const fs::path cpcOut = fs::path(entry.path()).replace_extension(".cpc.out");
+            std::string expected = read(cpc && fs::exists(cpcOut) ? cpcOut
+                                        : fs::exists(z80Out)     ? z80Out
+                                                                 : fs::path(entry.path()).replace_extension(".out"));
             if (const fs::path e = fs::path(entry.path()).replace_extension(".err"); fs::exists(e))
                 expected += "\nruntime error " + std::to_string(std::stoi(read(e))) + "\n";
             bool unsupported = false;
