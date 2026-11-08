@@ -64,7 +64,15 @@ Z80CallResult Z80Routines::call(const std::string& routine, const Z80Regs& in, s
     cpu.run(limits);
     result.cycles = cpu.cycles() - before;
     if (r.pc != kReturn || r.sp != kStackTop) {
-        result.error = routine + ": did not return (pc " + std::to_string(r.pc) + ", sp " + std::to_string(r.sp) + ")";
+        std::string near;  // the label at or just below pc
+        std::int64_t best = -1;
+        for (const auto& [name, value] : symbols_)
+            if (value <= r.pc && value > best) {
+                best = value;
+                near = name;
+            }
+        result.error = routine + ": did not return (pc " + std::to_string(r.pc) + " = " + near + "+" +
+                       std::to_string(r.pc - best) + ", sp " + std::to_string(r.sp) + ")";
         return result;
     }
     result.regs = {r.af(), r.bc(), r.de(), r.hl(), r.ix, r.iy};

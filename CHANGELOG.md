@@ -52,7 +52,8 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
   (`rt_err`, `rt_onerr`, `rt_resume`, `rt_errtext`); `FOR` mit Integer-Variable (`rt_for`), `ROUND`,
   `VAL`/`VAL?` (`rt_val` mit 40 Ziffern, D30), `DATA`/`READ`/`RESTORE`; transzendente Funktionen
   (`rt_math`) und `^` (`rt_power`), bitgleich mit der Referenz; Tastatur (`rt_kbd`, Eingabe-Ports von
-  z80-test), `WRITE`; Aufrufhilfe
+  z80-test), `WRITE`; Bitfunktionen (`BTST` … `ROR`, `SWAP`, `WORD`, `CARD`, `BYTE`), `SELECT` mit Strings,
+  `MKI$`/`MKL$`/`MKS$`/`MKD$` und `CVI`/`CVL`/`CVS`/`CVD` (bitgleich mit der Referenz), `HEX$`/`BIN$`/`OCT$`; Aufrufhilfe
   `Z80Routines`, Konformanztest `conformance_z80`; Linker-Anordnung `PlainZ80`.
 - Maus und Joystick (D29): `MOUSEX`, `MOUSEY`, `MOUSEK`, `MOUSE`, `STICK()`, `STRIG()` statt Variablen
   und Feldern; auf dem Amiga aus der Window-Struktur und der Hardware. Testprogramm `mouse`.

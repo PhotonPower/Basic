@@ -76,7 +76,7 @@ public:
         std::vector<std::string> all;
         for (const link::Module& m : mods) all.insert(all.end(), m.provides.begin(), m.provides.end());
         for (link::Module& m : link::loadModules(std::string(BASIC_SOURCE_DIR) + "/platform/z80-test", d))
-            if (m.name != "plat_error" && m.name != "plat_start") mods.push_back(std::move(m));
+            if (m.name != "plat_error" && m.name != "plat_start" && m.name != "plat_heap") mods.push_back(std::move(m));
         std::vector<link::Module> stub = link::loadModules(std::string(BASIC_SOURCE_DIR) + "/tests/conformance/z80", d);
         mods.insert(mods.end(), stub.begin(), stub.end());
         for (const link::Module& m : mods) link::checkLabels(m, d);
@@ -404,6 +404,183 @@ int main() {
             const std::uint32_t want = static_cast<std::uint32_t>(fp_to_i32(t));
             const auto [got, err] = rt.call("rt_for_wrap_int", x);
             report("rt_for_wrap_int", x, 0, got & 0xFFFFFFFFu, err, want, g_error);
+        }
+    }
+    {  // rt_bits: BTST/BCLR/BSET/BCHG, SHL/SHR/ROL/ROR in 8, 16, 32 bits, SWAP, WORD, CARD, BYTE (brt)
+        const std::uint16_t kW = 0xE030, kK = 0xE038, argp = rt.raw().symbol("rt_argp");
+        rt.raw().write8(argp, kW & 0xFF);
+        rt.raw().write8(argp + 1, kW >> 8);
+        rt.raw().write8(argp + 2, kK & 0xFF);
+        rt.raw().write8(argp + 3, kK >> 8);
+        const std::uint32_t vals[] = {0u, 1u, 0x80u, 0xFFu, 0x8000u, 0xFFFFu, 0x12345678u, 0x80000001u, 0xFFFFFFFFu, 0xA5C3E10Fu};
+        for (std::uint32_t v : vals) {
+            for (std::uint32_t n : {0u, 1u, 3u, 7u, 8u, 15u, 16u, 17u, 31u, 32u, 33u, 0xFFFFFFFFu}) {
+                const std::uint32_t bit = 1u << (n & 31);
+                report("rt_btst", v, n, rt.call("rt_btst", v, n).first & 0xFFFFFFFFu, -1, (v & bit) != 0 ? 0xFFFFFFFFu : 0u, -1);
+                report("rt_bclr", v, n, rt.call("rt_bclr", v, n).first & 0xFFFFFFFFu, -1, v & ~bit, -1);
+                report("rt_bset", v, n, rt.call("rt_bset", v, n).first & 0xFFFFFFFFu, -1, v | bit, -1);
+                report("rt_bchg", v, n, rt.call("rt_bchg", v, n).first & 0xFFFFFFFFu, -1, v ^ bit, -1);
+                for (int width : {8, 16, 32})
+                    for (int kind = 0; kind < 4; ++kind) {
+                        rt.raw().write32(kW, static_cast<std::uint32_t>(width));
+                        rt.raw().write32(kK, static_cast<std::uint32_t>(kind));
+                        const std::uint32_t mask = width == 32 ? 0xFFFFFFFFu : (1u << width) - 1;
+                        std::uint32_t w = v & mask;
+                        std::uint32_t c = n & 31;
+                        if (kind >= 2) {
+                            c %= static_cast<std::uint32_t>(width);
+                            if (c != 0) w = kind == 2 ? ((w << c) | (w >> (width - c))) & mask : ((w >> c) | (w << (width - c))) & mask;
+                        } else {
+                            w = c >= static_cast<std::uint32_t>(width) ? 0 : (kind == 0 ? (w << c) & mask : w >> c);
+                        }
+                        if (width == 16) w = static_cast<std::uint32_t>(static_cast<std::int32_t>(static_cast<std::int16_t>(w)));
+                        report("rt_shift " + std::to_string(width) + "/" + std::to_string(kind), v, n,
+                               rt.call("rt_shift", v, n).first & 0xFFFFFFFFu, -1, w, -1);
+                    }
+            }
+            report("rt_swap", v, 0, rt.call("rt_swap", v).first & 0xFFFFFFFFu, -1, (v << 16) | (v >> 16), -1);
+            report("rt_word", v, 0, rt.call("rt_word", v).first & 0xFFFFFFFFu, -1,
+                   static_cast<std::uint32_t>(static_cast<std::int32_t>(static_cast<std::int16_t>(v))), -1);
+            report("rt_card", v, 0, rt.call("rt_card", v).first & 0xFFFFFFFFu, -1, v & 0xFFFF, -1);
+            report("rt_byte", v, 0, rt.call("rt_byte", v).first & 0xFFFFFFFFu, -1, v & 0xFF, -1);
+        }
+    }
+    {  // rt_str_radix: HEX$/BIN$/OCT$ with width (brt::radix; the Z80 caps the width at 32767)
+        const std::uint16_t kW = 0xE030, argp = rt.raw().symbol("rt_argp");
+        rt.raw().write8(argp, kW & 0xFF);
+        rt.raw().write8(argp + 1, kW >> 8);
+        for (std::uint32_t v : {0u, 1u, 7u, 8u, 255u, 0x1234u, 0x80000000u, 0xFFFFFFFFu, 0xDEADBEEFu})
+            for (unsigned base : {2u, 8u, 16u})
+                for (std::int32_t width : {0, -1, -100000, 1, 3, 8, 32, 33, 40, 300, 100000}) {
+                    std::string want;
+                    std::uint32_t x = v;
+                    do {
+                        want.insert(want.begin(), "0123456789ABCDEF"[x % base]);
+                        x /= base;
+                    } while (x != 0);
+                    const std::int32_t w = width > 32767 ? 32767 : width;
+                    if (w > 0) {
+                        if (static_cast<std::int32_t>(want.size()) < w) want.insert(0, static_cast<std::size_t>(w) - want.size(), '0');
+                        else want = want.substr(want.size() - static_cast<std::size_t>(w));
+                    }
+                    if (w > 2000) continue;  // more than the heap of the test holds
+                    rt.raw().write32(kA, v);
+                    rt.raw().write32(kB, base);
+                    rt.raw().write32(kW, static_cast<std::uint32_t>(width));
+                    Z80Regs in;
+                    in.de = kA;
+                    in.bc = kB;
+                    const auto res = rt.raw().call("rt_str_radix", in);
+                    std::string got = "(no return)";
+                    if (res.ok) {
+                        const std::uint16_t d = res.regs.hl;
+                        const std::uint16_t at = static_cast<std::uint16_t>(rt.raw().read8(d) | rt.raw().read8(d + 1) << 8);
+                        const int len = rt.raw().read8(d + 2) | rt.raw().read8(d + 3) << 8;
+                        got.clear();
+                        for (int k = 0; k < len; ++k) got += static_cast<char>(rt.raw().read8(static_cast<std::uint16_t>(at + k)));
+                    }
+                    rt.raw().write32(kB, 0);
+                    Z80Regs rel;
+                    rel.de = kB;
+                    (void)rt.raw().call("rt_str_release", rel);
+                    ++g_checks;
+                    if (got != want) {
+                        ++g_failures;
+                        std::cerr << "rt_str_radix(" << v << ", " << base << ", " << width << "): got " << got << ", want " << want << "\n";
+                    }
+                }
+    }
+    {  // rt_mkstr: MKD$/CVD (GFA 8-byte float), MKS$/CVS (IEEE single), MKI$/MKL$/CVI/CVL
+        auto mk = [&](const char* name, std::uint64_t x, int n, std::vector<std::uint8_t>& got, int& err) {
+            rt.raw().write64(kA, x);
+            rt.raw().write8(kErr, 0xFF);
+            Z80Regs in;
+            in.de = kA;
+            const auto res = rt.raw().call(name, in);
+            ++g_checks;
+            err = rt.raw().read8(kErr) == 0xFF ? -1 : rt.raw().read8(kErr);
+            got.assign(static_cast<std::size_t>(n) + 1, 0xEE);
+            if (!res.ok) {
+                std::cerr << name << ": " << res.error << "\n";
+                return;
+            }
+            const std::uint16_t d = res.regs.hl;
+            const std::uint16_t at = static_cast<std::uint16_t>(rt.raw().read8(d) | rt.raw().read8(d + 1) << 8);
+            const int len = rt.raw().read8(d + 2) | rt.raw().read8(d + 3) << 8;
+            got.resize(static_cast<std::size_t>(len));
+            for (int k = 0; k < len; ++k) got[static_cast<std::size_t>(k)] = rt.raw().read8(static_cast<std::uint16_t>(at + k));
+            rt.raw().write32(kB, 0);
+            Z80Regs rel;
+            rel.de = kB;
+            (void)rt.raw().call("rt_str_release", rel);
+        };
+        auto cv = [&](const char* name, const std::uint8_t* b, int n) {
+            for (int k = 0; k < n; ++k) rt.raw().write8(static_cast<std::uint16_t>(0xE100 + k), b[k]);
+            return rt.call(name, 0xE100u | static_cast<std::uint64_t>(n) << 16);
+        };
+        auto hexs = [](const std::uint8_t* b, std::size_t n) {
+            std::uint64_t v = 0;
+            for (std::size_t k = 0; k < n && k < 8; ++k) v = v << 8 | b[k];
+            return v;
+        };
+        auto one = [&](f64 x) {
+            std::uint8_t want[8];
+            std::vector<std::uint8_t> got;
+            int err = 0;
+            rt_mkd(fp_canon(x), want);
+            mk("rt_mkd", x, 8, got, err);
+            report("rt_mkd", x, 0, got.size() == 8 ? hexs(got.data(), 8) : 0xEEEEu, err, hexs(want, 8), -1);
+            g_error = -1;
+            const f64 back = rt_cvd(want);
+            const int eb = g_error;
+            const auto [gb, ge] = cv("rt_cvd", want, 8);
+            report("rt_cvd", hexs(want, 8), 0, gb, ge, back, eb);
+            g_error = -1;
+            rt_mks(fp_canon(x), want);
+            const int es = g_error;
+            mk("rt_mks", x, 4, got, err);
+            report("rt_mks", x, 0, got.size() == 4 ? hexs(got.data(), 4) : 0xEEEEu, err, hexs(want, 4), es);
+            g_error = -1;
+            const f64 sb = rt_cvs(want);
+            const int esb = g_error;
+            const auto [gs, gse] = cv("rt_cvs", want, 4);
+            report("rt_cvs", hexs(want, 4), 0, gs, gse, sb, esb);
+        };
+        for (f64 x : {f64{0}, f64{0x3FF0000000000000u}, f64{0xC004000000000000u}, f64{0x3FB999999999999Au}, f64{0x7FEFFFFFFFFFFFFFu},
+                      f64{0x0010000000000000u}, f64{0x47EFFFFFE0000000u}, f64{0x47EFFFFFF0000000u}, f64{0x3810000000000000u},
+                      f64{0x380FFFFFF0000000u}, f64{0x3FF000001F000000u}, f64{0x3FF0000010000000u}, f64{0x3FF0000030000000u},
+                      f64{0x3FF000000000001Fu}, f64{0x3FF0000000000010u}, f64{0x3FF0000000000030u}, f64{0x3FFFFFFFFFFFFFF0u}})
+            one(x);
+        Rng rng;
+        for (int i = 0; i < cases / 4; ++i) one(randomF64(rng, i % 3 == 0 ? 0 : 800, i % 3 == 0 ? 2046 : 1250));
+        for (int i = 0; i < cases / 8; ++i) {  // arbitrary bytes, also shorter strings (padded with zeros)
+            std::uint8_t b[8];
+            for (std::uint8_t& c : b) c = static_cast<std::uint8_t>(rng.next());
+            const int n = i % 5 == 0 ? i % 8 : 8;
+            std::uint8_t pad[8] = {};
+            for (int k = 0; k < n; ++k) pad[k] = b[k];
+            g_error = -1;
+            const f64 w = rt_cvd(pad);
+            const int ew = g_error;
+            const auto [g, e] = cv("rt_cvd", b, n);
+            report("rt_cvd bytes", hexs(pad, 8), static_cast<std::uint64_t>(n), g, e, w, ew);
+            g_error = -1;
+            const f64 sw = rt_cvs(pad);
+            const int esw = g_error;
+            const auto [sg, se] = cv("rt_cvs", b, n < 4 ? n : 4);
+            report("rt_cvs bytes", hexs(pad, 4), static_cast<std::uint64_t>(n), sg, se, sw, esw);
+            const std::uint32_t l = static_cast<std::uint32_t>(hexs(pad, 4));
+            const auto [cl, cle] = cv("rt_cvl", b, n < 4 ? n : 4);
+            report("rt_cvl", l, 0, cl & 0xFFFFFFFFu, cle, l, -1);
+            const auto [ci, cie] = cv("rt_cvi", b, n < 2 ? n : 2);
+            report("rt_cvi", l, 0, ci & 0xFFFFFFFFu, cie,
+                   static_cast<std::uint32_t>(static_cast<std::int32_t>(static_cast<std::int16_t>(l >> 16))), -1);
+            std::vector<std::uint8_t> got;
+            int err = 0;
+            mk("rt_mkl", l, 4, got, err);
+            report("rt_mkl", l, 0, got.size() == 4 ? hexs(got.data(), 4) : 0xEEEEu, err, l, -1);
+            mk("rt_mki", l, 2, got, err);
+            report("rt_mki", l, 0, got.size() == 2 ? hexs(got.data(), 2) : 0xEEEEu, err, l & 0xFFFF, -1);
         }
     }
     {  // rt_val: text -> binary64 and the number of characters read (inputs of up to 40 digits, D30)
