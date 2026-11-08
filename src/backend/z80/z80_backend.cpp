@@ -73,6 +73,18 @@ public:
             out_.bss += "prg_rlab:\n        DS      " + std::to_string(4 * std::max<std::size_t>(1, p_.hir->labels.size())) + "\n";
             out_.provides.push_back("prg_rlab");
         }
+        if (uses_.count("rt_type") + uses_.count("rt_swapptr") != 0) {  // TYPE(p), SWAP *p: address and TYPE number
+            out_.data += "prg_vtypes_count:\n        DW      " + std::to_string(p_.hir->vars.size()) + "\nprg_vtypes:\n";
+            for (std::size_t v = 0; v < p_.hir->vars.size(); ++v) {
+                const hir::Var& hv = p_.hir->vars[v];
+                int code = hv.type == hir::Type::Float ? 0 : hv.type == hir::Type::Str ? 1 : hv.type == hir::Type::Bool ? 3
+                         : hv.type == hir::Type::Word ? 8 : hv.type == hir::Type::Byte ? 9 : 2;
+                if (hv.array) code += 4;  // arrays: 4 5 6 7 12 13
+                out_.data += "        DW      v" + std::to_string(v) + "\n        DB      " + std::to_string(code) + "\n";
+            }
+            out_.provides.push_back("prg_vtypes");
+            out_.provides.push_back("prg_vtypes_count");
+        }
         out_.uses.assign(uses_.begin(), uses_.end());
         return out_;
     }
@@ -589,6 +601,26 @@ private:
                 if (i.op == "mov" && (i.dst.type == VT::Str || i.dst.type == VT::Addr)) {  // a 16-bit address
                     argToHL(i.a);
                     storeHL(i.dst);
+                    return;
+                }
+                if (i.op == "mov" && (i.a.type == VT::Str || i.a.type == VT::Addr)) {  // VARPTR: the address as 32 bits
+                    argToHL(i.a);
+                    if (near(i.dst)) {
+                        line("LD      " + ix(offset(i.dst)) + ",L");
+                        line("LD      " + ix(offset(i.dst) + 1) + ",H");
+                        line("LD      " + ix(offset(i.dst) + 2) + ",0");
+                        line("LD      " + ix(offset(i.dst) + 3) + ",0");
+                        return;
+                    }
+                    line("EX      DE,HL");
+                    slotToHL(i.dst);
+                    line("LD      (HL),E");
+                    line("INC     HL");
+                    line("LD      (HL),D");
+                    line("INC     HL");
+                    line("LD      (HL),0");
+                    line("INC     HL");
+                    line("LD      (HL),0");
                     return;
                 }
                 if (i.op == "mov" && i.dst.type == VT::F64) {  // 8 bytes

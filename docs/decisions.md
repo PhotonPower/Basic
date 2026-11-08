@@ -622,6 +622,13 @@ kopieren.
   die Plattform setzt ihn (`plat_locate`, `plat_cls`). `CLS` ruft auf dem Z80 kein `rt_gfx_cmd` auf
   (das Backend lässt den Aufruf hinter `rt_print_cls` weg): Auf dem CPC löscht `TXT CLEAR WINDOW`
   den gemeinsamen Bildschirm, z80-test hat keine Grafik.
+- Gruppe `memory`: native Bytes (Little-Endian, Adressen sind die unteren 16 Bit), `FLOAT{}`/
+  `SINGLE{}` über `MKD$`/`MKS$` wie auf dem 68000. `MALLOC` legt Blöcke vom oberen Ende des
+  Feldbereichs nach unten an; `rt_arr_end` (die Grenze für `DIM`) ist der unterste Block, ein
+  freigegebener Block dazwischen wird erst wieder frei, wenn alle darunter frei sind. Hinter den
+  Zeichen jedes String-Blocks steht ein Nullbyte, damit `CHAR{V:a$}` wie am Amiga endet. `TYPE`/
+  `SWAP *p` über die Tabelle `prg_vtypes` (16-Bit-Adresse, Kennzahl), die das Backend bei Bedarf
+  erzeugt. `V:` einer Variablen kopiert die Adresse als 32-Bit-Zahl.
 - Der Linker meldet in Z80-Modulen Labels, die sich nur in Groß-/Kleinschreibung unterscheiden.
 - Der erzeugte Code ist noch groß (jeder Zugriff berechnet die Adresse des Stapelplatzes): `arrays.lst`
   braucht 24,7 KB mit Laufzeit. Für den CPC (rund 40 KB) muss das Backend später sparsamer werden.

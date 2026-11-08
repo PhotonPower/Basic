@@ -7,7 +7,7 @@
 ;! doc       String heap (D18): descriptors, blocks with a back reference, compaction, temporaries.
 
 ; Descriptor (4 bytes): +0 address of the characters (0: empty), +2 length. Block in the heap: +0
-; owner (descriptor address, 0: garbage), +2 length, +4 characters. Temporaries in rt_str__temps
+; owner (descriptor address, 0: garbage), +2 length, +4 characters, then a zero byte. Temporaries in rt_str__temps
 ; with stack discipline.
 
 rt_str__NTEMP EQU 64
@@ -37,6 +37,8 @@ rt_str__ok:
         INC     HL
         PUSH    HL
         ADD     HL,BC
+        LD      (HL),0                  ; a zero byte after the characters (CHAR{V:a$})
+        INC     HL
         LD      (rt_str__top),HL
         POP     HL
         RET
@@ -53,7 +55,7 @@ rt_str__r1:
         LD      BC,(rt_str__len)
         ADD     HL,BC
         RET     C
-        LD      BC,4
+        LD      BC,5
         ADD     HL,BC
         RET     C
         EX      DE,HL
@@ -76,13 +78,14 @@ rt_str__walk:
         POP     HL
         POP     DE
         JR      NC,rt_str__done         ; source >= top
-        PUSH    HL                      ; BC = size of the block (length + 4)
+        PUSH    HL                      ; BC = size of the block (length + 5)
         INC     HL
         INC     HL
         LD      C,(HL)
         INC     HL
         LD      B,(HL)
         POP     HL
+        INC     BC
         INC     BC
         INC     BC
         INC     BC

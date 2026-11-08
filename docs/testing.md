@@ -98,4 +98,6 @@ einzelnes Programm). Auf cpc laufen die Firmware-Aufrufe als Stubs (`TXT OUTPUT`
 `KM READ CHAR`, `KL TIME PLEASE`), das Programm wird wie aus der Datei ohne BSS in einen mit &E5
 gefüllten Speicher geladen, und CR vor LF zählt nicht. Programme mit Tastatureingabe laufen nur auf
 z80-test, weil der CPC die getippten Zeichen auf dem Bildschirm wiederholt. Der Treiber nennt die
-Größe jedes Programms (`prg_end` minus Ladeadresse).
+Größe jedes Programms (`prg_end` minus Ladeadresse). Wo der Z80 andere Bytes sieht (Gruppe `memory`:
+Little-Endian, Deskriptoren mit 16-Bit-Adressen), gilt `<name>.z80.out` statt `<name>.out`; diese
+Dateien sind von Hand Zeile für Zeile gegen das Speicherlayout geprüft (`memory`, `ptr`).

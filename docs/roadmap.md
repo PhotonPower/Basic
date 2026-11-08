@@ -106,7 +106,7 @@ Plattform, Bereinigung, Zwischenergebnisse; `rt_strfn`: Verkettung, Vergleich, `
 `RESTORE`, ✔ transzendente Funktionen und `^` (bitgleich), ✔ Tastatur (`INPUT`, `LINE INPUT`, `INKEY$`,
 `INPUT$`), `WRITE`, ✔ Bitfunktionen, `SELECT` mit Strings, `MKx$`/`CVx`, `HEX$`/`BIN$`/`OCT$`, ✔ `PRINT USING`/`MODE`/`STR$(x,y,z)`, `LSET`/`RSET`/`MID$()=`,
 `RESERVE`/`FRE`, `TIMER`, ✔ Matrizen, ✔ Codegröße (erster Schritt), ✔ Plattform `cpc` (Ausgabe, Tastatur, `TIMER`, AMSDOS-Binary), ✔ Cursor und Bildschirm (`CLS`,
-`LOCATE`, `PRINT AT`, `HTAB`/`VTAB`, `CRSCOL`/`CRSLIN`). Weiter: Gruppe `memory` (Little-Endian, eigene erwartete Ausgaben),
+`LOCATE`, `PRINT AT`, `HTAB`/`VTAB`, `CRSCOL`/`CRSLIN`), ✔ Gruppe `memory` (Little-Endian, eigene erwartete Ausgaben). Weiter:
 AMSDOS-Dateien, `.sna`-Snapshot, Test im echten CPC-Emulator.
 
 - LIR → Z80-Assembler, `runtime/z80`, `platform/cpc` (AMSDOS-Header, `.sna`) und `platform/z80-test`.

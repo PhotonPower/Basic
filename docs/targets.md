@@ -70,8 +70,11 @@ außerhalb dieses Speichers lösen einen Fehler aus.
     Firmware-Grafik abgebildet (Koordinaten skalieren, Farben auf die Palette des Modus);
     Screens, Fenster, Menüs, Sprites, BOBs und Kapitel 11 gibt es nicht.
   - **Byte-Reihenfolge:** Der Z80 ist Little-Endian. `MKI$`/`CVI`, `MKL$`/`CVL` usw. sind trotzdem
-    immer Big-Endian (Datenformat). `PEEK`/`POKE`/`LONG{}` greifen auf den nativen Speicher zu, weil
-    solche Programme ohnehin maschinenspezifische Adressen verwenden.
+    immer Big-Endian (Datenformat), ebenso `FLOAT{}` und `SINGLE{}` (wie `MKD$`/`MKS$`).
+    `PEEK`/`POKE`/`LONG{}`/`DOUBLE{}` greifen auf den nativen Speicher zu, weil solche Programme
+    ohnehin maschinenspezifische Adressen verwenden. Deskriptoren: String +0 Adresse, +2 Länge;
+    Feld +0 Block, +2 Dimensionen, +4 Elementgröße (je 16 Bit). `MALLOC`-Blöcke liegen am oberen Ende
+    des Feldbereichs (auf dem CPC also unter den Strings).
   - **Register:** Die Schattenregister gehören der Firmware ([runtime.md](runtime.md#aufrufkonventionen)).
 - Firmware 464 vs. 664/6128: Die Sprungleiste für Text, Tastatur, Grafik und Kassette/AMSDOS ist auf
   allen Modellen gleich. Die Mathe-Sprungleiste der Firmware (die sich unterscheidet) wird nicht

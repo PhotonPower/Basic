@@ -81,9 +81,9 @@ public:
         mods.insert(mods.end(), stub.begin(), stub.end());
         for (const link::Module& m : mods) link::checkLabels(m, d);
         const link::Library lib = link::makeLibrary(std::move(mods), d);
-        link::Program prog;  // what a compiled program provides for the runtime (rt_data): no DATA items
-        prog.data = "prg_data_count:\n        DW      0\nprg_data:\n";
-        prog.provides = {"prg_data", "prg_data_count"};
+        link::Program prog;  // what a compiled program provides for the runtime (rt_data, rt_type): empty tables
+        prog.data = "prg_data_count:\n        DW      0\nprg_data:\nprg_vtypes_count:\n        DW      0\nprg_vtypes:\n";
+        prog.provides = {"prg_data", "prg_data_count", "prg_vtypes", "prg_vtypes_count"};
         const link::Result r = link::link(lib, prog, all, link::Layout::PlainZ80, "        ORG &4000\n", d);
         for (const Diagnostic& x : d) std::cerr << "link: " << x.message << "\n";
         CHECK(d.empty());

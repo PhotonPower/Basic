@@ -1,5 +1,6 @@
 ;! module    rt_arr
 ;! provides  rt_arr_dim rt_arr_elem rt_arr_count rt_arr_erase rt_arr_base rt_arr_set_base rt_swap8 rt_arr_work
+;! provides  rt_arr_top rt_arr_end
 ;! requires  rt_error rt_argp rt_str_free plat_arr plat_arr_end
 ;! group     core
 ;! clobbers  AF BC DE HL
@@ -81,7 +82,7 @@ rt_arr__d1:
         ADD     HL,BC
         JP      C,rt_arr__mem
         LD      (rt_arr__size),HL
-        LD      HL,(rt_arr__top)
+        LD      HL,(rt_arr_top)
         LD      A,H
         OR      L
         JR      NZ,rt_arr__t1
@@ -92,11 +93,11 @@ rt_arr__t1:
         ADD     HL,BC
         JP      C,rt_arr__mem
         EX      DE,HL                   ; DE = new top
-        LD      HL,plat_arr_end
+        LD      HL,(rt_arr_end)
         OR      A
         SBC     HL,DE
         JP      C,rt_arr__mem
-        LD      (rt_arr__top),DE
+        LD      (rt_arr_top),DE
         LD      HL,(rt_arr__slot)       ; the slot
         LD      DE,(rt_arr__blk)
         LD      (HL),E
@@ -133,7 +134,7 @@ rt_arr__cx:
         POP     HL
         POP     BC
         DJNZ    rt_arr__cx
-        LD      HL,(rt_arr__top)        ; clear the elements
+        LD      HL,(rt_arr_top)        ; clear the elements
         OR      A
         SBC     HL,DE
         LD      B,H
@@ -420,12 +421,12 @@ rt_arr__area:                           ; the most recent block: give the room b
         ADD     HL,DE
         LD      DE,(rt_arr__blk)
         ADD     HL,DE
-        LD      DE,(rt_arr__top)
+        LD      DE,(rt_arr_top)
         OR      A
         SBC     HL,DE
         JR      NZ,rt_arr__keep
         LD      HL,(rt_arr__blk)
-        LD      (rt_arr__top),HL
+        LD      (rt_arr_top),HL
 rt_arr__keep:
         LD      HL,(rt_arr__slot)       ; not dimensioned
         LD      B,8
@@ -438,7 +439,7 @@ rt_arr__k1:
 ; BC = bytes -> HL = free room above the arrays (valid until the next DIM; MAT work storage);
 ; error 8 if it is too small
 rt_arr_work:
-        LD      HL,(rt_arr__top)
+        LD      HL,(rt_arr_top)
         LD      A,H
         OR      L
         JR      NZ,rt_arr__w1
@@ -448,7 +449,7 @@ rt_arr__w1:
         ADD     HL,BC
         JR      C,rt_arr__w2
         EX      DE,HL
-        LD      HL,plat_arr_end
+        LD      HL,(rt_arr_end)
         OR      A
         SBC     HL,DE
 rt_arr__w2:
@@ -481,8 +482,10 @@ rt_arr__sw:
 ;! section data
 rt_arr_base:
         DB      0,0,0,0
-rt_arr__top:
+rt_arr_top:                             ; first free byte above the arrays (0: none yet)
         DW      0
+rt_arr_end:                             ; end of the room for arrays (MALLOC blocks lie above)
+        DW      plat_arr_end
 
 ;! section bss
 rt_arr__slot:
