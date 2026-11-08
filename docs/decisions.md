@@ -614,6 +614,10 @@ kopieren.
   hinter dem `CALL`) den Anweisungsdatensatz; `rt_str_relx` gibt die Temporärwerte frei.
 - Matrizen: Sichten mit 16-Bit-Feldern (12 Byte), Arbeitsspeicher oberhalb der Felder (`rt_arr_work`,
   gültig bis zum nächsten `DIM`); zwei eindimensionale Faktoren bei `MAT MUL`: der erste als Spalte.
+- cpc: Ladeadresse `&0100`, eigener Stapel bis `&A600`, Felder und Strings teilen sich den freien
+  Speicher hälftig (`plat_heap EQU (prg_end+&A200)/2`); der Linker setzt `prg_bss` vor den BSS-Teil,
+  `plat_start` löscht ihn, die Datei enthält ihn nicht. `KM WAIT CHAR` mit gelöschtem Carry gilt als
+  Ende der Eingabe (das kommt nur im Testtreiber vor).
 - Der Linker meldet in Z80-Modulen Labels, die sich nur in Groß-/Kleinschreibung unterscheiden.
 - Der erzeugte Code ist noch groß (jeder Zugriff berechnet die Adresse des Stapelplatzes): `arrays.lst`
   braucht 24,7 KB mit Laufzeit. Für den CPC (rund 40 KB) muss das Backend später sparsamer werden.

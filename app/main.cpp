@@ -3,6 +3,8 @@
 // Implemented so far: the target registry and the parser (--emit-ast); compiling follows
 // (docs/roadmap.md).
 
+#include <algorithm>
+#include <cctype>
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -24,6 +26,9 @@
 #include "m68k/assembler.hpp"
 #include "m68k/hunk.hpp"
 #endif
+#ifdef BASIC_HAVE_Z80_ASSEMBLER
+#include "z80/assembler.hpp"
+#endif
 
 namespace {
 
@@ -32,7 +37,9 @@ void usage(std::ostream& out) {
         << "usage:\n"
         << "  basicc --target <name> <program.lst> [-o <output>]   compile: pc -> C++ source, amiga ->\n"
         << "                                                        AmigaDOS executable (-o x.s: assembler\n"
-        << "                                                        source), m68k-test -> assembler source\n"
+        << "                                                        source), m68k-test -> assembler source,\n"
+        << "                                                        cpc -> binary with AMSDOS header (-o x.s:\n"
+        << "                                                        source), z80-test -> assembler source\n"
         << "  basicc --targets                                      list targets and their command groups\n"
         << "  basicc --emit-ast <program.lst>                       print the syntax tree\n"
         << "  basicc --emit-hir <program.lst>                       print the typed intermediate code\n"
@@ -162,25 +169,56 @@ int compileM68k(const std::string& path, std::string output, bool amiga) {
     return diags.empty() ? 0 : 1;
 }
 
-// Z80 (z80-test): lowering, backend, source-level linker; writes the assembler source (ORG &4000).
-int compileZ80(const std::string& path, std::string output) {
+// Z80: lowering, backend, source-level linker. z80-test writes the assembler source (ORG &4000);
+// cpc writes a binary with AMSDOS header (load and entry &0100; without the BSS, which the program
+// clears at its start), or the source if the output name ends in ".s".
+int compileZ80(const std::string& path, std::string output, bool cpc) {
     basic::hir::Program h;
     if (!frontEnd(path, h)) return 1;
     basic::Diagnostics diags;
-    const std::string source = basic::buildZ80Program(h, basic::Z80Target::Test, diags);
+    const basic::Z80Target target = cpc ? basic::Z80Target::Cpc : basic::Z80Target::Test;
+    const std::string source = basic::buildZ80Program(h, target, diags);
     if (diags.empty()) {
         if (output.empty()) {
             output = path;
             const auto dot = output.rfind('.');
             if (dot != std::string::npos && output.find('/', dot) == std::string::npos) output.resize(dot);
-            output += ".s";
+            output += cpc ? ".bin" : ".s";
+        }
+        const bool asSource = !cpc || (output.size() > 2 && output.compare(output.size() - 2, 2, ".s") == 0);
+        std::vector<std::uint8_t> bytes(source.begin(), source.end());
+        if (!asSource) {
+#ifdef BASIC_HAVE_Z80_ASSEMBLER
+            z80::AssemblerOptions options;
+            options.origin = basic::z80Origin(target);
+            const z80::AssemblyResult assembled = z80::Assembler(options).assemble(source);
+            if (!assembled.ok()) {
+                std::cerr << "basicc: internal error, assembler:\n" << assembled.formatDiagnostics("<source>");
+                return 1;
+            }
+            std::vector<std::uint8_t> image = assembled.flatten();
+            const auto bss = assembled.symbols.find("PRG_BSS");
+            const auto end = assembled.symbols.find("PRG_END");
+            if (end != assembled.symbols.end() && end->second.value > 0xA200) {
+                std::cerr << "basicc: " << path << ": the program needs " << (end->second.value - options.origin)
+                          << " bytes, more than the CPC has (" << (0xA200 - options.origin) << ")\n";
+                return 1;
+            }
+            if (bss != assembled.symbols.end() && bss->second.value >= options.origin)
+                image.resize(std::min<std::size_t>(image.size(), static_cast<std::size_t>(bss->second.value - options.origin)));
+            bytes = basic::amsdosHeader(output, options.origin, options.origin, image.size());
+            bytes.insert(bytes.end(), image.begin(), image.end());
+#else
+            std::cerr << "basicc: built without the Z80 assembler (BASIC_WITH_EMULATORS=OFF); use -o name.s\n";
+            return 2;
+#endif
         }
         std::ofstream out(output, std::ios::binary);
         if (!out) {
             std::cerr << "basicc: cannot write '" << output << "'\n";
             return 2;
         }
-        out << source;
+        out.write(reinterpret_cast<const char*>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
     }
     for (const basic::Diagnostic& d : diags) std::cerr << basic::formatDiagnostic(path, d) << "\n";
     return diags.empty() ? 0 : 1;
@@ -282,7 +320,7 @@ int main(int argc, char** argv) {
     }
     if (target == "pc") return compilePc(input, output);
     if (target == "m68k-test" || target == "amiga") return compileM68k(input, output, target == "amiga");
-    if (target == "z80-test") return compileZ80(input, output);
+    if (target == "z80-test" || target == "cpc") return compileZ80(input, output, target == "cpc");
     std::cerr << "basicc: target '" << target << "' is not implemented yet (see docs/roadmap.md)\n";
     return 2;
 }

@@ -26,6 +26,8 @@ struct Z80Options {
     std::uint16_t origin = 0x4000;              ///< load address and entry point
     std::uint64_t maxInstructions = 10'000'000;
     std::string input;  ///< z80-test: keyboard input (IN from &03: 1 if a byte is left, IN from &02: the byte)
+    std::uint8_t fill = 0;    ///< contents of the memory before the program is loaded
+    bool withoutBss = false;  ///< runZ80Source: load only up to prg_bss (as the CPC binary file)
 };
 
 /// Assembles `source` with the sister project's assembler and runs it from `options.origin`.

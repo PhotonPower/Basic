@@ -57,7 +57,10 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
   `PRINT USING`, `MODE`, `STR$(x,y,z)`, `STR$(x,n)` (bitgleich mit der Referenz), `LSET`/`RSET`/`MID$()=`,
   `RESERVE`/`FRE`, `TIMER` auf z80-test; Matrizen (`MAT` ohne Dateien, bitgleich mit der Referenz);
   kleinerer Code (Konstanten in geteilten Zellen statt im Rahmen, Plätze nach Lebensdauer geteilt,
-  `rt_ix*`, `rt_err_line`, `rt_str_relx`, direkte Argumente; etwa ein Drittel weniger); Aufrufhilfe
+  `rt_ix*`, `rt_err_line`, `rt_str_relx`, direkte Argumente; etwa ein Drittel weniger);
+  Plattform `cpc`: `basicc --target cpc` schreibt eine Binärdatei mit AMSDOS-Header (Ladeadresse
+  `&0100`), Ausgabe über `TXT OUTPUT`, Tastatur mit Echo über `KM WAIT CHAR`/`KM READ CHAR`, `TIMER`
+  über `KL TIME PLEASE`; alle Testprogramme laufen zusätzlich auf cpc; Aufrufhilfe
   `Z80Routines`, Konformanztest `conformance_z80`; Linker-Anordnung `PlainZ80`.
 - Maus und Joystick (D29): `MOUSEX`, `MOUSEY`, `MOUSEK`, `MOUSE`, `STICK()`, `STRIG()` statt Variablen
   und Feldern; auf dem Amiga aus der Window-Struktur und der Hardware. Testprogramm `mouse`.

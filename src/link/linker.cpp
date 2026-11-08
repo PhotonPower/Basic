@@ -148,7 +148,10 @@ Result link(const Library& lib, const Program& program, const std::vector<std::s
     for (const std::string& s : roots) work.emplace_back(s, "platform");
     for (const std::string& s : program.uses) work.emplace_back(s, "program");
     std::set<std::string> programSymbols(program.provides.begin(), program.provides.end());
-    if (layout == Layout::PlainZ80) programSymbols.insert("prg_end");  // the first free byte after everything
+    if (layout == Layout::PlainZ80) {  // the start of the BSS and the first free byte after everything
+        programSymbols.insert("prg_bss");
+        programSymbols.insert("prg_end");
+    }
     for (std::size_t k = 0; k < work.size(); ++k) {
         const auto [sym, by] = work[k];
         if (programSymbols.count(sym) != 0) continue;
@@ -192,6 +195,7 @@ Result link(const Library& lib, const Program& program, const std::vector<std::s
         s += layout == Layout::Sections ? "        SECTION data,DATA\n" : layout == Layout::PlainZ80 ? "" : "        EVEN\n";
         s += data;
     }
+    if (layout == Layout::PlainZ80) s += "prg_bss:\n";
     if (!trim(bss).empty()) {
         s += layout == Layout::Sections ? "        SECTION bss,BSS\n" : layout == Layout::PlainZ80 ? "" : "        EVEN\n";
         s += bss;

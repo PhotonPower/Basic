@@ -110,7 +110,8 @@ Jede Plattform stellt mindestens bereit:
 | `plat_exit` | Programmende (Amiga: Rückkehr zu AmigaDOS; CPC: `RET` zu BASIC; Testplattformen: `HALT`/`STOP`) |
 | `plat_putc` | ein Zeichen ausgeben |
 | `plat_getc` | ein Zeichen lesen (blockierend), nur mit Gruppe `input` |
-| `plat_poll` | Taste abfragen ohne Warten (`INKEY$`) |
+| `plat_poll` | Taste abfragen ohne Warten (`INKEY$`; auf dem Z80 `plat_inkey`) |
+| `plat_echo` | Z80: ein Zeichen einer Eingabezeile auf dem Bildschirm (10 Zeilenende, 8 gelöscht; z80-test: nichts) |
 | `plat_timer` | Zeitbasis für `TIMER` |
 
 Optional, je nach Gruppen der Plattform: Dateien (`plat_fopen` …), Grafik (`plat_plot`,

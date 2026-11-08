@@ -1,5 +1,6 @@
 #include "z80_runner.hpp"
 
+#include <algorithm>
 #include <cstdio>
 
 #include "z80/assembler.hpp"
@@ -16,6 +17,9 @@ constexpr std::uint16_t kTestStackTop = 0xFFF0;
 constexpr std::uint16_t kFirmwareFirst = 0xB900;  // CPC firmware jump blocks
 constexpr std::uint16_t kFirmwareLast = 0xBDFF;
 constexpr std::uint16_t kTxtOutput = 0xBB5A;
+constexpr std::uint16_t kKmWaitChar = 0xBB06;
+constexpr std::uint16_t kKmReadChar = 0xBB09;
+constexpr std::uint16_t kKlTimePlease = 0xBD0D;
 constexpr std::uint8_t kTestConsolePort = 0x01;
 
 std::string hex4(unsigned v) {
@@ -33,6 +37,8 @@ Z80Run runZ80Image(const std::vector<std::uint8_t>& image, Z80Platform platform,
         return result;
     }
     z80::Memory memory;
+    if (options.fill != 0)
+        for (unsigned a = 0; a < 0x10000; ++a) memory.write(static_cast<z80::Word>(a), options.fill);
     for (std::size_t i = 0; i < image.size(); ++i)
         memory.write(static_cast<z80::Word>(options.origin + i), image[i]);
 
@@ -58,11 +64,21 @@ Z80Run runZ80Image(const std::vector<std::uint8_t>& image, Z80Platform platform,
         memory.write(r.sp, static_cast<z80::Byte>(kSentinel & 0xFF));
         memory.write(static_cast<z80::Word>(r.sp + 1), static_cast<z80::Byte>(kSentinel >> 8));
         cpu.addBreakpoint(kSentinel);
-        cpu.setExecHook(kFirmwareFirst, kFirmwareLast, [&](z80::Cpu& c) {
+        cpu.setExecHook(kFirmwareFirst, kFirmwareLast, [&, inputPos = std::size_t{0}, time = std::uint32_t{0}](z80::Cpu& c) mutable {
             z80::Registers& regs = c.regs();
             const z80::Word address = regs.pc;
             if (address == kTxtOutput) {
                 result.console += static_cast<char>(regs.a());
+            } else if (address == kKmWaitChar || address == kKmReadChar) {
+                // the next byte of the input with CF set; at its end CF clear (KM WAIT CHAR never
+                // returns that on a real CPC; plat_getc takes it as the end of the input)
+                const bool have = inputPos < options.input.size();
+                const z80::Byte a = have ? static_cast<z80::Byte>(options.input[inputPos++]) : regs.a();
+                regs.setAf(static_cast<z80::Word>(a << 8 | ((regs.f() & ~1) | (have ? 1 : 0))));
+            } else if (address == kKlTimePlease) {  // a clock that advances by 3 (1/100 s) per call
+                time += 3;
+                regs.setDe(static_cast<z80::Word>(time >> 16));
+                regs.setHl(static_cast<z80::Word>(time));
             } else if (firmwareError.empty()) {
                 firmwareError = "firmware call " + hex4(address) + " is not emulated";
                 regs.pc = kSentinel;  // stop at the sentinel breakpoint
@@ -110,7 +126,12 @@ Z80Run runZ80Source(const std::string& source, Z80Platform platform, const Z80Op
         failed.error = "the program must start at the origin " + hex4(options.origin);
         return failed;
     }
-    Z80Run run = runZ80Image(assembled.flatten(), platform, options);
+    std::vector<std::uint8_t> image = assembled.flatten();
+    if (options.withoutBss)
+        for (const auto& [name, sym] : assembled.symbols)
+            if ((name == "PRG_BSS" || name == "prg_bss") && sym.value >= options.origin)
+                image.resize(std::min<std::size_t>(image.size(), static_cast<std::size_t>(sym.value - options.origin)));
+    Z80Run run = runZ80Image(image, platform, options);
     for (const auto& [name, sym] : assembled.symbols)
         if (name == "PRG_END" || name == "prg_end") run.end = static_cast<std::uint32_t>(sym.value);
     return run;

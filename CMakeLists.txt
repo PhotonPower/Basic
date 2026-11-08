@@ -68,7 +68,7 @@ target_compile_features(basic_rt_pc PUBLIC cxx_std_17)
 basic_set_warnings(basic_rt_pc)
 
 # ---- runtime modules built into the compiler ---------------------------------------------
-set(BASIC_MODULE_DIRS runtime/m68k platform/m68k-test platform/amiga runtime/z80 platform/z80-test)
+set(BASIC_MODULE_DIRS runtime/m68k platform/m68k-test platform/amiga runtime/z80 platform/z80-test platform/cpc)
 string(REPLACE ";" "," BASIC_MODULE_DIRS_ARG "${BASIC_MODULE_DIRS}")
 set(BASIC_MODULE_FILES "")
 foreach(dir ${BASIC_MODULE_DIRS})
@@ -109,9 +109,9 @@ basic_set_warnings(basiccore)
 # ---- command line tool ----------------------------------------------------------------
 add_executable(basicc app/main.cpp)
 target_link_libraries(basicc PRIVATE basiccore)
-if(BASIC_WITH_EMULATORS)  # amiga: assemble to a hunk file with the sister project's assembler
-  target_link_libraries(basicc PRIVATE m68kcore)
-  target_compile_definitions(basicc PRIVATE BASIC_HAVE_M68K_ASSEMBLER)
+if(BASIC_WITH_EMULATORS)  # amiga, cpc: assemble with the sister projects' assemblers
+  target_link_libraries(basicc PRIVATE m68kcore z80core)
+  target_compile_definitions(basicc PRIVATE BASIC_HAVE_M68K_ASSEMBLER BASIC_HAVE_Z80_ASSEMBLER)
 endif()
 basic_set_warnings(basicc)
 

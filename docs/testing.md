@@ -92,6 +92,10 @@ Größe unerwartet, zeigt die Map-Datei des Linkers, welches Modul hereingezogen
 
 `test_conformance_z80` vergleicht die Module von `runtime/z80` mit `runtime/ref` (wie beim 68000,
 zusätzlich die Integer-Routinen `zi_*`/`rt_int` gegen C). `test_z80_programs` übersetzt jedes
-Testprogramm für z80-test und vergleicht die Ausgabe; was Backend oder Laufzeit noch nicht können,
-wird übersprungen und mit dem Grund aufgeführt (`BASIC_Z80_PROGRAM=<datei>` für ein einzelnes
-Programm).
+Testprogramm für z80-test und für cpc und vergleicht die Ausgabe; was Backend oder Laufzeit noch
+nicht können, wird übersprungen und mit dem Grund aufgeführt (`BASIC_Z80_PROGRAM=<datei>` für ein
+einzelnes Programm). Auf cpc laufen die Firmware-Aufrufe als Stubs (`TXT OUTPUT`, `KM WAIT CHAR`,
+`KM READ CHAR`, `KL TIME PLEASE`), das Programm wird wie aus der Datei ohne BSS in einen mit &E5
+gefüllten Speicher geladen, und CR vor LF zählt nicht. Programme mit Tastatureingabe laufen nur auf
+z80-test, weil der CPC die getippten Zeichen auf dem Bildschirm wiederholt. Der Treiber nennt die
+Größe jedes Programms (`prg_end` minus Ladeadresse).

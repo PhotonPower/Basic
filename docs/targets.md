@@ -45,12 +45,17 @@ außerhalb dieses Speichers lösen einen Fehler aus.
 
 ## cpc (Z80)
 
-- Ausgabe: Binary mit AMSDOS-Header (Laden mit `RUN"name"` bzw. `MEMORY`/`LOAD`/`CALL`); für
-  Emulatoren zusätzlich ein `.sna`-Snapshot über den Assembler des Schwesterprojekts. `.dsk`-Images
-  erzeugen externe Werkzeuge (z. B. iDSK).
-- Speicher: Programm, Runtime, Variablen und Strings teilen sich grob 40 KB zwischen dem unteren
-  Systembereich und dem Firmware-Bereich unter `&C000`. Ladeadresse und Grenzen legt
-  `platform/cpc` fest. Die 128 KB des 6128 (Bankumschaltung `&4000–&7FFF`) sind ein späterer Ausbau.
+- Ausgabe: `basicc --target cpc prog.lst` schreibt `prog.bin` mit AMSDOS-Header (Typ 2, Laden und
+  Start bei `&0100`, ohne den BSS-Teil, den das Programm beim Start löscht); Start mit `RUN"prog.bin"`
+  oder `MEMORY &FF: LOAD"prog.bin": CALL &100`. `-o prog.s` liefert den Assembler-Quelltext. Ein
+  `.sna`-Snapshot für Emulatoren ist geplant; `.dsk`-Images erzeugen externe Werkzeuge (z. B. iDSK).
+- Speicher: Programm ab `&0100`, dahinter Felder (untere Hälfte des freien Raums) und Strings (obere
+  Hälfte) bis `&A200`, darüber 1 KB eigener Stapel bis `&A600` (unter `HIMEM` eines 6128 mit AMSDOS,
+  `&A67B`). Ein Programm, das mehr braucht, lehnt `basicc` ab. `END` kehrt mit dem gesicherten
+  Stapelzeiger zum Aufrufer zurück. Die 128 KB des 6128 (Bankumschaltung `&4000–&7FFF`) sind ein
+  späterer Ausbau.
+- Bildschirm und Tastatur: Zeilenende CR LF; `INPUT` wiederholt die getippten Zeichen auf dem
+  Bildschirm (DEL löscht), Return beendet die Zeile.
 - Plattformprimitive über die Firmware-Sprungleiste: `TXT OUTPUT` (`&BB5A`) für `plat_putc`,
   `KM WAIT KEY`/`KM READ KEY` für Eingaben, die `GRA`-Routinen für Grafik, `CAS`-Routinen (AMSDOS)
   für Dateien.

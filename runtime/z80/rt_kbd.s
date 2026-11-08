@@ -1,6 +1,6 @@
 ;! module    rt_kbd
 ;! provides  rt_kbd_begin rt_kbd_field rt_kbd_num rt_kbd_line rt_kbd_end rt_kbd_inkey rt_kbd_chars
-;! requires  plat_getc rt_print_str rt_print_col rt_str_newtemp rt_val rt_val_used rt_error
+;! requires  plat_getc plat_inkey plat_echo rt_print_str rt_print_col rt_str_newtemp rt_val rt_val_used rt_error
 ;! group     input
 ;! clobbers  AF BC DE HL
 ;! doc       Keyboard: INPUT, LINE INPUT, INKEY$, INPUT$(n) (semantics of brt::Keyboard; lines up to 255 characters).
@@ -9,7 +9,8 @@
 ; "text",), "? " (mode 0, no text). INPUT values are separated by commas; missing values come from
 ; further lines ("? "); a value that is not a number repeats the prompt and the input. INKEY$ and
 ; INPUT$(n) read characters, a line feed counts as Return (13). At the end: error 26. A line keeps
-; 255 characters (D30), the rest is passed over.
+; 255 characters (D30), the rest is passed over. Typed characters go to plat_echo (the screen of the
+; CPC; nothing on z80-test), DEL and backspace delete the last one.
 
 rt_kbd__MAX EQU 255
 
@@ -78,16 +79,30 @@ rt_kbd__rl:
         JP      C,rt_kbd__eof
         CP      10
         JP      Z,rt_kbd__eol
+        CP      127
+        JP      Z,rt_kbd__del
+        CP      8
+        JP      Z,rt_kbd__del
         LD      C,A
         LD      A,B
         CP      rt_kbd__MAX
         JP      NC,rt_kbd__rl
+        LD      A,C
+        CALL    plat_echo
         LD      E,B
         LD      D,0
         LD      HL,rt_kbd__buf
         ADD     HL,DE
         LD      (HL),C
         INC     B
+        JP      rt_kbd__rl
+rt_kbd__del:                            ; delete the last character
+        LD      A,B
+        OR      A
+        JP      Z,rt_kbd__rl
+        DEC     B
+        LD      A,8
+        CALL    plat_echo
         JP      rt_kbd__rl
 rt_kbd__eof:
         LD      A,B                     ; the end before any character: error 26
@@ -98,6 +113,8 @@ rt_kbd__eof:
         CALL    rt_error
         POP     BC
 rt_kbd__eol:
+        LD      A,10
+        CALL    plat_echo
         LD      A,B                     ; a CR before the LF away
         OR      A
         JP      Z,rt_kbd__set
@@ -259,7 +276,7 @@ rt_kbd_end:
 
 ; -> HL = INKEY$: one character, or "" at the end of the input
 rt_kbd_inkey:
-        CALL    plat_getc
+        CALL    plat_inkey
         LD      B,0
         JP      C,rt_kbd__in0
         CALL    rt_kbd__cr
