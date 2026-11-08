@@ -2,6 +2,7 @@
 
 #include "rt_gfx.hpp"
 #include "rt_gui.hpp"
+#include "ir/amiga_lib.hpp"
 
 #include <cmath>
 #include <cstring>
@@ -1646,6 +1647,19 @@ private:
             guiNum(*e.args[0]);
             return guiCmd("MENU VALUE", VT::I32);
         }
+        if (n == "LIBCALL") {  // registers one by one, then the call through the base (D28)
+            const amiga::LibFn& f = amiga::kLibFns[e.ival];
+            std::vector<Reg> vals;
+            for (const auto& a : e.args) vals.push_back(expr(*a));
+            for (std::size_t k = 0; k < vals.size(); ++k) {
+                Reg r = constI(amiga::argRegister(f, static_cast<int>(k)));
+                if (vals[k].type == VT::Str) rtcallVoid("rt_lib_str", {r, vals[k]});
+                else rtcallVoid("rt_lib_reg", {r, vals[k]});
+            }
+            return rtcall("rt_lib_call", {constI(f.lib), constI(f.lvo)}, VT::I32);
+        }
+        if (n == "WINDOW" || n == "SCREEN") return rtcall(n == "WINDOW" ? "rt_window" : "rt_screen", {toI(arg(e, 0))}, VT::I32);
+        if (n == "DIR$") return rtcall("rt_dirstr", {toI(arg(e, 0))}, VT::Str);
         if (n == "FRE") {
             if (!e.args.empty()) expr(*e.args[0]);
             return rtcall("rt_fre", {}, VT::I32);

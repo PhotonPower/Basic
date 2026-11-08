@@ -181,6 +181,8 @@ Diese Punkte sind aus dem Handbuch nicht sicher zu entnehmen und werden am Origi
 - **Text im Grafikfenster** (probe26, probe27, [D25](decisions.md#d25)): Auf dem Amiga erscheint
   `PRINT` auch im aktuellen Fenster, Stift 1 auf 0 (JAM2), Zellen 8 × 8, `LOCATE` 1,1 im Fenster mit
   Flags bei (4, 11). `CIRCLE` auf LowRes rund (ry = r), Interlace doppelt hoch.
+- **Bibliotheksfunktionen** ([D28](decisions.md#d28)): exec, dos, graphics, intuition beim Namen,
+  `WINDOW()`, `SCREEN()`, `DIR$()`; nur auf dem Amiga wirksam, sonst 0.
 - **Requester und Menüs** (Stufe 1, [D26](decisions.md#d26)): `ALERT`, `FILESELECT`, `FORM INPUT`,
   `MENU`, `ON MENU`, `MENU()` als Textdialoge im Interpreter, C++-Ziel und auf m68k-test; auf dem
   Amiga als Intuition-Fenster und -Menüs (die Menüauswahl mit der Maus ist noch ungeprüft).

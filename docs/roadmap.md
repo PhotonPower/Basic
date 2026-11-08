@@ -79,8 +79,9 @@ am Original; Polygone in allen Ausführungen, `RESERVE`/`FRE`/`CLEAR`/`SOUND` au
 ✔ Verzeichnisbefehle auf dem 68000 (Amiga: dos.library; m68k-test: RAM-Disk mit Verzeichnissen).
 ✔ `PRINT`/`LOCATE` im Grafikfenster auf dem Amiga, `OPENS`/`OPENW` mit Modus und Flags (probe26,
 probe27).
-Weiter: Bibliotheksaufrufe (`~ActivateWindow(…)`) und `WINDOW(n)`; Felder
-mit mehr als 3 Dimensionen auf dem 68000; `ABSOLUTE` mit dem vollen Speicherabbild nach D6; weitere Optimierungen (Variablen in Registern innerhalb von Schleifen ohne Aufrufe, Fließkomma inline).
+✔ Bibliotheksfunktionen beim Namen, `WINDOW()`, `SCREEN()`, `DIR$()` (D28); die drei
+Anwenderprogramme starten auf dem Amiga.
+Weiter: Menüauswahl mit der Maus prüfen (von Hand); Felder mit mehr als 3 Dimensionen auf dem 68000; `ABSOLUTE` mit dem vollen Speicherabbild nach D6; weitere Optimierungen (Variablen in Registern innerhalb von Schleifen ohne Aufrufe, Fließkomma inline).
 
 - Quelltext-Linker (`src/link`) mit Map-Datei und Label-Prüfung.
 - LIR → 68000-Assembler, `runtime/m68k` (Integer, Strings, Ausgabe, Fließkomma-Kern), `platform/amiga`

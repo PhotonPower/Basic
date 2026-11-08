@@ -1,5 +1,5 @@
 ;! module    plat_exit
-;! provides  plat_exit plat_exit_hook plat_exit_gfx plat_exit_gui plat_exit_dir
+;! provides  plat_exit plat_exit_hook plat_exit_gfx plat_exit_gui plat_exit_dir plat_exit_lib
 ;! requires  plat_flush plat_free_all plat_dosbase plat_sp plat_rc
 ;! group     core
 ;! doc       amiga: ends the program from any depth: flush, free memory, close dos.library, return to DOS.
@@ -26,7 +26,12 @@ plat_exit:
         MOVE.L  plat_exit_dir,A0
         CLR.L   plat_exit_dir
         JSR     (A0)
-.nodir: JSR     plat_flush
+.nodir: TST.L   plat_exit_lib           ; libraries opened for library calls
+        BEQ     .nolib
+        MOVE.L  plat_exit_lib,A0
+        CLR.L   plat_exit_lib
+        JSR     (A0)
+.nolib: JSR     plat_flush
         MOVE.L  plat_sp,SP              ; back to the shell's stack before the own one is freed
         JSR     plat_free_all
         MOVE.L  4,A6
@@ -44,4 +49,6 @@ plat_exit_gfx:
 plat_exit_gui:
         DC.L    0
 plat_exit_dir:
+        DC.L    0
+plat_exit_lib:
         DC.L    0

@@ -549,6 +549,14 @@ private:
             return I(brt::rinstr(s(1), s(2), f(0)));
         }
         if (n == "POS") return I(out_.pos());
+        if (n == "LIBCALL" || n == "WINDOW" || n == "SCREEN") {  // no AmigaOS here: 0 (D28)
+            for (const auto& x : e.args) eval(*x);
+            return I(0);
+        }
+        if (n == "DIR$") {
+            eval(*e.args[0]);
+            return Value::ofStr(brt::Files::currentDir());
+        }
         if (n == "FRE") return I(reserve_);  // no accounting of the memory used (D27)
         if (n == "MENU") return I(gui_.value(toI32(fp_trunc(f(0)))));
         if (n == "POINT") return I(gfx_.point(toI32(fp_trunc(f(0))), toI32(fp_trunc(f(1)))));

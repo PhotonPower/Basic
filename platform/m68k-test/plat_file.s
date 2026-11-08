@@ -1,6 +1,6 @@
 ;! module    plat_file
 ;! provides  plat_fopen plat_fread plat_fwrite plat_fclose plat_fsize plat_fdelete plat_fexists plat_fseek plat_ftell plat_frename
-;! provides  plat_mkdir plat_chdir plat_dir_open plat_dir_next
+;! provides  plat_mkdir plat_chdir plat_dir_open plat_dir_next plat_curdir
 ;! requires  plat_alloc
 ;! group     file-seq
 ;! clobbers  D0-D3/A0-A1
@@ -607,6 +607,11 @@ plat_chdir:
         BSR     plat_file__norm
         BSR     plat_file__chdir
         BRA     plat_file__trash
+; -> A0 = the current directory (the path from the root), D0 = its length
+plat_curdir:
+        LEA     plat_file__cwd,A0
+        MOVE.L  plat_file__cwdl,D0
+        RTS
 plat_dir_open:
         BSR     plat_file__norm
         BRA     plat_file__dopen

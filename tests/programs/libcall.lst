@@ -1,0 +1,12 @@
+' test: groups core print amiga-os
+' Bibliotheksfunktionen beim Namen (Kap. 11, D28): ohne AmigaOS (Interpreter, C++, m68k-test)
+' liefern sie und WINDOW()/SCREEN() 0. Ein dimensioniertes Feld gleichen Namens bleibt ein Feld.
+DIM wait(3)
+wait(2)=7
+PRINT wait(2)
+~ActivateWindow(WINDOW(1))
+x%=AvailMem(&H20000)
+PRINT "avail ";x%>=0
+f%=OpenLibrary("dos.library",0)
+PRINT "screen ";SCREEN(0)>=0
+PRINT "ende"

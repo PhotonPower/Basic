@@ -67,7 +67,8 @@ int main() {
             // graphics and requesters on the amiga (D25, D26): the OS emulation has no intuition.library; checked in FS-UAE
             // with tools/gfa/amiga_run.py
             if (amiga && (read(entry.path()).find("graphics") != std::string::npos ||
-                          read(entry.path()).find(" gui") != std::string::npos)) {
+                          read(entry.path()).find(" gui") != std::string::npos ||
+                          read(entry.path()).find("amiga-os") != std::string::npos)) {
                 std::cout << label << ": skipped (no intuition.library in the OS emulation)\n";
                 ++skipped;
                 continue;

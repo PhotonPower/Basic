@@ -1,6 +1,6 @@
 ;! module    plat_file
 ;! provides  plat_fopen plat_fread plat_fwrite plat_fclose plat_fsize plat_fdelete plat_fexists plat_fseek plat_ftell plat_frename
-;! provides  plat_mkdir plat_chdir plat_dir_open plat_dir_next
+;! provides  plat_mkdir plat_chdir plat_dir_open plat_dir_next plat_curdir
 ;! requires  plat_dosbase plat_exit_dir
 ;! group     file-seq
 ;! clobbers  D0-D3/A0-A1
@@ -284,6 +284,63 @@ plat_chdir:
 .out:   MOVEM.L (SP)+,D4/A6
         RTS
 
+; -> A0 = the current directory ("Volume:dir/sub"), D0 = its length: from Lock("") outwards with
+; Examine and ParentDir (NameFromLock comes only with 2.0)
+plat_curdir:
+        MOVEM.L D4-D5/A2-A3/A6,-(SP)
+        LEA     plat_file__pbuf+256,A3  ; A3 = start of the path, built from the end
+        MOVE.L  plat_dosbase,A6
+        LEA     plat_file__nul,A0
+        MOVE.L  A0,D1
+        MOVEQ   #-2,D2
+        JSR     -84(A6)                 ; Lock("") = the current directory
+        MOVE.L  D0,D4
+        BEQ     .done
+.up:    BSR     plat_file__fib
+        MOVE.L  A0,A2
+        MOVE.L  D4,D1
+        MOVE.L  A2,D2
+        JSR     -102(A6)                ; Examine: its name
+        MOVE.L  D4,D1
+        JSR     -210(A6)                ; ParentDir
+        MOVE.L  D0,D5
+        MOVEQ   #'/',D1                 ; after a directory "/", after the volume ":"
+        TST.L   D5
+        BNE     .sep
+        MOVEQ   #':',D1
+.sep:   LEA     plat_file__pbuf+256,A0
+        CMP.L   A0,A3
+        BNE     .put
+        CMP.B   #':',D1                 ; the innermost directory: no "/" behind it
+        BNE     .name
+.put:   LEA     plat_file__pbuf+1,A0
+        CMP.L   A0,A3
+        BLS     .name
+        MOVE.B  D1,-(A3)
+.name:  LEA     8(A2),A0                ; fib_FileName before it
+        MOVEQ   #-1,D0
+.len:   ADDQ.L  #1,D0
+        TST.B   0(A0,D0.L)
+        BNE     .len
+        ADD.L   D0,A0
+        BRA     .cn
+.cc:    LEA     plat_file__pbuf,A1
+        CMP.L   A1,A3
+        BLS     .full
+        MOVE.B  -(A0),-(A3)
+.cn:    SUBQ.L  #1,D0
+        BPL     .cc
+.full:  MOVE.L  D4,D1
+        JSR     -90(A6)                 ; UnLock
+        MOVE.L  D5,D4
+        BNE     .up
+.done:  MOVE.L  A3,A0
+        LEA     plat_file__pbuf+256,A1
+        MOVE.L  A1,D0
+        SUB.L   A3,D0
+        MOVEM.L (SP)+,D4-D5/A2-A3/A6
+        RTS
+
 ; at the end: back to the directory of the start, our lock given back
 plat_file__cdback:
         MOVE.L  A6,-(SP)
@@ -361,6 +418,11 @@ plat_dir_next:
 .out:   MOVE.L  (SP)+,A6
         RTS
 
+;! section data
+plat_file__nul:
+        DC.B    0
+        EVEN
+
 ;! section bss
 plat_file__cd0:
         DS.L    1
@@ -370,6 +432,8 @@ plat_file__dlock:
         DS.L    1
 plat_file__fibm:
         DS.B    264
+plat_file__pbuf:
+        DS.B    256
 plat_file__nb:
         DS.B    256
 plat_file__nb2:

@@ -331,6 +331,7 @@ public:
     void mkdir(const std::string& name);
     void rmdir(const std::string& name);
     static void chdir(const std::string& name);
+    static std::string currentDir();  // DIR$(n): the current directory (the drive is not looked at)
     // FILES (full = true) / DIR: the lines of the listing (probe25 T4): FILES " name" or "*dir", the
     // size right-aligned up to column 39, " hh:mm:ss dd.mm.yyyy"; DIR only the names of the files
     static std::vector<std::string> listing(const std::string& path, bool full);

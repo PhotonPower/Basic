@@ -1,5 +1,7 @@
 #include "sema.hpp"
 
+#include "ir/amiga_lib.hpp"
+
 #include <cctype>
 #include <cstring>
 #include <map>
@@ -1123,6 +1125,7 @@ private:
             }
             case ExprKind::Var: {
                 if (e.wholeArray) fail(e.pos, "array element expected");
+                if (!e.args.empty() && isLibraryCall(e.text)) return libraryCall(e);
                 // variables and procedures have separate names (new.colors(farbe) with PROCEDURE farbe)
                 auto v = makeExpr(e.args.empty() ? Op::Load : Op::LoadElem, typeOf(e.text));
                 v->var = varId(e.text, !e.args.empty());
@@ -1239,6 +1242,37 @@ private:
         auto c = makeExpr(Op::CallFunc, r.result);
         c->func = it->second;
         c->args = arguments(r, e.args, e.pos);
+        return c;
+    }
+
+    // ---- AmigaOS library functions (reference chapter 11): Name(args) is a call unless the program
+    // dimensions an array of that name -------------------------------------------------------------
+    std::set<std::string> dimmed_;
+    bool dimmedKnown_ = false;
+
+    bool isLibraryCall(const std::string& name) {
+        if (amiga::libFunction(name) < 0) return false;
+        if (!dimmedKnown_) {
+            dimmedKnown_ = true;
+            for (const ast::Stmt& st : a_.stmts)
+                if (st.kind == StmtKind::Dim)
+                    for (const auto& arr : st.args) dimmed_.insert(baseName(arr->text));
+        }
+        return dimmed_.count(baseName(name)) == 0;
+    }
+
+    hir::ExprPtr libraryCall(const ast::Expr& e) {
+        const int k = amiga::libFunction(e.text);
+        const amiga::LibFn& f = amiga::kLibFns[k];
+        if (static_cast<int>(e.args.size()) != amiga::argCount(f))
+            fail(e.pos, std::string(f.name) + " expects " + std::to_string(amiga::argCount(f)) + " arguments");
+        auto c = makeExpr(Op::Builtin, Type::Int);
+        c->sval = "LIBCALL";
+        c->ival = k;
+        for (const auto& a : e.args) {  // a string goes as the address of a C string
+            hir::ExprPtr v = expr(*a);
+            c->args.push_back(v->type == Type::Str ? std::move(v) : toInt(std::move(v), a->pos));
+        }
         return c;
     }
 

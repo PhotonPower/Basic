@@ -1348,6 +1348,12 @@ void Files::chdir(const std::string& name) {
     if (ec) throw Error{kErrObjectNotFound};
 }
 
+std::string Files::currentDir() {
+    std::error_code ec;
+    const std::string p = std::filesystem::current_path(ec).string();
+    return ec ? std::string() : p;
+}
+
 std::vector<std::string> Files::listing(const std::string& path, bool full) {
     namespace fs = std::filesystem;
     std::error_code ec;

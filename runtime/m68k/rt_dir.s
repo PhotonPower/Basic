@@ -1,6 +1,6 @@
 ;! module    rt_dir
-;! provides  rt_mkdir rt_chdir rt_files
-;! requires  rt_error rt_print_str rt_print_nl plat_mkdir plat_chdir plat_dir_open plat_dir_next plat_fopen plat_fwrite plat_fclose
+;! provides  rt_mkdir rt_chdir rt_files rt_dirstr
+;! requires  rt_error rt_str_newtemp plat_curdir rt_print_str rt_print_nl plat_mkdir plat_chdir plat_dir_open plat_dir_next plat_fopen plat_fwrite plat_fclose
 ;! group     file-seq
 ;! clobbers  D0-D3/A0-A1
 ;! doc       MKDIR, CHDIR, FILES/DIR [TO name$] (probe25 T3-T5); RMDIR is rt_file_kill (DeleteFile).
@@ -29,6 +29,22 @@ rt_dir__check:
         BEQ     .out
         JMP     rt_error
 .out:   RTS
+
+; D0 = drive (not looked at) -> A0 = DIR$(n): the current directory as a new temporary string
+rt_dirstr:
+        JSR     plat_curdir             ; A0 = characters, D0 = length
+        MOVE.L  A0,-(SP)
+        MOVE.L  D0,-(SP)
+        JSR     rt_str_newtemp          ; A1 = descriptor, A0 = its characters
+        MOVE.L  (SP)+,D0
+        MOVE.L  (SP)+,D1                ; the source
+        EXG     D1,A1                   ; A1 = source, D1 = descriptor
+        BRA     .n
+.c:     MOVE.B  (A1)+,(A0)+
+.n:     SUBQ.L  #1,D0
+        BPL     .c
+        MOVE.L  D1,A0
+        RTS
 
 ; A0 = descriptor of the path, A1 = descriptor of the file of TO (length 0: the screen), D0 = 1 FILES,
 ; 0 DIR

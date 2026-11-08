@@ -18,6 +18,7 @@ LINE INPUT #1,l$
 PRINT LEN(l$);" ";LEFT$(l$,39)
 CLOSE #1
 CHDIR "zzdirs"
+PRINT "dir$ ";RIGHT$(DIR$(0),6)="zzdirs"
 PRINT EXIST("a.txt");EXIST("sub")
 CHDIR "/"
 PRINT EXIST("zzdirs/a.txt")

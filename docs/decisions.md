@@ -516,3 +516,28 @@ Halde). Eine Nachbildung der Belegung wäre ungenau und in jeder Ausführung and
 Programme benutzen `FRE` meist, um die Größe ihrer Felder zu wählen (`max=(FRE()-5000)/50`). Dafür
 genügt ein fester, plausibler Wert. Ob ein Programm wirklich mit dem Speicher auskommt, prüft man am
 Original.
+
+<a id="d28"></a>
+## D28 – AmigaOS-Bibliotheksfunktionen beim Namen, `WINDOW()`, `SCREEN()`, `DIR$()`
+
+GFA-BASIC 3.5 ruft Funktionen von exec, dos, graphics und intuition direkt beim Namen auf
+(Referenz Kap. 11), z. B. `~ActivateWindow(WINDOW(1))` oder `AvailMem(&H20000)`.
+
+- `src/ir/amiga_lib.hpp` hält Name, Bibliothek, LVO und Argumentregister aus den FD-Dateien von
+  Kickstart 1.2/1.3, nur für Funktionen, deren Einträge sicher sind (gut 100). Andere Namen bleiben
+  Felder oder Fehler.
+- `Name(…)` in einem Ausdruck ist ein Bibliotheksaufruf, wenn der Name in der Tabelle steht und das
+  Programm kein Feld dieses Namens dimensioniert. Ein String-Argument wird als Adresse eines
+  C-Strings übergeben.
+- 68000: `rt_lib` füllt die Register d0–d7/a0–a5 und ruft `plat_libcall`. Auf dem Amiga springt das
+  über die Basis (exec aus Adresse 4, dos von `plat_start`, intuition und graphics werden beim ersten
+  Aufruf geöffnet und am Ende geschlossen). Auf m68k-test, im Interpreter und im C++-Ziel gibt es kein
+  AmigaOS: die Aufrufe liefern 0.
+- `WINDOW(n)`/`SCREEN(n)` liefern auf dem Amiga die Adresse der Window-/Screen-Struktur der
+  GFA-Nummer n (0, wenn nicht offen), sonst 0. Die Umkehrung (Adresse → Nummer) fehlt noch.
+- `DIR$(n)` ist das aktuelle Verzeichnis (das Laufwerk n wird nicht beachtet). Auf dem Amiga entsteht
+  es mit `Lock("")`, `Examine` und `ParentDir` als „Datenträger:Verzeichnis/…“ (`NameFromLock` gibt
+  es erst ab 2.0); unter Kickstart 1.2 geprüft.
+
+Geprüft unter Kickstart 1.2: `AvailMem`, `OpenLibrary`, `WINDOW(0)`, `SCREEN(0)`; VEKTOR_WORLOCK zeigt
+mit `~ActivateWindow(WINDOW(1))` sein Hauptmenü.

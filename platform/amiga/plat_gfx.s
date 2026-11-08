@@ -1,5 +1,5 @@
 ;! module    plat_gfx
-;! provides  plat_gfx plat_gfx_point plat_gfx_window plat_gfx_putc
+;! provides  plat_gfx plat_gfx_point plat_gfx_window plat_gfx_putc plat_gfx_win plat_gfx_scr
 ;! requires  plat_exit_gfx plat_putc_gfx
 ;! group     graphics
 ;! clobbers  D0-D3/A0-A1
@@ -290,6 +290,28 @@ plat_gfx_putc:
         JSR     plat_gfx__ScrollRaster(A6)
         MOVEM.L (SP)+,D4-D5
 .out:   MOVEM.L (SP)+,D0-D4/A0-A1/A6
+        RTS
+
+; D0 = n -> D0 = the Window (plat_gfx_win) / Screen (plat_gfx_scr) structure n, 0 if not open
+; (WINDOW(n), SCREEN(n); screen 0 and window 0 are opened first)
+plat_gfx_win:
+        LEA     plat_gfx__win,A0
+        MOVEQ   #plat_gfx__NWIN,D1
+        BRA     plat_gfx__struct
+plat_gfx_scr:
+        LEA     plat_gfx__scr,A0
+        MOVEQ   #plat_gfx__NSCR,D1
+plat_gfx__struct:
+        MOVEM.L D2-D7/A2-A6,-(SP)
+        MOVEM.L D0-D1/A0,-(SP)          ; the first opening uses D2-D7/A2
+        BSR     plat_gfx__init
+        MOVEM.L (SP)+,D2-D3/A2
+        MOVEQ   #0,D0
+        CMP.L   D3,D2
+        BCC     .out
+        LSL.L   #2,D2
+        MOVE.L  0(A2,D2.L),D0
+.out:   MOVEM.L (SP)+,D2-D7/A2-A6
         RTS
 
 plat_gfx__table:

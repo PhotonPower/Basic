@@ -438,6 +438,12 @@ private:
             });
         }
         if (n == "POS") return "brt::rt.out.pos()";
+        if (n == "LIBCALL" || n == "WINDOW" || n == "SCREEN") {  // no AmigaOS here: 0 (D28)
+            std::string r = "(";
+            for (std::size_t k = 0; k < e.args.size(); ++k) r += "(void)(" + a(k) + "), ";
+            return r + "std::int32_t(0))";
+        }
+        if (n == "DIR$") return "((void)(" + a(0) + "), brt::Files::currentDir())";
         if (n == "FRE") return "brt::rt.reserve";
         if (n == "MENU") return "brt::rt.gui.value(brt::gfxInt(" + a(0) + "))";
         if (n == "POINT")
