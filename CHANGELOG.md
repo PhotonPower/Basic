@@ -72,7 +72,8 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
   `basicc --target cpc -o x.sna --rom <6128.rom>` schreibt einen Snapshot; Test `z80_firmware` auf
   der echten 6128-Firmware (mit `CPC_ROM`); Grafik auf dem CPC über die Firmware (`PLOT`, `LINE`,
   `DRAW`, `BOX`/`PBOX`, `CIRCLE`/`PCIRCLE`, `ELLIPSE`/`PELLIPSE`, `COLOR`, `DEFFILL`, `BOUNDARY`,
-  `GRAPHMODE`, `SETCOLOR`, `TEXT`, `POINT`, `CLEARW`), `gfx1.cpc.out`; Aufrufhilfe
+  `GRAPHMODE`, `SETCOLOR`, `TEXT`, `POINT`, `CLEARW`, `POLYLINE`, `POLYFILL`), `gfx1.cpc.out`,
+  `poly1.cpc.out`; Aufrufhilfe
   `Z80Routines`, Konformanztest `conformance_z80`; Linker-Anordnung `PlainZ80`.
 - Maus und Joystick (D29): `MOUSEX`, `MOUSEY`, `MOUSEK`, `MOUSE`, `STICK()`, `STRIG()` statt Variablen
   und Feldern; auf dem Amiga aus der Window-Struktur und der Hardware. Testprogramm `mouse`.

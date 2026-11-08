@@ -86,8 +86,9 @@ außerhalb dieses Speichers lösen einen Fehler aus.
     waagrechte Linien. `POINT` über `GRA TEST` (−1 außerhalb), `TEXT` über `GRA WR CHAR` (y ist die
     Grundlinie). `GRAPHMODE 2` ist XOR mit Stift 3 (`SCR ACCESS`), wie `COMPLEMENT` am Amiga; den
     ersten Punkt einer Linie lässt der CPC nicht aus. `SETCOLOR` nimmt die nächste der 27 Farben.
-    Nicht da: `DEFLINE` (Linien sind durchgezogen), Füllmuster, `POLYLINE`/`POLYFILL` (lehnt das
-    Backend ab). Screens, Fenster, Menüs, Sprites, BOBs und Kapitel 11 gibt es nicht; `OPENW`,
+    `POLYLINE`/`POLYFILL` mit bis zu 127 Punkten; `POLYFILL` füllt wie das Original jede Zeile
+    zwischen dem äußersten linken und rechten Umrisspunkt (Kanten nach Bresenham, Zeilen 0–199).
+    Nicht da: `DEFLINE` (Linien sind durchgezogen), Füllmuster. Screens, Fenster, Menüs, Sprites, BOBs und Kapitel 11 gibt es nicht; `OPENW`,
     `CLOSEW`, `TITLEW`, `OPENS` usw. wirken nicht, `CLEARW` löscht die Grafik.
   - **Byte-Reihenfolge:** Der Z80 ist Little-Endian. `MKI$`/`CVI`, `MKL$`/`CVL` usw. sind trotzdem
     immer Big-Endian (Datenformat), ebenso `FLOAT{}` und `SINGLE{}` (wie `MKD$`/`MKS$`).

@@ -211,11 +211,10 @@ private:
         for (int k = 0; k < 8; ++k) r += (k ? "," : "") + std::to_string(k < n ? static_cast<unsigned>((v >> (8 * k)) & 0xFF) : 0u);
         return r;
     }
+    std::string lastRt_;  // the previous runtime call (CLS is rt_print_cls + rt_gfx_cmd)
+
     // registers set once by a constant (number, string, address of a variable or routine) and nowhere
     // else get a cell instead of a slot; the other registers are numbered without gaps
-    std::string lastRt_;
-    std::vector<long long> constVal_;  // the value of a register set once by ConstI, else -1  // the previous runtime call (CLS is rt_print_cls + rt_gfx_cmd)
-
     void planRegisters(const lir::Function& f) {
         const std::size_t n = static_cast<std::size_t>(f.regs);
         std::vector<int> defs(n, 0);
@@ -227,16 +226,12 @@ private:
             }
         for (const Reg& r : f.params) defs[static_cast<std::size_t>(r.id)] += 2;
         constCell_.assign(n, "");
-        constVal_.assign(n, -1);
         slot_.assign(n, -1);
         slots_ = 0;
         for (std::size_t k = 0; k < n; ++k) {
             const Instr* i = def[k];
             if (defs[k] == 1 && i != nullptr) {
-                if (i->kind == Kind::ConstI) {
-                    constCell_[k] = cell(dbOf(static_cast<std::uint32_t>(i->imm), 4));
-                    constVal_[k] = static_cast<long long>(i->imm);
-                }
+                if (i->kind == Kind::ConstI) constCell_[k] = cell(dbOf(static_cast<std::uint32_t>(i->imm), 4));
                 else if (i->kind == Kind::ConstF) constCell_[k] = cell(dbOf(i->fimm, 8));
                 else if (i->kind == Kind::ConstS) constCell_[k] = cell("DW      " + constString(i->text) + ",0,0,0");
                 else if (i->kind == Kind::Addr && !indirect(i->var)) constCell_[k] = cell("DW      " + var(i->var) + ",0,0,0");
@@ -668,10 +663,6 @@ private:
                     return;
                 }
                 lastRt_ = i.op;
-                if (i.op == "rt_gfx_cmd" && !i.args.empty()) {  // POLYLINE, POLYFILL: not yet on the Z80
-                    const long long code = constVal_[static_cast<std::size_t>(i.args[0].id)];
-                    if (code == 28 || code == 29) unsupported(code == 28 ? "POLYLINE" : "POLYFILL");
-                }
                 if (i.op == "rt_error") {  // ERROR n: the runtime takes the number in A
                     uses_.insert("rt_error");
                     argToHL(i.args[0]);

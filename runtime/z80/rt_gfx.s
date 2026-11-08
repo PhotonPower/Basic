@@ -9,11 +9,11 @@
 ; The arguments are kept as 16-bit values (limited to -32768..32767), in GFA coordinates; the
 ; platform maps them to the screen (plat_gfx_*: DE = x, HL = y). One pen for COLOR and DEFFILL
 ; (probe23 T3); BOUNDARY draws the outline of PBOX/PCIRCLE/PELLIPSE in the outline pen (COLOR's
-; third value). Ellipses: Kennedy's integer algorithm (32-bit cells, radii limited to 1000);
+; third value). POLYLINE/POLYFILL take up to 127 points. Ellipses: Kennedy's integer algorithm (32-bit cells, radii limited to 1000);
 ; CIRCLE x,y,r has ry = 4r/9 (HiRes, D25). Windows and screens do not exist: OPENW, CLOSEW, TITLEW,
 ; OPENS, ... do nothing, CLEARW clears the graphics. DEFLINE is not supported (lines are solid).
 
-rt_gfx__MAX EQU 64
+rt_gfx__MAX EQU 254                     ; POLYLINE/POLYFILL: up to 127 points
 
 ; DE -> next numeric argument (32 bits)
 rt_gfx_arg:
@@ -23,9 +23,9 @@ rt_gfx_arg:
         INC     A
         LD      (rt_gfx__n),A
         DEC     A
-        ADD     A,A
         LD      L,A
         LD      H,0
+        ADD     HL,HL
         LD      BC,rt_gfx__args
         ADD     HL,BC
         PUSH    HL
@@ -72,9 +72,9 @@ rt_gfx__a:
         CP      (HL)
         LD      DE,0
         RET     NC
-        ADD     A,A
         LD      L,A
         LD      H,0
+        ADD     HL,HL
         LD      DE,rt_gfx__args
         ADD     HL,DE
         LD      E,(HL)
@@ -135,8 +135,8 @@ rt_gfx__tab:                            ; in the order of brt::kGfxCommands
         DW      rt_gfx__pellipse        ; PELLIPSE
         DW      rt_gfx__text            ; TEXT
         DW      plat_gfx_clear          ; CLS
-        DW      rt_gfx__nop             ; POLYLINE (rejected by the backend)
-        DW      rt_gfx__nop             ; POLYFILL (rejected by the backend)
+        DW      rt_gfx__polyline        ; POLYLINE
+        DW      rt_gfx__polyfill        ; POLYFILL
 rt_gfx__NCMD EQU 30
 
 rt_gfx__nop:
@@ -808,6 +808,306 @@ rt_gfx__e3:                             ; HL = y: the line from cx - x to cx + x
         POP     HL
         JP      rt_gfx__span
 
+; ---- polygons (probe25 T8) ----------------------------------------------------------------------------
+
+; the points are the arguments x0,y0,x1,y1,...; A = k -> DE = x, HL = y of point k
+rt_gfx__pt:
+        ADD     A,A
+        JP      rt_gfx__xy
+
+; POLYLINE: the open polyline (one point: a point)
+rt_gfx__polyline:
+        LD      A,(rt_gfx__n)
+        SRL     A
+        RET     Z
+        LD      (rt_gfx__m),A
+        CP      1
+        LD      A,0
+        JR      NZ,rt_gfx__pl1
+        CALL    rt_gfx__pt
+        JP      rt_gfx__pl
+rt_gfx__pl1:
+        CALL    rt_gfx__pt
+        CALL    plat_gfx_move
+        LD      A,1
+rt_gfx__pl2:
+        PUSH    AF
+        CALL    rt_gfx__pt
+        CALL    rt_gfx__to
+        POP     AF
+        INC     A
+        LD      HL,rt_gfx__m
+        CP      (HL)
+        JR      C,rt_gfx__pl2
+        RET
+
+; POLYFILL: every row from the leftmost to the rightmost point of the closed outline in it (as
+; the original fills, D25), the outline with BOUNDARY on top. Rows 0..199 (those on the screen).
+rt_gfx__polyfill:
+        LD      A,(rt_gfx__n)
+        SRL     A
+        RET     Z
+        LD      (rt_gfx__m),A
+        LD      HL,rt_gfx__rows         ; all rows empty: min = 32767, max = -32768
+        LD      B,200
+rt_gfx__pf0:
+        LD      (HL),&FF
+        INC     HL
+        LD      (HL),&7F
+        INC     HL
+        LD      (HL),&00
+        INC     HL
+        LD      (HL),&80
+        INC     HL
+        DJNZ    rt_gfx__pf0
+        XOR     A                       ; the edges k -> k+1, the last one back to point 0
+rt_gfx__pf1:
+        LD      (rt_gfx__k),A
+        INC     A
+        LD      HL,rt_gfx__m
+        CP      (HL)
+        JR      C,rt_gfx__pf2
+        XOR     A
+rt_gfx__pf2:
+        CALL    rt_gfx__pt              ; the end of the edge
+        CALL    rt_gfx__c4k
+        LD      (rt_gfx__ex),DE
+        LD      (rt_gfx__ey),HL
+        LD      A,(rt_gfx__k)
+        CALL    rt_gfx__pt
+        CALL    rt_gfx__c4k
+        CALL    rt_gfx__edge
+        LD      A,(rt_gfx__k)
+        INC     A
+        LD      HL,rt_gfx__m
+        CP      (HL)
+        JR      C,rt_gfx__pf1
+        LD      HL,0                    ; the rows
+rt_gfx__pf3:
+        PUSH    HL
+        ADD     HL,HL
+        ADD     HL,HL
+        LD      DE,rt_gfx__rows
+        ADD     HL,DE
+        LD      E,(HL)
+        INC     HL
+        LD      D,(HL)
+        INC     HL
+        LD      C,(HL)
+        INC     HL
+        LD      B,(HL)                  ; DE = min, BC = max
+        LD      H,B
+        LD      L,C
+        CALL    rt_gfx__lt              ; max < min: empty
+        POP     HL
+        JR      C,rt_gfx__pf4
+        PUSH    HL
+        CALL    rt_gfx__span
+        POP     HL
+rt_gfx__pf4:
+        INC     HL
+        LD      A,L
+        CP      200
+        JR      C,rt_gfx__pf3
+        CALL    rt_gfx__outpen
+        RET     Z
+        XOR     A                       ; the closed outline
+        CALL    rt_gfx__pt
+        PUSH    DE
+        PUSH    HL
+        CALL    plat_gfx_move
+        LD      A,1
+rt_gfx__pf5:
+        LD      HL,rt_gfx__m
+        CP      (HL)
+        JR      NC,rt_gfx__pf6
+        PUSH    AF
+        CALL    rt_gfx__pt
+        CALL    plat_gfx_draw
+        POP     AF
+        INC     A
+        JR      rt_gfx__pf5
+rt_gfx__pf6:
+        POP     HL
+        POP     DE
+        CALL    plat_gfx_draw
+        JP      rt_gfx__back
+
+; DE = x, HL = y -> both limited to -4000..4000 (for the edges)
+rt_gfx__c4k:
+        PUSH    HL
+        CALL    rt_gfx__l4k
+        EX      (SP),HL
+        EX      DE,HL                   ; DE = y, HL = x (limited)
+        CALL    rt_gfx__l4k
+        EX      DE,HL                   ; DE = x, HL = y (limited)
+        POP     BC                      ; (the old x)
+        RET
+rt_gfx__l4k:                            ; DE -> DE limited (HL kept)
+        PUSH    HL
+        LD      HL,4000
+        CALL    rt_gfx__lt              ; 4000 < DE?
+        JR      NC,rt_gfx__l1
+        EX      DE,HL
+        JR      rt_gfx__l9
+rt_gfx__l1:
+        EX      DE,HL                   ; HL = value
+        LD      DE,-4000
+        CALL    rt_gfx__lt              ; value < -4000?
+        JR      NC,rt_gfx__l2
+        EX      DE,HL
+rt_gfx__l2:
+        EX      DE,HL
+rt_gfx__l9:
+        POP     HL
+        RET
+
+; HL, DE signed -> CF set if HL < DE (HL, DE kept)
+rt_gfx__lt:
+        PUSH    HL
+        OR      A
+        SBC     HL,DE
+        LD      A,H
+        POP     HL
+        JP      PO,rt_gfx__lt1
+        CPL                             ; overflow: the sign is inverted
+rt_gfx__lt1:
+        RLA
+        RET
+
+; the points of the edge from (DE, HL) to (rt_gfx__ex, rt_gfx__ey) into the row table (Bresenham)
+rt_gfx__edge:
+        LD      (rt_gfx__bx),DE
+        LD      (rt_gfx__by),HL
+        LD      HL,(rt_gfx__ex)         ; dx = |ex - x|, sx
+        OR      A
+        SBC     HL,DE
+        LD      DE,1
+        BIT     7,H
+        JR      Z,rt_gfx__ed1
+        CALL    rt_gfx__negh
+        LD      DE,-1
+rt_gfx__ed1:
+        LD      (rt_gfx__dx),HL
+        LD      (rt_gfx__sx2),DE
+        LD      HL,(rt_gfx__ey)         ; dy = -|ey - y|, sy
+        LD      DE,(rt_gfx__by)
+        OR      A
+        SBC     HL,DE
+        LD      DE,1
+        BIT     7,H
+        JR      NZ,rt_gfx__ed2
+        CALL    rt_gfx__negh
+        JR      rt_gfx__ed3
+rt_gfx__ed2:
+        LD      DE,-1
+rt_gfx__ed3:
+        LD      (rt_gfx__dy),HL
+        LD      (rt_gfx__sy2),DE
+        LD      DE,(rt_gfx__dx)         ; err = dx + dy
+        ADD     HL,DE
+        LD      (rt_gfx__be),HL
+rt_gfx__edl:
+        LD      DE,(rt_gfx__bx)
+        LD      HL,(rt_gfx__by)
+        CALL    rt_gfx__mark
+        LD      HL,(rt_gfx__bx)         ; at the end?
+        LD      DE,(rt_gfx__ex)
+        OR      A
+        SBC     HL,DE
+        JR      NZ,rt_gfx__ed4
+        LD      HL,(rt_gfx__by)
+        LD      DE,(rt_gfx__ey)
+        OR      A
+        SBC     HL,DE
+        RET     Z
+rt_gfx__ed4:
+        LD      HL,(rt_gfx__be)         ; e2 = 2 err
+        ADD     HL,HL
+        LD      (rt_gfx__bq),HL
+        LD      DE,(rt_gfx__dy)         ; e2 >= dy: err += dy, x += sx
+        CALL    rt_gfx__lt
+        JR      C,rt_gfx__ed5
+        LD      HL,(rt_gfx__be)
+        ADD     HL,DE
+        LD      (rt_gfx__be),HL
+        LD      HL,(rt_gfx__bx)
+        LD      DE,(rt_gfx__sx2)
+        ADD     HL,DE
+        LD      (rt_gfx__bx),HL
+rt_gfx__ed5:
+        LD      HL,(rt_gfx__dx)         ; e2 <= dx: err += dx, y += sy
+        LD      DE,(rt_gfx__bq)
+        CALL    rt_gfx__lt
+        JR      C,rt_gfx__edl
+        LD      HL,(rt_gfx__be)
+        LD      DE,(rt_gfx__dx)
+        ADD     HL,DE
+        LD      (rt_gfx__be),HL
+        LD      HL,(rt_gfx__by)
+        LD      DE,(rt_gfx__sy2)
+        ADD     HL,DE
+        LD      (rt_gfx__by),HL
+        JR      rt_gfx__edl
+
+; HL = -HL
+rt_gfx__negh:
+        XOR     A
+        SUB     L
+        LD      L,A
+        SBC     A,A
+        SUB     H
+        LD      H,A
+        RET
+
+; DE = x, HL = y: the row y (0..199) reaches x
+rt_gfx__mark:
+        BIT     7,H
+        RET     NZ
+        LD      A,H
+        OR      A
+        RET     NZ
+        LD      A,L
+        CP      200
+        RET     NC
+        ADD     HL,HL
+        ADD     HL,HL
+        LD      BC,rt_gfx__rows
+        ADD     HL,BC                   ; HL -> min, max
+        PUSH    HL
+        LD      C,(HL)
+        INC     HL
+        LD      B,(HL)
+        PUSH    DE
+        EX      DE,HL                   ; HL = x
+        LD      D,B
+        LD      E,C                     ; DE = min
+        CALL    rt_gfx__lt              ; x < min?
+        POP     DE
+        POP     HL
+        JR      NC,rt_gfx__mk1
+        LD      (HL),E
+        INC     HL
+        LD      (HL),D
+        DEC     HL
+rt_gfx__mk1:
+        INC     HL
+        INC     HL
+        LD      C,(HL)
+        INC     HL
+        LD      B,(HL)
+        DEC     HL
+        PUSH    HL
+        LD      H,B
+        LD      L,C                     ; HL = max
+        CALL    rt_gfx__lt              ; max < x?
+        POP     HL
+        RET     NC
+        LD      (HL),E
+        INC     HL
+        LD      (HL),D
+        RET
+
 ; ---- text and POINT ---------------------------------------------------------------------------------
 
 ; TEXT x,y,s$: y is the base line
@@ -845,6 +1145,32 @@ rt_gfx__in:
         RET
 
 ;! section bss
+rt_gfx__rows:                           ; POLYFILL: per row 0..199 the leftmost and rightmost x
+        DS      4*200
+rt_gfx__m:
+        DS      1
+rt_gfx__k:
+        DS      1
+rt_gfx__ex:
+        DS      2
+rt_gfx__ey:
+        DS      2
+rt_gfx__bx:
+        DS      2
+rt_gfx__by:
+        DS      2
+rt_gfx__dx:
+        DS      2
+rt_gfx__dy:
+        DS      2
+rt_gfx__sx2:
+        DS      2
+rt_gfx__sy2:
+        DS      2
+rt_gfx__be:
+        DS      2
+rt_gfx__bq:
+        DS      2
 rt_gfx__n:
         DS      1
 rt_gfx__mode:
