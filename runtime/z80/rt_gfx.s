@@ -1,7 +1,7 @@
 ;! module    rt_gfx
 ;! provides  rt_gfx_arg rt_gfx_str rt_gfx_cmd rt_gfx_point
 ;! requires  plat_gfx_plot plat_gfx_move plat_gfx_draw plat_gfx_test plat_gfx_pen plat_gfx_paper plat_gfx_mode
-;! requires  plat_gfx_ink plat_gfx_text plat_gfx_clear zi_add zi_sub zi_mulv
+;! requires  plat_gfx_ink plat_gfx_text plat_gfx_clear plat_gfx_lmask zi_add zi_sub zi_mulv
 ;! group     graphics
 ;! clobbers  AF BC DE HL
 ;! doc       Graphics commands (D25): collects the arguments, draws lines, boxes, ellipses through the platform.
@@ -11,12 +11,19 @@
 ; (probe23 T3); BOUNDARY draws the outline of PBOX/PCIRCLE/PELLIPSE in the outline pen (COLOR's
 ; third value). POLYLINE/POLYFILL take up to 127 points. Ellipses: Kennedy's integer algorithm (32-bit cells, radii limited to 1000);
 ; CIRCLE x,y,r has ry = 4r/9 (HiRes, D25). Windows and screens do not exist: OPENW, CLOSEW, TITLEW,
-; OPENS, ... do nothing, CLEARW clears the graphics. DEFLINE is not supported (lines are solid).
+; OPENS, ... do nothing, CLEARW clears the graphics. DEFLINE: 0..6 the predefined patterns, else
+; the 16 bits (D25); filled shapes are solid.
 
 rt_gfx__MAX EQU 254                     ; POLYLINE/POLYFILL: up to 127 points
 
-; DE -> next numeric argument (32 bits)
+; DE -> next numeric argument (32 bits); its low 16 bits also unlimited in rt_gfx__raw (DEFLINE)
 rt_gfx_arg:
+        LD      A,(DE)
+        LD      (rt_gfx__raw),A
+        INC     DE
+        LD      A,(DE)
+        LD      (rt_gfx__raw+1),A
+        DEC     DE
         LD      A,(rt_gfx__n)
         CP      rt_gfx__MAX
         RET     NC
@@ -123,7 +130,7 @@ rt_gfx__tab:                            ; in the order of brt::kGfxCommands
         DW      rt_gfx__graphmode       ; GRAPHMODE
         DW      rt_gfx__deffill         ; DEFFILL
         DW      rt_gfx__boundary        ; BOUNDARY
-        DW      rt_gfx__nop             ; DEFLINE
+        DW      rt_gfx__defline         ; DEFLINE
         DW      rt_gfx__plot            ; PLOT
         DW      rt_gfx__line            ; LINE
         DW      rt_gfx__drawc           ; DRAW
@@ -227,6 +234,30 @@ rt_gfx__graphmode:
         CALL    rt_gfx__a
         LD      A,E
         JP      plat_gfx_mode
+
+; DEFLINE n: the pattern for lines (the low 16 bits of n)
+rt_gfx__defline:
+        LD      DE,(rt_gfx__raw)
+        LD      A,D
+        OR      A
+        JR      NZ,rt_gfx__dl1
+        LD      A,E
+        CP      7
+        JR      NC,rt_gfx__dl1
+        ADD     A,A                     ; 0..6: predefined
+        LD      L,A
+        LD      H,0
+        LD      DE,rt_gfx__pre
+        ADD     HL,DE
+        LD      E,(HL)
+        INC     HL
+        LD      D,(HL)
+rt_gfx__dl1:
+        LD      (rt_gfx__pat),DE
+        EX      DE,HL
+        JP      plat_gfx_lmask
+rt_gfx__pre:                            ; as brt::Gfx::defline (1 checked, the others assumed)
+        DW      &0000,&FFFF,&CCCC,&AAAA,&FF18,&FF00,&FE10
 
 rt_gfx__boundary:
         XOR     A
@@ -392,14 +423,33 @@ rt_gfx__pb:
         CALL    rt_gfx__frame
         JR      rt_gfx__back
 
-; DE = x1, BC = x2, HL = y: a horizontal line
+; DE = x1, BC = x2, HL = y: a horizontal line of a filled shape (solid, whatever DEFLINE says)
 rt_gfx__span:
         PUSH    BC
+        PUSH    HL
+        PUSH    DE
+        LD      HL,(rt_gfx__pat)
+        INC     HL
+        LD      A,H
+        OR      L
+        JR      Z,rt_gfx__sp1           ; solid already
+        LD      HL,&FFFF
+        CALL    plat_gfx_lmask
+rt_gfx__sp1:
+        POP     DE
+        POP     HL
         PUSH    HL
         CALL    plat_gfx_move
         POP     HL
         POP     DE
-        JP      plat_gfx_draw
+        CALL    plat_gfx_draw
+        LD      HL,(rt_gfx__pat)
+        INC     HL
+        LD      A,H
+        OR      L
+        RET     Z
+        DEC     HL
+        JP      plat_gfx_lmask
 
 ; BOUNDARY on: the outline pen (NZ); off: Z
 rt_gfx__outpen:
@@ -1144,7 +1194,13 @@ rt_gfx__in:
         LD      (HL),A
         RET
 
+;! section data
+rt_gfx__pat:                            ; the line pattern (DEFLINE)
+        DW      &FFFF
+
 ;! section bss
+rt_gfx__raw:
+        DS      2
 rt_gfx__rows:                           ; POLYFILL: per row 0..199 the leftmost and rightmost x
         DS      4*200
 rt_gfx__m:

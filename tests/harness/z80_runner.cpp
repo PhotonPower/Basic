@@ -351,6 +351,10 @@ CpcFirmware::CpcFirmware(const std::string& romFile) : impl_(new Impl) {
     step(R"({"cmd":"set","regs":{"PC":0,"SP":"0xBFFF"}})");
     step(R"({"cmd":"run","irq_every_cycles":13312,"max_instructions":30000000})");  // to the BASIC prompt
     step(R"({"cmd":"checkpoint","name":"booted"})");
+    const z80::Json probe = step(R"({"cmd":"call","addr":"0xB915","regs":{"C":0},"max_instructions":100000})");  // KL PROBE ROM
+    if (const z80::Json* regs = probe.find("regs"))
+        if (const z80::Json* hl = regs->find("HL")) version_ = static_cast<int>(std::stoul(hl->asString(), nullptr, 0) >> 8);
+    step(R"({"cmd":"rollback","name":"booted"})");
     booted_ = error_.empty();
 }
 

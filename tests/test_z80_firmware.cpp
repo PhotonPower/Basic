@@ -2,7 +2,8 @@
 // without keyboard input and without files (AMSDOS is a ROM of its own, not part of the image) is
 // compiled for cpc, CALLed in a booted 6128 in the emulator of PhotonPower/Z80 and its output
 // compared as in z80_programs. Needs the 32 KiB ROM image (lower ROM and BASIC) in CPC_ROM; without it
-// the test reports that it was skipped. BASIC_Z80_PROGRAM=<file> runs one program,
+// the test reports that it was skipped. The ROM of a 464 or 664 works too (<name>.cpc464.out where
+// the 464 differs: no line patterns). BASIC_Z80_PROGRAM=<file> runs one program,
 // BASIC_CPC_SCREENS=<dir> writes the screen after each program as <dir>/<name>.png. A few programs
 // also go through a snapshot (basicc -o x.sna): it is loaded into a fresh machine and must print
 // the same and return to the firmware.
@@ -110,7 +111,7 @@ int main() {
             continue;
         }
         std::string expected;
-        for (const char* ext : {".cpc.out", ".z80.out", ".out"})
+        for (const char* ext : {cpc.basicVersion() == 0 ? ".cpc464.out" : ".cpc.out", ".cpc.out", ".z80.out", ".out"})
             if (const fs::path p = fs::path(entry.path()).replace_extension(ext); expected.empty() && fs::exists(p)) expected = read(p);
         if (const fs::path e = fs::path(entry.path()).replace_extension(".err"); fs::exists(e))
             expected += "\nruntime error " + std::to_string(std::stoi(read(e))) + "\n";

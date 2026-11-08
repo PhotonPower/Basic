@@ -88,7 +88,9 @@ außerhalb dieses Speichers lösen einen Fehler aus.
     ersten Punkt einer Linie lässt der CPC nicht aus. `SETCOLOR` nimmt die nächste der 27 Farben.
     `POLYLINE`/`POLYFILL` mit bis zu 127 Punkten; `POLYFILL` füllt wie das Original jede Zeile
     zwischen dem äußersten linken und rechten Umrisspunkt (Kanten nach Bresenham, Zeilen 0–199).
-    Nicht da: `DEFLINE` (Linien sind durchgezogen), Füllmuster. Screens, Fenster, Menüs, Sprites, BOBs und Kapitel 11 gibt es nicht; `OPENW`,
+    `DEFLINE` (664/6128): jedes zweite Bit des 16-Bit-Musters wird die 8-Bit-Maske der Firmware, bei
+    `GRAPHMODE 1` die 0-Bits im Hintergrundstift; gefüllte Formen bleiben durchgezogen. Auf dem 464
+    sind Linien durchgezogen. Nicht da: Füllmuster. Screens, Fenster, Menüs, Sprites, BOBs und Kapitel 11 gibt es nicht; `OPENW`,
     `CLOSEW`, `TITLEW`, `OPENS` usw. wirken nicht, `CLEARW` löscht die Grafik.
   - **Byte-Reihenfolge:** Der Z80 ist Little-Endian. `MKI$`/`CVI`, `MKL$`/`CVL` usw. sind trotzdem
     immer Big-Endian (Datenformat), ebenso `FLOAT{}` und `SINGLE{}` (wie `MKD$`/`MKS$`).
@@ -99,7 +101,10 @@ außerhalb dieses Speichers lösen einen Fehler aus.
   - **Register:** Die Schattenregister gehören der Firmware ([runtime.md](runtime.md#aufrufkonventionen)).
 - Firmware 464 vs. 664/6128: Die Sprungleiste für Text, Tastatur, Grafik und Kassette/AMSDOS ist auf
   allen Modellen gleich. Die Mathe-Sprungleiste der Firmware (die sich unterscheidet) wird nicht
-  benutzt. Welche Modelle unterstützt werden, ist noch offen ([roadmap.md](roadmap.md#offene-fragen)).
+  benutzt. Die Programme laufen auf der Firmware aller drei Modelle (geprüft mit `z80_firmware`);
+  nur Linienmuster und der Hintergrund von `GRAPHMODE 1` brauchen die Aufrufe des 664/6128
+  (`GRA SET LINE MASK`, `GRA SET BACK`), die Laufzeit fragt die Version über `KL PROBE ROM` ab.
+  Ob Banking für den 6128 kommt, ist offen ([roadmap.md](roadmap.md#offene-fragen)).
 - Tests: In der Harness werden Firmware-Aufrufe als Stubs emuliert (`TXT OUTPUT` → Konsole,
   `TXT SET CURSOR`/`TXT CLEAR WINDOW` → dieselben ANSI-Folgen wie auf dem Amiga, `CAS IN …`/
   `CAS OUT …`, `KL FIND COMMAND` und `KL FAR PCHL` für `|ERA` → ein AMSDOS-Modell mit denselben

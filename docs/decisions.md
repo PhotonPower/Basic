@@ -643,7 +643,9 @@ kopieren.
 - Grafik auf dem CPC: Mode 1 und GFA-Koordinaten 1:1 auf die logischen Koordinaten der Firmware
   (Grenzen und Abweichungen in [targets.md](targets.md#cpc-z80)). Die Rasterregeln des Amiga
   (D25) sind bei halber Pixelbreite nicht nachzubilden; `gfx1.cpc.out`/`poly1.cpc.out` halten die Werte fest, die die
-  echte 6128-Firmware liefert, das Bild ist von Hand geprüft. Gegen die nachgebildete Firmware
+  echte 6128-Firmware liefert, das Bild ist von Hand geprüft. Linienmuster: jedes zweite Bit des
+  GFA-Musters (ein Pixel ist zwei Einheiten breit); damit stimmt die Musterzeile von `gfx1` mit dem
+  Original überein. Gegen die nachgebildete Firmware
   laufen Grafikprogramme nicht (`z80_programs` überspringt sie), nur in `z80_firmware`.
 - cpc-Dateien über AMSDOS (Kennung 1 Eingabe, 2 Ausgabe), Grenzen in [targets.md](targets.md#cpc-z80).
   Wo sie ein Programm treffen, gilt `<name>.cpc.out` (`files`: Kanal 0 hält in T8 noch die

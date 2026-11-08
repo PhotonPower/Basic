@@ -73,7 +73,8 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
   der echten 6128-Firmware (mit `CPC_ROM`); Grafik auf dem CPC über die Firmware (`PLOT`, `LINE`,
   `DRAW`, `BOX`/`PBOX`, `CIRCLE`/`PCIRCLE`, `ELLIPSE`/`PELLIPSE`, `COLOR`, `DEFFILL`, `BOUNDARY`,
   `GRAPHMODE`, `SETCOLOR`, `TEXT`, `POINT`, `CLEARW`, `POLYLINE`, `POLYFILL`), `gfx1.cpc.out`,
-  `poly1.cpc.out`; Aufrufhilfe
+  `poly1.cpc.out`, Linienmuster (`DEFLINE`) auf 664/6128; alle Programme laufen auch auf der Firmware
+  von 464 und 664; Aufrufhilfe
   `Z80Routines`, Konformanztest `conformance_z80`; Linker-Anordnung `PlainZ80`.
 - Maus und Joystick (D29): `MOUSEX`, `MOUSEY`, `MOUSEK`, `MOUSE`, `STICK()`, `STRIG()` statt Variablen
   und Feldern; auf dem Amiga aus der Window-Struktur und der Hardware. Testprogramm `mouse`.

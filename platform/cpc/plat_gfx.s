@@ -1,9 +1,12 @@
 ;! module    plat_gfx
 ;! provides  plat_gfx_plot plat_gfx_move plat_gfx_draw plat_gfx_test plat_gfx_pen plat_gfx_paper plat_gfx_mode
-;! provides  plat_gfx_ink plat_gfx_text plat_gfx_clear
+;! provides  plat_gfx_ink plat_gfx_text plat_gfx_clear plat_gfx_lmask
 ;! group     graphics
 ;! clobbers  AF BC DE HL
 ;! doc       cpc: graphics through the firmware (GRA): GFA coordinates on the 640 x 400 logical screen.
+
+; Line patterns and the background of GRAPHMODE 1 need the firmware of the 664/6128 (GRA SET LINE
+; MASK, GRA SET BACK); on a 464 (BASIC version 0, KL PROBE ROM) lines stay solid.
 
 ; DE = x, HL = y in GFA coordinates (y downwards, one unit per screen row): the firmware gets
 ; X = x and Y = 398 - 2y (its origin is at the bottom left, 2 units per row and per pixel of mode
@@ -83,13 +86,63 @@ plat_gfx__setpen:
 plat_gfx_paper:
         JP      &BBE4                   ; GRA SET PAPER
 
-; A = GRAPHMODE: XOR (bit 1) through SCR ACCESS, else normal
+; A = GRAPHMODE: XOR (bit 1) through SCR ACCESS, else normal; mode 1 (JAM2): the 0 bits of a
+; line pattern in the background pen (664/6128)
 plat_gfx_mode:
+        LD      (plat_gfx__gm),A
         AND     2
         RRCA
         LD      (plat_gfx__xor),A
         CALL    &BC59                   ; SCR ACCESS: 0 normal, 1 XOR
+        CALL    plat_gfx__new
+        JR      Z,plat_gfx__setpen
+        LD      A,(plat_gfx__gm)
+        AND     3
+        CP      1
+        LD      A,0                     ; opaque
+        JR      Z,plat_gfx__bk
+        INC     A                       ; transparent
+plat_gfx__bk:
+        CALL    &BD46                   ; GRA SET BACK
         JR      plat_gfx__setpen
+
+; NZ if the firmware is that of a 664 or 6128 (asked once: the version of the BASIC ROM)
+plat_gfx__new:
+        LD      A,(plat_gfx__ver)
+        OR      A
+        JR      NZ,plat_gfx__nv
+        LD      C,0
+        CALL    &B915                   ; KL PROBE ROM: H = version
+        LD      A,H
+        OR      A
+        LD      A,1                     ; 464
+        JR      Z,plat_gfx__nv0
+        INC     A                       ; 664, 6128
+plat_gfx__nv0:
+        LD      (plat_gfx__ver),A
+plat_gfx__nv:
+        CP      2
+        JR      Z,plat_gfx__nz
+        XOR     A                       ; Z
+        RET
+plat_gfx__nz:
+        OR      A                       ; NZ
+        RET
+
+; HL = line pattern (16 bits, bit 15 first): every other bit (a pixel is two units wide) as the mask
+; of the firmware (664/6128)
+plat_gfx_lmask:
+        PUSH    HL
+        CALL    plat_gfx__new
+        POP     HL
+        RET     Z
+        LD      B,8
+plat_gfx__lm:
+        ADD     HL,HL
+        RLA
+        ADD     HL,HL
+        DJNZ    plat_gfx__lm
+        JP      &BD4C                   ; GRA SET LINE MASK
 
 ; A = pen, HL = colour 0RGB (4 bits each): the nearest of the 27 colours (SETCOLOR)
 plat_gfx_ink:
@@ -172,4 +225,8 @@ plat_gfx__pen:
 plat_gfx__apen:                         ; the pen of the program (COLOR)
         DS      1
 plat_gfx__xor:                          ; 1 in XOR mode
+        DS      1
+plat_gfx__gm:                           ; GRAPHMODE
+        DS      1
+plat_gfx__ver:                          ; 0 not yet asked, 1 464, 2 664/6128
         DS      1

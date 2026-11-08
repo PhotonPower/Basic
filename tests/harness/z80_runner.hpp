@@ -37,7 +37,7 @@ struct Z80Options {
 [[nodiscard]] Z80Run runZ80Image(const std::vector<std::uint8_t>& image, Z80Platform platform,
                                  const Z80Options& options = {});
 
-/// A CPC 6128 with its real firmware (the 32 KiB ROM image: lower ROM and BASIC), booted once to
+/// A CPC with its real firmware (the 32 KiB ROM image of a 464, 664 or 6128: lower ROM and BASIC), booted once to
 /// the BASIC prompt in the emulator of PhotonPower/Z80. `run` loads a program and CALLs it as BASIC
 /// would (lower ROM off, 300 Hz interrupts); the console is what reached TXT OUTPUT, with
 /// TXT SET CURSOR and TXT CLEAR WINDOW written as ANSI sequences (as the stubs of Z80Platform::Cpc).
@@ -50,6 +50,8 @@ public:
 
     [[nodiscard]] bool booted() const { return booted_; }
     [[nodiscard]] const std::string& error() const { return error_; }
+    /// The version of the BASIC ROM (KL PROBE ROM): 0 CPC 464, 1 CPC 664, 2 CPC 6128.
+    [[nodiscard]] int basicVersion() const { return version_; }
     /// Assembles `source` (origin `origin`), loads it without the BSS and CALLs `origin`. With
     /// `screenPng`, the screen afterwards is written there (as the CRT shows it).
     [[nodiscard]] Z80Run run(const std::string& source, std::uint16_t origin, std::uint64_t maxInstructions,
@@ -59,6 +61,7 @@ private:
     struct Impl;
     Impl* impl_;
     bool booted_ = false;
+    int version_ = -1;
     std::string error_;
 };
 
