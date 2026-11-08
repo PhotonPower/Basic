@@ -124,8 +124,6 @@ private:
     void function(const lir::Function& f) {
         f_ = &f;
         ++fn_;
-        if (!f.params.empty()) unsupported("procedures with parameters");
-        if (f.returnsValue && f.result == VT::Str) unsupported("string functions");
         out_.code += "; ---- " + (f.routine < 0 ? std::string("main program") : f.name) + "\n" + fname(f.routine) + ":\n";
         line("PUSH    IX");
         line("LD      IX,0");
@@ -134,6 +132,18 @@ private:
             line("LD      HL," + std::to_string(-8 * f.regs));
             line("ADD     HL,SP");
             line("LD      SP,HL");
+        }
+        for (std::size_t k = 0; k < f.params.size(); ++k) {  // incoming arguments: 8 bytes each from IX+4
+            line("PUSH    IX");
+            line("POP     HL");
+            line("LD      BC," + std::to_string(4 + 8 * k));
+            line("ADD     HL,BC");
+            line("PUSH    HL");
+            slotToHL(f.params[k]);
+            line("EX      DE,HL");
+            line("POP     HL");
+            line("LD      BC,8");
+            line("LDIR");
         }
         for (const Instr& i : f.code) instr(i);
     }
@@ -266,6 +276,15 @@ private:
                     storeHL(i.dst);
                     return;
                 }
+                if (i.op == "mov" && i.dst.type == VT::F64) {  // 8 bytes
+                    slotToHL(i.dst);
+                    line("PUSH    HL");
+                    slotToHL(i.a);
+                    line("POP     DE");
+                    line("LD      BC,8");
+                    line("LDIR");
+                    return;
+                }
                 static const std::set<std::string> two = {"add", "sub", "and", "or", "xor"};
                 if (two.count(i.op) != 0) call("zi_" + i.op, {i.a, i.b}, i.dst);
                 else if (i.op == "not" || i.op == "neg" || i.op == "mov") call("zi_" + i.op, {i.a}, i.dst);
@@ -289,9 +308,33 @@ private:
             }
             case Kind::RtCall: call(i.op, i.args, i.dst); return;
             case Kind::Call: {
-                if (!i.args.empty()) unsupported("procedures with parameters");
+                const std::size_t n = i.args.size();
+                if (n > 0) {  // the arguments as 8-byte values on the stack, the first one on top
+                    line("LD      HL," + std::to_string(-8 * static_cast<int>(n)));
+                    line("ADD     HL,SP");
+                    line("LD      SP,HL");
+                    for (std::size_t k = 0; k < n; ++k) {
+                        slotToHL(i.args[k]);
+                        line("PUSH    HL");
+                        line("LD      HL," + std::to_string(8 * k + 2));
+                        line("ADD     HL,SP");
+                        line("EX      DE,HL");
+                        line("POP     HL");
+                        line("LD      BC,8");
+                        line("LDIR");
+                    }
+                }
                 line("CALL    " + fname(i.routine));
-                if (i.dst.id >= 0) {
+                if (n > 0) {
+                    line("LD      HL," + std::to_string(8 * n));
+                    line("ADD     HL,SP");
+                    line("LD      SP,HL");
+                }
+                if (i.dst.id >= 0 && i.dst.type == VT::Str) {  // a temporary of the caller takes the result
+                    uses_.insert("rt_str_take_ret");
+                    line("CALL    rt_str_take_ret");
+                    storeHL(i.dst);
+                } else if (i.dst.id >= 0) {
                     slotToHL(i.dst);
                     line("EX      DE,HL");
                     line("LD      HL,prg_ret");
@@ -338,9 +381,45 @@ private:
                 line("; line " + std::to_string(i.imm));
                 if (i.label >= 0) unsupported("ON ERROR");
                 return;
-            case Kind::Save:
-            case Kind::Clear:
-            case Kind::Restore: unsupported("LOCAL and parameters");
+            case Kind::Save: {  // the 8 bytes of the variable on the stack
+                if (p_.indirect[static_cast<std::size_t>(i.var)]) unsupported("VAR parameters");
+                const std::string v = var(i.var);
+                for (int off = 6; off >= 0; off -= 2) {
+                    line("LD      HL,(" + v + "+" + std::to_string(off) + ")");
+                    line("PUSH    HL");
+                }
+                if (varType(i.var) == hir::Type::Str) {  // the saved copy owns the block now
+                    uses_.insert("rt_str_relink");
+                    line("LD      HL,0");
+                    line("ADD     HL,SP");
+                    line("CALL    rt_str_relink");
+                }
+                return;
+            }
+            case Kind::Clear: {
+                line("LD      HL," + var(i.var));
+                bytesAt({0, 0, 0, 0, 0, 0, 0, 0});
+                return;
+            }
+            case Kind::Restore: {
+                const std::string v = var(i.var);
+                const bool str = varType(i.var) == hir::Type::Str;
+                if (str) {  // free the current string, take back the saved one
+                    uses_.insert("rt_str_free");
+                    line("LD      HL," + v);
+                    line("CALL    rt_str_free");
+                }
+                for (int off = 0; off <= 6; off += 2) {
+                    line("POP     HL");
+                    line("LD      (" + v + "+" + std::to_string(off) + "),HL");
+                }
+                if (str) {
+                    uses_.insert("rt_str_relink");
+                    line("LD      HL," + v);
+                    line("CALL    rt_str_relink");
+                }
+                return;
+            }
             case Kind::Bind: unsupported("VAR parameters");
             case Kind::RoutineAddr: unsupported("ON ERROR GOSUB");
             default: break;
