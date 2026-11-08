@@ -168,7 +168,9 @@ schlägt fehl, mit dem Fehler der Zielbreite (2, 4, 3). Vergleiche zweier Ganzza
 ein Überlauf heißt, dass der exakte Wert hinter dem Ende liegt (die Variable behält den umgebrochenen
 Wert). Ist die Schrittweite keine Konstante (eine Ganzzahlvariable, ein Element), wird sie einmal
 ausgewertet und ihr Vorzeichen wählt zur Laufzeit die Prüfungen; 0 zählt wie im Float-Weg als
-aufwärts (0.6, [performance.md](performance.md)). Ketten wie `a+b-c` oder `t+k*2` rechnen in 32 Bit;
+aufwärts (0.6, [performance.md](performance.md)). Ein Ende aus einer Kette (`TO i%-1`) rechnet
+ebenfalls in 32 Bit; läuft die Kette über, liegt das exakte Ende außerhalb, und die Schleife prüft
+mit den Vergleichen des Float-Wegs weiter (die Variable bricht dann wie dort um). Ketten wie `a+b-c` oder `t+k*2` rechnen in 32 Bit;
 läuft ein Zwischenergebnis über, springt der Code auf den Float-Weg und rechnet den ganzen Ausdruck
 dort neu. Ohne Überlauf ist jeder Zwischenwert betragsmäßig kleiner als 2^31, der Float-Weg also
 exakt und das Ergebnis gleich. Weil die Operanden dabei zweimal ausgewertet werden, gilt das nur für

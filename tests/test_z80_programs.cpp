@@ -4,7 +4,8 @@
 // ends with CR LF, so CR before LF is ignored there; programs with keyboard input run on z80-test only
 // (the CPC echoes the typed characters). A <name>.z80.out replaces <name>.out where the Z80 sees other
 // bytes (group memory), a <name>.cpc.out on cpc where AMSDOS differs (one input and one output
-// file). BASIC_Z80_PROGRAM=<file> runs one program.
+// file). BASIC_Z80_PROGRAM=<file> runs one program; BASIC_Z80_PROFILE=1 prints the T-states per
+// routine (z80-test).
 
 #include <cstdlib>
 #include <filesystem>
@@ -105,6 +106,7 @@ int main() {
                 opt.withoutBss = true;
             }
             if (fs::exists(in)) opt.input = read(in);
+            opt.profile = std::getenv("BASIC_Z80_PROFILE") != nullptr && !cpc;  // T-states per routine
             const harness::Z80Run run = harness::runZ80Source(source, cpc ? harness::Z80Platform::Cpc : harness::Z80Platform::Test, opt);
             ++ran;
             const unsigned size = run.end > opt.origin ? run.end - opt.origin : 0;
@@ -113,7 +115,8 @@ int main() {
                 ++g_failures;
                 std::cerr << label << ": " << run.error << " (" << size << " bytes)\n--- expected\n" << expected << "--- actual\n" << got << "\n";
             } else {
-                std::cout << label << ": ok (" << run.instructions << " instructions, " << run.cycles << " cycles, " << size << " bytes)\n";
+                std::cout << label << ": ok (" << run.instructions << " instructions, " << run.cycles << " cycles, " << size << " bytes)\n"
+                          << run.profile;
             }
         }
     }

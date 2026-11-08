@@ -726,7 +726,7 @@ private:
         if (s.target->op != Op::Load) unsupported("arrays");
         const int v = s.target->var;
         const Type ty = var(v).type;
-        if (ty == Type::Int && !onError_ && isIntLeaf(*s.end) && isIntLeaf(*s.step)) return intForLoop(s, v);
+        if (ty == Type::Int && !onError_ && (isIntLeaf(*s.end) || intChain(*s.end)) && isIntLeaf(*s.step)) return intForLoop(s, v);
         // with ON ERROR: an error in the FOR line and RESUME NEXT run the body once, NEXT increases
         // the variable (by 1 if the step is unknown) and leaves the loop (D19, probe11 T4)
         Reg failed, step;
@@ -769,22 +769,79 @@ private:
         place(exit);
     }
 
-    // FOR i% with an integer end and an integer step: the value plus the step exactly in 32 bits; an
-    // overflow means the exact value lies beyond the end (the loop ends, the variable keeps the
-    // wrapped value, as rt_for_wrap_int). The same results as the float loop above. A step that is
-    // not a constant (an integer variable, element, ...) is evaluated once; its sign chooses the
-    // tests at run time (0 counts as upwards, as fp_cmp in the float loop).
+    // FOR i% with an integer step and an integer end (a value or a chain of + - *, D16): the value plus
+    // the step exactly in 32 bits; an overflow means the exact value lies beyond the end (the loop
+    // ends, the variable keeps the wrapped value, as rt_for_wrap_int). A step that is not a constant
+    // is evaluated once and its sign chooses the tests at run time (0 counts as upwards, as fp_cmp in
+    // the float loop). An end chain that overflows 32 bits (its exact value lies outside) switches
+    // this loop to the tests of the float loop; the body stays one. The same results as forLoop.
     void intForLoop(const hir::Stmt& s, int v) {
-        if (s.step->op == Op::Conv) return intForLoopDyn(s, v);
-        double d = 0;
-        if (s.step->op == Op::ConstFloat) std::memcpy(&d, &s.step->fval, sizeof d);
-        else d = s.step->ival;
-        const bool down = d < 0;
+        const bool known = s.step->op != Op::Conv;  // a constant step: the direction is known
+        bool downStatic = false;
+        if (known) {
+            double d = 0;
+            if (s.step->op == Op::ConstFloat) std::memcpy(&d, &s.step->fval, sizeof d);
+            else d = s.step->ival;
+            downStatic = d < 0;
+        }
         store(v, expr(*s.start));
-        Reg end = intLeaf(*s.end);
-        Reg step = intLeaf(*s.step);
-        const int top = label(), exit = label();
-        branchZ(cmp(down ? "ge" : "le", load(v), end), exit);
+        Reg step;
+        if (known) {
+            step = intLeaf(*s.step);
+        } else {
+            step = reg(VT::I32);
+            copyTo(step, intLeaf(*s.step));
+        }
+        Reg down;
+        if (!known) {
+            down = reg(VT::I32);
+            copyTo(down, cmp("lt", step, constI(0)));
+        }
+        const bool chain = !isIntLeaf(*s.end);
+        Reg end, fmode, endF;
+        const int top = label(), exit = label(), fStart = label(), fTail = label();
+        if (chain) {
+            end = reg(VT::I32);
+            fmode = reg(VT::I32);
+            endF = reg(VT::F64);
+            const int overflow = label(), done = label();
+            copyTo(fmode, constI(0));
+            copyTo(end, chainEval(*s.end, overflow));
+            jump(done);
+            place(overflow);
+            copyTo(endF, expr(*s.end));
+            copyTo(fmode, constI(-1));
+            place(done);
+            branchNZ(fmode, fStart);
+        } else {
+            end = intLeaf(*s.end);
+        }
+        // the first test (integers)
+        auto test = [&](bool dn, Reg val, int target, bool onTrue) {
+            Reg c = cmp(dn ? "ge" : "le", val, end);
+            if (onTrue) branchNZ(c, target);
+            else branchZ(c, target);
+        };
+        if (known) {
+            test(downStatic, load(v), exit, false);
+        } else {
+            const int firstDown = label();
+            branchNZ(down, firstDown);
+            test(false, load(v), exit, false);
+            jump(top);
+            place(firstDown);
+            test(true, load(v), exit, false);
+        }
+        Reg bad;
+        if (chain) {  // the first test of the float loop
+            jump(top);
+            place(fStart);
+            bad = reg(VT::I32);
+            if (known) copyTo(bad, constI(downStatic ? -1 : 1));
+            else copyTo(bad, op("or", op("add", down, down), constI(1)));
+            Reg cur = rtcall("fp_from_i32", {load(v)}, VT::F64);
+            branchZ(cmp("ne", rtcall("fp_cmp", {cur, endF}, VT::I32), bad), exit);
+        }
         place(top);
         exitLabels_.push_back(exit);
         block(s.body);
@@ -793,39 +850,27 @@ private:
         Reg now = load(v);
         Reg next = op("add", now, step);
         store(v, next);
-        branchNZ(cmp(down ? "gt" : "lt", next, now), exit);  // overflow: beyond the end
-        branchNZ(cmp(down ? "ge" : "le", next, end), top);
-        place(exit);
-    }
-
-    void intForLoopDyn(const hir::Stmt& s, int v) {
-        store(v, expr(*s.start));
-        Reg end = intLeaf(*s.end);
-        Reg step = reg(VT::I32);
-        copyTo(step, intLeaf(*s.step));
-        Reg down = reg(VT::I32);
-        copyTo(down, cmp("lt", step, constI(0)));
-        const int top = label(), exit = label(), firstDown = label(), testDown = label();
-        branchNZ(down, firstDown);
-        branchZ(cmp("le", load(v), end), exit);
-        jump(top);
-        place(firstDown);
-        branchZ(cmp("ge", load(v), end), exit);
-        place(top);
-        exitLabels_.push_back(exit);
-        block(s.body);
-        exitLabels_.pop_back();
-        reenter();
-        Reg now = load(v);
-        Reg next = op("add", now, step);
-        store(v, next);
-        branchNZ(down, testDown);
-        branchNZ(cmp("lt", next, now), exit);  // overflow: beyond the end
-        branchNZ(cmp("le", next, end), top);
-        jump(exit);
-        place(testDown);
-        branchNZ(cmp("gt", next, now), exit);
-        branchNZ(cmp("ge", next, end), top);
+        if (chain) branchNZ(fmode, fTail);
+        auto tail = [&](bool dn) {
+            branchNZ(cmp(dn ? "gt" : "lt", next, now), exit);  // overflow: beyond the end
+            test(dn, next, top, true);
+        };
+        if (known) {
+            tail(downStatic);
+        } else {
+            const int testDown = label();
+            branchNZ(down, testDown);
+            tail(false);
+            jump(exit);
+            place(testDown);
+            tail(true);
+        }
+        if (chain) {  // the float tests: the exact next value against the exact end
+            jump(exit);
+            place(fTail);
+            Reg nextF = rtcall("fp_add", {rtcall("fp_from_i32", {now}, VT::F64), rtcall("fp_from_i32", {step}, VT::F64)}, VT::F64);
+            branchNZ(cmp("ne", rtcall("fp_cmp", {nextF, endF}, VT::I32), bad), top);
+        }
         place(exit);
     }
 

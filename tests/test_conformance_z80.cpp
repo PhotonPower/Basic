@@ -125,12 +125,13 @@ public:
         cycles_ += res.cycles;
         ++calls_;
         carry_ = (res.regs.af & 1) != 0;
+        zero_ = (res.regs.af & 0x40) != 0;
         const std::uint8_t e = rt_->read8(kErr);
         return {rt_->read64(kDst), e == 0xFF ? -1 : e};
     }
 
     std::uint64_t cycles_ = 0, calls_ = 0;
-    bool carry_ = false;
+    bool carry_ = false, zero_ = false;
     void poke(const std::string& sym, std::uint8_t v) { rt_->write8(rt_->symbol(sym), v); }
     void poke64(std::uint16_t a, std::uint64_t v) { rt_->write64(a, v); }
     Z80Routines& raw() { return *rt_; }
@@ -338,6 +339,9 @@ int main() {
                     r = rt.call("zi_cmp", u(a), u(b));
                     report("zi_cmp " + std::to_string(c), u(a), u(b), r.first & 0xFFFFFFFFu, r.second, want[c] ? 0xFFFFFFFFu : 0u, -1);
                 }
+                r = rt.call("zi_cmpf", u(a), u(b));  // flags only: Z equal, CF less
+                report("zi_cmpf", u(a), u(b), (rt.zero_ ? 2u : 0u) | (rt.carry_ ? 1u : 0u), r.second,
+                       (a == b ? 2u : 0u) | (a < b ? 1u : 0u), -1);
             }
         for (std::int32_t a : vals) {
             auto r = rt.call("zi_neg", u(a));

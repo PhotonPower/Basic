@@ -1,10 +1,12 @@
 ;! module    zi
-;! provides  zi_add zi_sub zi_and zi_or zi_xor zi_not zi_neg zi_mov zi_cmp zi_cmp_code zi_addv zi_subv zi_mulv
+;! provides  zi_add zi_sub zi_and zi_or zi_xor zi_not zi_neg zi_mov zi_cmp zi_cmp_code zi_addv zi_subv zi_mulv zi_cmpf
 ;! group     core
 ;! clobbers  AF BC DE HL
 ;! doc       32-bit integers of the generated code (D30): HL = result, DE = a, BC = b.
 
 ; zi_cmp: zi_cmp_code 0 eq, 1 ne, 2 lt, 3 le, 4 gt, 5 ge (signed) -> -1 or 0.
+; zi_cmpf: DE -> a, BC -> b -> Z if a = b, CF if a < b (signed); for a comparison that only decides a
+; branch.
 ; zi_addv, zi_subv, zi_mulv: CF set if the result does not fit 32 bits (then it is undefined).
 
 zi_add:
@@ -208,6 +210,44 @@ zi__put:                                ; A = 1 true -> -1, 0 -> 0
         LD      (HL),A
         INC     HL
         LD      (HL),A
+        RET
+
+zi_cmpf:
+        LD      H,B
+        LD      L,C                     ; HL -> b
+        LD      A,(DE)                  ; a - b byte by byte: C, B, (zi__t), A
+        SUB     (HL)
+        LD      C,A
+        INC     DE
+        INC     HL
+        LD      A,(DE)
+        SBC     A,(HL)
+        LD      B,A
+        INC     DE
+        INC     HL
+        LD      A,(DE)
+        SBC     A,(HL)
+        LD      (zi__t),A
+        INC     DE
+        INC     HL
+        LD      A,(DE)
+        SBC     A,(HL)
+        LD      H,A
+        JP      PE,zi__fv               ; less = S xor V
+        RLA
+        JR      zi__fl
+zi__fv: RLA
+        CCF
+zi__fl: SBC     A,A                     ; L = -1 if less
+        LD      L,A
+        LD      A,H                     ; Z: all bytes 0
+        OR      B
+        OR      C
+        LD      B,A
+        LD      A,(zi__t)
+        OR      B
+        LD      A,L
+        RLA                             ; CF = less (RLA keeps Z)
         RET
 
 ; signed multiplication with overflow: |a| * |b| as 64 bits, then the range

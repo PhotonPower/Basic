@@ -119,8 +119,9 @@ Schnellerer und kleinerer Code auf beiden CPUs bei gleichen Ergebnissen; gemesse
 `tools/bench.py` an den Programmen `bench_*` ([performance.md](performance.md)).
 
 Stand: ✔ Messprogramme, Messwerkzeug und Ausgangsmessung, ✔ `FOR` mit variabler ganzzahliger
-Schrittweite in 32 Bit. Weiter: Konstanten falten (Umwandlungen), Ganzzahlarithmetik und Vergleiche
-auf dem Z80 inline statt über `zi_*`, Kopien über Register statt `LDIR`, Feldzugriffe mit
+Schrittweite und mit einer Kette als Ende in 32 Bit, ✔ Z80: Feldzugriff ohne unnötige
+Multiplikationen, Vergleich mit Sprung über Flags, Profil je Routine. Weiter: Konstanten falten
+(Umwandlungen), Ganzzahlarithmetik auf dem Z80 inline statt über `zi_*`, Kopien über Register statt `LDIR`, Feldzugriffe mit
 konstanten Grenzen, Fließkomma (Werte nicht über den Speicher), Peephole.
 
 ## Danach

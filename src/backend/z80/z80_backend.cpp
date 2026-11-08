@@ -467,7 +467,37 @@ private:
             line("LD      BC,8");
             line("LDIR");
         }
-        for (const Instr& i : f.code) instr(i);
+        std::vector<int> reads(static_cast<std::size_t>(f.regs), 0);  // how often each register is read
+        for (const Instr& i : f.code) {
+            for (const Reg* r : {&i.a, &i.b})
+                if (r->id >= 0) ++reads[static_cast<std::size_t>(r->id)];
+            for (const Reg& r : i.args)
+                if (r.id >= 0) ++reads[static_cast<std::size_t>(r.id)];
+        }
+        for (std::size_t k = 0; k < f.code.size(); ++k) {
+            const Instr& i = f.code[k];
+            if (i.kind == Kind::Cmp && k + 1 < f.code.size() && reads[static_cast<std::size_t>(i.dst.id)] == 1 &&
+                (f.code[k + 1].kind == Kind::BranchZ || f.code[k + 1].kind == Kind::BranchNZ) && f.code[k + 1].a.id == i.dst.id) {
+                cmpBranch(i, f.code[k + 1]);  // the comparison only decides the branch: flags, no value
+                ++k;
+                continue;
+            }
+            instr(i);
+        }
+    }
+
+    // cmp + branch on its result: zi_cmpf sets Z (equal) and CF (less, signed); gt and le swap the
+    // operands (b < a, b >= a), so that one flag decides
+    void cmpBranch(const Instr& c, const Instr& br) {
+        static const std::map<std::string, std::pair<bool, const char*>> how = {  // swap, flag when true
+            {"eq", {false, "Z"}}, {"ne", {false, "NZ"}}, {"lt", {false, "C"}},
+            {"ge", {false, "NC"}}, {"gt", {true, "C"}},   {"le", {true, "NC"}}};
+        const auto it = how.find(c.op);
+        if (it == how.end()) unsupported("comparison " + c.op);
+        static const std::map<std::string, std::string> negate = {{"Z", "NZ"}, {"NZ", "Z"}, {"C", "NC"}, {"NC", "C"}};
+        const std::string flag = br.kind == Kind::BranchNZ ? it->second.second : negate.at(it->second.second);
+        call("zi_cmpf", it->second.first ? std::vector<Reg>{c.b, c.a} : std::vector<Reg>{c.a, c.b}, Reg());
+        line("JP      " + flag + "," + label(br.label));
     }
 
     void instr(const Instr& i) {

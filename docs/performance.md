@@ -41,3 +41,15 @@ Auf einem CPC (rund 4 MHz) wären das für `bench_float` etwa 10 Minuten, für `
 1. `FOR` mit `%`-Variable und ganzzahliger, nicht konstanter Schrittweite in 32 Bit statt in
    Fließkomma ([D16](decisions.md#d16), Nachtrag): `bench_sieve` Z80 −70 % T-States, 68000 −68 %
    Befehle.
+2. `FOR` mit einer Kette aus `+ - *` als Ende (`TO i%-1`) in 32 Bit; läuft die Kette über, prüft
+   die Schleife in Fließkomma weiter (der Rumpf bleibt einmal im Code): `bench_sort` Z80 −65 %,
+   68000 −61 %.
+3. Z80, Feldzugriff (`rt_arr_elem`): keine Multiplikation mit dem Multiplikator 1 und nach der
+   letzten Dimension, die Elementgröße (1, 2, 4, 8) als Verschiebung: `bench_sort` −42 %.
+4. Z80, Vergleich und Sprung: Liest nur der folgende Sprung das Ergebnis eines Vergleichs, setzt
+   `zi_cmpf` die Flags (Z gleich, CF kleiner) und ein bedingter Sprung folgt; `gt`/`le` tauschen
+   die Operanden. Kein −1/0 im Speicher, keine Fallunterscheidung über `zi_cmp_code`.
+
+Werkzeug dafür: `BASIC_Z80_PROFILE=1 BASIC_Z80_PROGRAM=<datei> build/tests/test_z80_programs` zeigt
+die T-States je Routine (Marke im Quelltext; `modul__x` zählt zum Modul, Programmcode als
+`program`).

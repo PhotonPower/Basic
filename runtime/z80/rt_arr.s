@@ -264,28 +264,45 @@ rt_arr__e1:
         POP     HL
         JR      NC,rt_arr__erng
         PUSH    DE
-        LD      BC,(rt_arr__mult)       ; index += (i - base) * multiplier
-        CALL    rt_arr__mul
+        LD      BC,(rt_arr__mult)       ; index += (i - base) * multiplier (the first: 1)
+        LD      A,B
+        OR      A
+        JR      NZ,rt_arr__e2
+        DEC     C
+        JR      Z,rt_arr__e3
+        INC     C
+rt_arr__e2:
+        CALL    rt_arr__mul             ; (fits: the index is below the number of elements)
+rt_arr__e3:
         LD      DE,(rt_arr__n)
         ADD     HL,DE
         LD      (rt_arr__n),HL
-        POP     BC                      ; multiplier *= extent
+        POP     BC                      ; multiplier *= extent (not after the last index)
+        POP     AF
+        PUSH    AF
+        DEC     A
+        JR      Z,rt_arr__e4
         LD      HL,(rt_arr__mult)
         CALL    rt_arr__mul
         LD      (rt_arr__mult),HL
+rt_arr__e4:
         LD      HL,(rt_arr__ap)
         INC     HL
         INC     HL
         LD      (rt_arr__ap),HL
         POP     BC
         DJNZ    rt_arr__e1
-        LD      HL,(rt_arr__slot)       ; address = block + 4 * dims + index * size
+        LD      HL,(rt_arr__slot)       ; address = block + 4 * dims + index * size (1, 2, 4, 8)
         LD      DE,4
         ADD     HL,DE
-        LD      C,(HL)
-        LD      B,0
+        LD      A,(HL)
         LD      HL,(rt_arr__n)
-        CALL    rt_arr__mul
+rt_arr__sz:
+        RRA
+        JR      C,rt_arr__sz1
+        ADD     HL,HL
+        JR      rt_arr__sz
+rt_arr__sz1:
         LD      A,(rt_arr__nd)
         ADD     A,A
         ADD     A,A

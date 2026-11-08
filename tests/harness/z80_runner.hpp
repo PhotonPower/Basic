@@ -20,6 +20,7 @@ struct Z80Run {
     std::uint64_t instructions = 0;
     std::uint64_t cycles = 0;    ///< T-states, useful to compare the speed of runtime routines
     std::uint32_t end = 0;       ///< runZ80Source: the label prg_end (first byte after code, data and BSS), if any
+    std::string profile;         ///< runZ80Source with Z80Options::profile: T-states per routine, most first
 };
 
 struct Z80Options {
@@ -28,6 +29,7 @@ struct Z80Options {
     std::string input;  ///< z80-test: keyboard input (IN from &03: 1 if a byte is left, IN from &02: the byte)
     std::uint8_t fill = 0;    ///< contents of the memory before the program is loaded
     bool withoutBss = false;  ///< runZ80Source: load only up to prg_bss (as the CPC binary file)
+    bool profile = false;     ///< runZ80Source: count the T-states per routine (label; module__x counts as module)
 };
 
 /// Assembles `source` with the sister project's assembler and runs it from `options.origin`.

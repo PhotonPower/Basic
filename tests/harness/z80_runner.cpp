@@ -213,6 +213,12 @@ std::string hex4(unsigned v) {
 
 }  // namespace
 
+namespace {
+// address -> routine name (the label at or before it; "module__x" -> "module", program code -> "program")
+using Routines = std::map<std::uint32_t, std::string>;
+thread_local const Routines* g_routines = nullptr;
+}  // namespace
+
 Z80Run runZ80Image(const std::vector<std::uint8_t>& image, Z80Platform platform, const Z80Options& options) {
     Z80Run result;
     if (image.size() + options.origin > 0x10000) {
@@ -283,9 +289,33 @@ Z80Run runZ80Image(const std::vector<std::uint8_t>& image, Z80Platform platform,
         });
     }
 
+    std::map<std::string, std::uint64_t> spent;
+    if (g_routines != nullptr) {
+        cpu.setTrace([&spent, last = std::uint64_t{0}, where = std::string()](const z80::Cpu& c) mutable {
+            if (!where.empty()) spent[where] += c.cycles() - last;
+            last = c.cycles();
+            auto it = g_routines->upper_bound(c.regs().pc);
+            where = it == g_routines->begin() ? "?" : std::prev(it)->second;
+        });
+    }
     z80::RunLimits limits;
     limits.maxInstructions = options.maxInstructions;
     const z80::RunResult run = cpu.run(limits);
+    if (g_routines != nullptr) {
+        std::vector<std::pair<std::uint64_t, std::string>> top;
+        std::uint64_t total = 0;
+        for (const auto& [name, t] : spent) {
+            top.emplace_back(t, name);
+            total += t;
+        }
+        std::sort(top.rbegin(), top.rend());
+        char buf[160];
+        for (std::size_t k = 0; k < top.size() && k < 30; ++k) {
+            std::snprintf(buf, sizeof buf, "%14llu %5.1f%%  %s\n", static_cast<unsigned long long>(top[k].first),
+                          total ? 100.0 * static_cast<double>(top[k].first) / static_cast<double>(total) : 0.0, top[k].second.c_str());
+            result.profile += buf;
+        }
+    }
     result.instructions = cpu.instructionCount();  // since reset: this run only
     result.cycles = cpu.cycles();
 
@@ -321,7 +351,21 @@ Z80Run runZ80Source(const std::string& source, Z80Platform platform, const Z80Op
         for (const auto& [name, sym] : assembled.symbols)
             if ((name == "PRG_BSS" || name == "prg_bss") && sym.value >= options.origin)
                 image.resize(std::min<std::size_t>(image.size(), static_cast<std::size_t>(sym.value - options.origin)));
+    Routines routines;
+    if (options.profile) {
+        for (const auto& [name, sym] : assembled.symbols) {
+            std::string n = name;
+            for (char& ch : n) ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+            if (const auto u = n.find("__"); u != std::string::npos) n.resize(u);
+            if (n.rfind("rt_", 0) != 0 && n.rfind("fp_", 0) != 0 && n.rfind("zi", 0) != 0 && n.rfind("ix_", 0) != 0 &&
+                n.rfind("plat_", 0) != 0)
+                n = "program";
+            routines[static_cast<std::uint32_t>(sym.value)] = n;
+        }
+        g_routines = &routines;
+    }
     Z80Run run = runZ80Image(image, platform, options);
+    g_routines = nullptr;
     for (const auto& [name, sym] : assembled.symbols)
         if (name == "PRG_END" || name == "prg_end") run.end = static_cast<std::uint32_t>(sym.value);
     return run;
