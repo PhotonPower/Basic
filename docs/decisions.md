@@ -575,3 +575,7 @@ kopieren.
   `tests/test_conformance_z80.cpp` vergleicht jede Routine mit `runtime/ref` (Randfälle und
   Zufallsoperanden, Ergebnis-Bits, Fehlernummer, IX/IY).
 - Der Linker hat dafür die Anordnung `PlainZ80` (wie `Plain`, ohne `EVEN`).
+- Strings wie D18 mit 16-Bit-Adressen: Deskriptor 4 Bytes (Adresse, Länge), Block mit Besitzer und
+  Länge (4 Bytes) vor den Zeichen. Die Halde legt die Plattform fest (`plat_heap`, `plat_heap_end`;
+  z80-test &C000–&EFFF). Labels sind im Z80-Assembler unabhängig von Groß-/Kleinschreibung: eine
+  Konstante darf nicht wie ein Label heißen.

@@ -1,0 +1,34 @@
+' test: groups core print string
+' String-Kern: Zuweisung, Verkettung, Vergleiche, Funktionen mit Randfaellen und eine Schleife, die
+' die Halde mehrfach fuellt (Speicherbereinigung; auf dem Z80 sind es 12 KB).
+a$="Hallo"
+b$=" Welt"
+c$=a$+b$
+PRINT c$;" ";LEN(c$)
+PRINT LEFT$(c$,3);"|";RIGHT$(c$,4);"|";MID$(c$,2,3);"|";MID$(c$,7);"|";MID$(c$,0,2);"|";MID$(c$,20,2);"|"
+PRINT LEFT$(c$,99);"|";RIGHT$(c$,0);"|";LEFT$("",3);"|"
+PRINT INSTR(c$,"l");" ";INSTR(c$,"l",5);" ";INSTR(c$,"xyz");" ";INSTR(c$,"");" ";INSTR("","")
+PRINT ASC("A");" ";ASC("");" ";CHR$(66);CHR$(321)
+PRINT "[";SPACE$(3);"]";STRING$(3,"ab");STRING$(0,"x");"|"
+PRINT UPPER$("abc xyz 1");"|";TRIM$("  mitte  ");"|";TRIM$("   ");"|"
+PRINT STR$(3.25);" ";STR$(-7);" ";STR$(1E20);" ";STR$(0.001)
+IF a$<b$
+  PRINT "kleiner"
+ENDIF
+IF a$="Hallo" AND c$>a$ AND "ab"<"abc" AND "b">"abc"
+  PRINT "vergleiche ok"
+ENDIF
+d$=a$
+d$=d$+"!"
+PRINT a$;" ";d$
+SWAP a$,d$
+PRINT a$;" ";d$
+x$=""
+FOR i%=1 TO 300
+  x$=x$+CHR$(65+i% MOD 26)
+  y$=SPACE$(100)+x$
+NEXT i%
+PRINT LEN(x$);" ";LEN(y$);" ";LEFT$(x$,30);" ";RIGHT$(y$,5)
+e$=""
+PRINT "[";e$;"]";LEN(e$)
+PRINT "ende"
