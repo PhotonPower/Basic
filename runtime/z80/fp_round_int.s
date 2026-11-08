@@ -18,7 +18,14 @@ fp_trunc:
 ; HL = destination, DE = a: floor
 fp_int:
         LD      (fp_round_int__dst2),HL
-        LD      (fp_round_int__src2),DE
+        EX      DE,HL                   ; a copy of the source (the destination may be the source)
+        LD      DE,fp_round_int__tmp2
+        LD      BC,8
+        LDIR
+        LD      HL,fp_round_int__tmp2
+        LD      (fp_round_int__src2),HL
+        LD      HL,(fp_round_int__dst2)
+        LD      DE,fp_round_int__tmp2
         CALL    fp_trunc
         LD      HL,(fp_round_int__src2) ; negative and not whole: one less
         LD      BC,7
@@ -45,7 +52,13 @@ fp_round_int__dec:
 ; HL = destination, DE = a: a - TRUNC(a)
 fp_frac:
         LD      (fp_round_int__dst2),HL
-        LD      (fp_round_int__src2),DE
+        EX      DE,HL                   ; a copy of the source (the destination may be the source)
+        LD      DE,fp_round_int__tmp2
+        LD      BC,8
+        LDIR
+        LD      HL,fp_round_int__tmp2
+        LD      (fp_round_int__src2),HL
+        EX      DE,HL
         LD      HL,fp_round_int__tmp
         CALL    fp_trunc
         LD      HL,(fp_round_int__dst2)
@@ -185,4 +198,6 @@ fp_round_int__dst2:
 fp_round_int__src2:
         DS      2
 fp_round_int__tmp:
+        DS      8
+fp_round_int__tmp2:
         DS      8

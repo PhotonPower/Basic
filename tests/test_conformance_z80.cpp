@@ -129,6 +129,21 @@ public:
     void poke(const std::string& sym, std::uint8_t v) { rt_->write8(rt_->symbol(sym), v); }
     void poke64(std::uint16_t a, std::uint64_t v) { rt_->write64(a, v); }
     Z80Routines& raw() { return *rt_; }
+    // the same with the result in place of the operand (HL = DE)
+    std::pair<std::uint64_t, int> callInPlace(const std::string& name, std::uint64_t a) {
+        rt_->write64(kA, a);
+        rt_->write8(kErr, 0xFF);
+        Z80Regs in;
+        in.hl = kA;
+        in.de = kA;
+        in.bc = kB;
+        in.ix = 0x1357;
+        in.iy = 0x2468;
+        const auto res = rt_->call(name, in);
+        if (!res.ok) return {0, -2};
+        const std::uint8_t e = rt_->read8(kErr);
+        return {rt_->read64(kA), e == 0xFF ? -1 : e};
+    }
 
 private:
     std::unique_ptr<Z80Routines> rt_;
@@ -192,6 +207,8 @@ void checkUnary(Runtime& rt, const std::string& name, Un ref, int cases, std::ve
         const int wantErr = g_error;
         const auto [got, err] = rt.call(name, x);
         report(name, x, 0, got, err, want, wantErr);
+        const auto [got2, err2] = rt.callInPlace(name, x);
+        report(name + " in place", x, 0, got2, err2, want, wantErr);
     }
 }
 
@@ -362,6 +379,28 @@ int main() {
                                      got.c_str(), want, res.error.c_str());
                 }
             }
+    }
+    {  // fp_round(x, n) and the wrap of FOR with an integer variable
+        Rng rng;
+        std::vector<f64> vals = edgeCases();
+        for (int k = 0; k < cases / 8; ++k) vals.push_back(randomF64(rng, 990, 1080));
+        for (f64 x : vals)
+            for (std::int32_t n : {0, 1, 2, 3, 5, 12, 20, -1, -2, -5, -20, 400, -400}) {
+                g_error = -1;
+                const f64 want = fp_round(x, n);
+                const auto [got, err] = rt.call("fp_round", x, static_cast<std::uint32_t>(n));
+                report("fp_round " + std::to_string(n), x, 0, got, err, want, g_error);
+            }
+        for (int k = 0; k < cases / 4; ++k) {  // |x| < 2^32
+            const f64 x = randomF64(rng, 1023, 1053);
+            g_error = -1;
+            f64 t = fp_trunc(x);
+            if (fp_cmp(t, 0x41E0000000000000u) >= 0) t = fp_sub(t, 0x41F0000000000000u);
+            else if (fp_cmp(t, 0xC1E0000000000000u) < 0) t = fp_add(t, 0x41F0000000000000u);
+            const std::uint32_t want = static_cast<std::uint32_t>(fp_to_i32(t));
+            const auto [got, err] = rt.call("rt_for_wrap_int", x);
+            report("rt_for_wrap_int", x, 0, got & 0xFFFFFFFFu, err, want, g_error);
+        }
     }
     if (rt.calls_ > 0) std::fprintf(stderr, "average %llu T-states per call\n", static_cast<unsigned long long>(rt.cycles_ / rt.calls_));
     return report("conformance_z80");
