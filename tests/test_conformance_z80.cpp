@@ -165,6 +165,27 @@ void checkBinary(Runtime& rt, const std::string& name, Bin ref, int cases) {
     }
 }
 
+using Un = f64 (*)(f64);
+
+void checkUnary(Runtime& rt, const std::string& name, Un ref, int cases, std::vector<f64> extra = {}) {
+    Rng rng;
+    std::vector<f64> vals = edgeCases();
+    vals.insert(vals.end(), extra.begin(), extra.end());
+    for (int k = 0; k < cases; ++k) {
+        const int kind = k % 3;
+        if (kind == 0) vals.push_back(randomF64(rng, 1, 2046));
+        else if (kind == 1) vals.push_back(randomF64(rng, 960, 1090));
+        else vals.push_back(randomF64(rng, 1010, 1040));
+    }
+    for (f64 x : vals) {
+        g_error = -1;
+        const f64 want = ref(x);
+        const int wantErr = g_error;
+        const auto [got, err] = rt.call(name, x);
+        report(name, x, 0, got, err, want, wantErr);
+    }
+}
+
 }  // namespace
 
 int main() {
@@ -214,6 +235,32 @@ int main() {
                 const auto [got, err] = rt.call(name, x);
                 report(name, x, 0, got & 0xFFFFFFFFu, err, want, wantErr);
             }
+        }
+    }
+    checkUnary(rt, "fp_sqrt", fp_sqrt, cases);
+    checkUnary(rt, "fp_trunc", fp_trunc, cases, {0x3FE0000000000000u, 0xC00C000000000000u, 0x432FFFFFFFFFFFFFu});
+    checkUnary(rt, "fp_int", fp_int, cases, {0x3FE0000000000000u, 0xC00C000000000000u, 0xBFE0000000000000u});
+    checkUnary(rt, "fp_frac", fp_frac, cases, {0x3FE0000000000000u, 0xC00C000000000000u});
+    checkUnary(rt, "fp_cint", fp_cint, cases,
+               {0x3FE0000000000000u, 0xBFE0000000000000u, 0x3FDFFFFFFFFFFFFFu, 0x4004000000000000u, 0xC004000000000000u,
+                0x3CA0000000000000u, 0x3C90000000000000u});
+    checkUnary(rt, "fp_canon", fp_canon, cases,
+               {0x8000000000000000u, 0x000FFFFFFFFFFFFFu, 0x7FF0000000000000u, 0xFFF8000000000000u, 0x7FF0000000000001u});
+    checkUnary(rt, "fp_neg", fp_neg, cases);
+    checkUnary(rt, "fp_abs", [](f64 x) -> f64 { return x & 0x7FFFFFFFFFFFFFFFu; }, cases);
+    {  // fp_approx_eq -> 32-bit 1/0
+        Rng rng;
+        std::vector<std::pair<f64, f64>> ops;
+        for (f64 a : edgeCases())
+            for (f64 b : edgeCases()) ops.emplace_back(a, b);
+        for (int k = 0; k < cases; ++k) {
+            const f64 a = randomF64(rng, 1000, 1050);
+            const std::uint64_t d = rng.next() & ((std::uint64_t{1} << rng.range(1, 30)) - 1);
+            ops.emplace_back(a, k % 2 == 0 ? a + d : a - d);
+        }
+        for (const auto& [a, b] : ops) {
+            const auto [got, err] = rt.call("fp_approx_eq", a, b);
+            report("fp_approx_eq", a, b, got & 0xFFFFFFFFu, err, static_cast<std::uint32_t>(fp_approx_eq(a, b)), -1);
         }
     }
     if (rt.calls_ > 0) std::fprintf(stderr, "average %llu T-states per call\n", static_cast<unsigned long long>(rt.cycles_ / rt.calls_));
