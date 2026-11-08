@@ -78,9 +78,17 @@ außerhalb dieses Speichers lösen einen Fehler aus.
     Eingabedatei liest sie ein zweites Mal. `EXIST`/`KILL` suchen über `CAS IN OPEN`: Bei offener
     Eingabedatei werden nur die beiden offenen Dateien gefunden, und `KILL` (über `|ERA`) meldet
     eine fehlende Datei dann nicht. Die Fehlermeldungen von AMSDOS sind abgeschaltet (`&BE78`).
-  - **Grafik:** `PLOT`, `DRAW`, `LINE`, `BOX`, `CIRCLE`, `COLOR`, `CLS`, `TEXT` werden auf
-    Firmware-Grafik abgebildet (Koordinaten skalieren, Farben auf die Palette des Modus);
-    Screens, Fenster, Menüs, Sprites, BOBs und Kapitel 11 gibt es nicht.
+  - **Grafik** (`runtime/z80/rt_gfx.s`, `platform/cpc/plat_gfx.s`): Mode 1 (320 × 200, 4 Farben).
+    GFA-Koordinaten gehen 1:1 auf die logischen Koordinaten der Firmware: x 0–639 (zwei Werte je
+    Pixel), y eine Bildschirmzeile je Einheit (Y = 398 − 2y), sichtbar sind y 0–199. `PLOT`, `LINE`,
+    `DRAW`, `BOX` über `GRA PLOT`/`GRA LINE`; Kreise und Ellipsen rastert die Laufzeit selbst
+    (Kennedys Ganzzahlverfahren, `CIRCLE` mit ry = 4r/9 wie im HiRes), gefüllte Formen sind
+    waagrechte Linien. `POINT` über `GRA TEST` (−1 außerhalb), `TEXT` über `GRA WR CHAR` (y ist die
+    Grundlinie). `GRAPHMODE 2` ist XOR mit Stift 3 (`SCR ACCESS`), wie `COMPLEMENT` am Amiga; den
+    ersten Punkt einer Linie lässt der CPC nicht aus. `SETCOLOR` nimmt die nächste der 27 Farben.
+    Nicht da: `DEFLINE` (Linien sind durchgezogen), Füllmuster, `POLYLINE`/`POLYFILL` (lehnt das
+    Backend ab). Screens, Fenster, Menüs, Sprites, BOBs und Kapitel 11 gibt es nicht; `OPENW`,
+    `CLOSEW`, `TITLEW`, `OPENS` usw. wirken nicht, `CLEARW` löscht die Grafik.
   - **Byte-Reihenfolge:** Der Z80 ist Little-Endian. `MKI$`/`CVI`, `MKL$`/`CVL` usw. sind trotzdem
     immer Big-Endian (Datenformat), ebenso `FLOAT{}` und `SINGLE{}` (wie `MKD$`/`MKS$`).
     `PEEK`/`POKE`/`LONG{}`/`DOUBLE{}` greifen auf den nativen Speicher zu, weil solche Programme

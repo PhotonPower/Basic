@@ -72,8 +72,8 @@ public:
         Diagnostics d;
         std::vector<link::Module> mods;
         for (link::Module& m : link::loadModules(std::string(BASIC_SOURCE_DIR) + "/runtime/z80", d))
-            if (m.name != "rt_err" && m.name != "rt_onerr" && m.name != "rt_resume" && m.name != "rt_file" && m.name != "rt_matinput")
-                mods.push_back(std::move(m));  // (files: tested by the programs on the RAM disk)
+            if (m.name != "rt_err" && m.name != "rt_onerr" && m.name != "rt_resume" && m.name != "rt_file" && m.name != "rt_matinput" && m.name != "rt_gfx")
+                mods.push_back(std::move(m));  // (files, graphics: tested by the programs)
         std::vector<std::string> all;
         for (const link::Module& m : mods) all.insert(all.end(), m.provides.begin(), m.provides.end());
         for (link::Module& m : link::loadModules(std::string(BASIC_SOURCE_DIR) + "/platform/z80-test", d))

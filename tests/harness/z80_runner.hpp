@@ -50,8 +50,10 @@ public:
 
     [[nodiscard]] bool booted() const { return booted_; }
     [[nodiscard]] const std::string& error() const { return error_; }
-    /// Assembles `source` (origin `origin`), loads it without the BSS and CALLs `origin`.
-    [[nodiscard]] Z80Run run(const std::string& source, std::uint16_t origin, std::uint64_t maxInstructions);
+    /// Assembles `source` (origin `origin`), loads it without the BSS and CALLs `origin`. With
+    /// `screenPng`, the screen afterwards is written there (as the CRT shows it).
+    [[nodiscard]] Z80Run run(const std::string& source, std::uint16_t origin, std::uint64_t maxInstructions,
+                             const std::string& screenPng = "");
 
 private:
     struct Impl;

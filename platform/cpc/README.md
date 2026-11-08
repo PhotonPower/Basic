@@ -4,5 +4,5 @@ Plattformschicht für den Amstrad CPC (Z80): Ladeadresse `&0100`, eigener Stapel
 und Strings im freien Speicher dazwischen (`plat_heap.s`), `plat_putc` über `TXT OUTPUT` (`&BB5A`,
 CR vor LF), Tastatur über `KM WAIT CHAR`/`KM READ CHAR` mit Echo, `TIMER` über `KL TIME PLEASE`,
 Cursor über `TXT SET CURSOR`/`TXT CLEAR WINDOW` (`plat_screen.s`), Dateien über AMSDOS (eine
-Eingabe- und eine Ausgabedatei, `plat_file.s`). Geplant: Grafik über `GRA`. Siehe
+Eingabe- und eine Ausgabedatei, `plat_file.s`), Grafik über `GRA` in Mode 1 (`plat_gfx.s`). Siehe
 [docs/targets.md](../../docs/targets.md#cpc-z80).

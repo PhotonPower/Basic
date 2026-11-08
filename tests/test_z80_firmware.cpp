@@ -2,7 +2,8 @@
 // without keyboard input and without files (AMSDOS is a ROM of its own, not part of the image) is
 // compiled for cpc, CALLed in a booted 6128 in the emulator of PhotonPower/Z80 and its output
 // compared as in z80_programs. Needs the 32 KiB ROM image (lower ROM and BASIC) in CPC_ROM; without it
-// the test reports that it was skipped. BASIC_Z80_PROGRAM=<file> runs one program. A few programs
+// the test reports that it was skipped. BASIC_Z80_PROGRAM=<file> runs one program,
+// BASIC_CPC_SCREENS=<dir> writes the screen after each program as <dir>/<name>.png. A few programs
 // also go through a snapshot (basicc -o x.sna): it is loaded into a fresh machine and must print
 // the same and return to the firmware.
 
@@ -113,7 +114,9 @@ int main() {
             if (const fs::path p = fs::path(entry.path()).replace_extension(ext); expected.empty() && fs::exists(p)) expected = read(p);
         if (const fs::path e = fs::path(entry.path()).replace_extension(".err"); fs::exists(e))
             expected += "\nruntime error " + std::to_string(std::stoi(read(e))) + "\n";
-        const harness::Z80Run run = cpc.run(source, z80Origin(Z80Target::Cpc), 2'000'000'000);
+        const char* shots = std::getenv("BASIC_CPC_SCREENS");  // the screens as PNG files (to look at)
+        const harness::Z80Run run = cpc.run(source, z80Origin(Z80Target::Cpc), 2'000'000'000,
+                                            shots != nullptr ? (fs::path(shots) / (name + ".png")).string() : "");
         ++ran;
         ++g_checks;
         const std::string got = withoutCr(run.console);

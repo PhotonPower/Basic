@@ -356,7 +356,8 @@ CpcFirmware::CpcFirmware(const std::string& romFile) : impl_(new Impl) {
 
 CpcFirmware::~CpcFirmware() { delete impl_; }
 
-Z80Run CpcFirmware::run(const std::string& source, std::uint16_t origin, std::uint64_t maxInstructions) {
+Z80Run CpcFirmware::run(const std::string& source, std::uint16_t origin, std::uint64_t maxInstructions,
+                        const std::string& screenPng) {
     Z80Run result;
     z80::AssemblerOptions asmOptions;
     asmOptions.origin = origin;
@@ -395,6 +396,29 @@ Z80Run CpcFirmware::run(const std::string& source, std::uint16_t origin, std::ui
     const z80::Json* returned = r.find("returned");
     result.finished = Impl::ok(r) && returned != nullptr && returned->asBool();
     if (!result.finished) result.error = "did not return: " + r.dump().substr(0, 400);
+    if (!screenPng.empty()) {
+        const z80::Json shot = impl_->call(R"({"cmd":"screen"})");
+        if (const z80::Json* b64 = shot.find("png_base64")) {
+            static const std::string abc = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+            std::string bytes;
+            unsigned acc = 0;
+            int bits = 0;
+            for (char ch : b64->asString()) {
+                const std::size_t v = abc.find(ch);
+                if (v == std::string::npos) continue;
+                acc = acc << 6 | static_cast<unsigned>(v);
+                bits += 6;
+                if (bits >= 8) {
+                    bits -= 8;
+                    bytes += static_cast<char>((acc >> bits) & 0xFF);
+                }
+            }
+            if (std::FILE* f = std::fopen(screenPng.c_str(), "wb")) {
+                std::fwrite(bytes.data(), 1, bytes.size(), f);
+                std::fclose(f);
+            }
+        }
+    }
     return result;
 }
 

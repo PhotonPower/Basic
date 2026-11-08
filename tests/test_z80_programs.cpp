@@ -86,6 +86,11 @@ int main() {
                 ++skipped;
                 continue;
             }
+            if (cpc && source.find("rt_gfx_cmd") != std::string::npos) {  // no GRA stubs: on the real firmware
+                std::cout << label << ": skipped (graphics: see z80_firmware)\n";
+                ++skipped;
+                continue;
+            }
             ++g_checks;
             if (source.empty()) {
                 ++g_failures;

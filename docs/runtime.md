@@ -114,6 +114,7 @@ Jede Plattform stellt mindestens bereit:
 | `plat_echo` | Z80: ein Zeichen einer Eingabezeile auf dem Bildschirm (10 Zeilenende, 8 gelöscht; z80-test: nichts) |
 | `plat_timer` | Zeitbasis für `TIMER` |
 | `plat_fopen`, `plat_fgetc`, `plat_fputc`, `plat_fclose`, `plat_fsize`, `plat_fexists`, `plat_fdelete` | Z80, Gruppe `file-seq`: Dateien byteweise (Öffnen mit DE = Name, BC = Länge, A = Modus 0 lesen/1 schreiben/2 anhängen → A = Kennung; CF gesetzt: A = Fehler im AmigaDOS-Code; `plat_fgetc` A = Kennung → A = Byte, CF am Ende; `plat_fputc` A = Byte, C = Kennung, erhält BC DE HL); `plat_exit_hook` schließt am Ende die Dateien |
+| `plat_gfx_plot`, `_move`, `_draw`, `_test`, `_pen`, `_paper`, `_mode`, `_ink`, `_text`, `_clear` | Z80, Gruppe `graphics`: Punkt, Linie zum Punkt, Farbe lesen (CF außerhalb), Stifte, Zeichenmodus, Palette (A = Stift, HL = 0RGB), Text (BC = Deskriptor), Löschen; DE = x, HL = y in GFA-Koordinaten |
 | `plat_locate`, `plat_cls` | Z80: Cursor setzen (DE = Spalte, HL = Zeile, 1–32767) und Bildschirm löschen; z80-test: ANSI-Folgen wie die Amiga-Konsole, cpc: `TXT SET CURSOR`/`TXT CLEAR WINDOW` |
 
 Optional, je nach Gruppen der Plattform: Dateien (`plat_fopen` …), Grafik (`plat_plot`,

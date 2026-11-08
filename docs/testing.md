@@ -110,6 +110,8 @@ zum BASIC-Prompt gebootet, jedes Programm wird geladen und wie von BASIC mit `CA
 `TXT CLEAR WINDOW` ankommt; die Firmware zeichnet es dabei wirklich. `numbers` und `matrix` laufen
 zusätzlich über einen Snapshot (`basicc -o x.sna`), der in eine frische Maschine geladen wird. Der Test
 braucht das 32-KiB-ROM-Abbild in `CPC_ROM`; ohne meldet er „skipped“ und gilt als bestanden. AMSDOS
-ist ein eigenes ROM und fehlt dort, deshalb laufen Dateiprogramme nur gegen das AMSDOS-Modell. Wo der Z80 andere Bytes sieht (Gruppe `memory`:
+ist ein eigenes ROM und fehlt dort, deshalb laufen Dateiprogramme nur gegen das AMSDOS-Modell.
+Grafikprogramme laufen nur hier (`gfx1.cpc.out`); mit `BASIC_CPC_SCREENS=<verzeichnis>` schreibt der
+Test den Bildschirm nach jedem Programm als PNG, zum Ansehen. Wo der Z80 andere Bytes sieht (Gruppe `memory`:
 Little-Endian, Deskriptoren mit 16-Bit-Adressen), gilt `<name>.z80.out` statt `<name>.out`; diese
 Dateien sind von Hand Zeile für Zeile gegen das Speicherlayout geprüft (`memory`, `ptr`).
