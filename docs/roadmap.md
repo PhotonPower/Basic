@@ -96,8 +96,9 @@ Stand: ✔ Konvention (D30), ✔ Aufrufhilfe `Z80Routines` und Konformanztest, �
 bitgenau zur Referenz, ✔ `fp_sqrt` (Stelle für Stelle), `fp_trunc`/`int`/`frac`/`cint`, `fp_canon`,
 `fp_abs`, `==` (`fp_approx_eq`), ✔ Backend `src/backend/z80` (Stapelplätze über IX, Laufzeit mit Zeigern),
 ✔ Plattform z80-test, ✔ 32-Bit-Integer (`zi`, `rt_int`), ✔ `PRINT` von Strings und Integern,
-✔ `basicc --target z80-test`, Testtreiber `z80_programs` (überspringt, was noch fehlt). Weiter:
-Fließkomma-Ausgabe (`rt_fmt_flt`), Strings, Felder, Prozeduren mit Parametern, `ON ERROR`.
+✔ `basicc --target z80-test`, Testtreiber `z80_programs` (überspringt, was noch fehlt), ✔ Fließkomma-Ausgabe (`ix_bn`, `rt_flt_dec`,
+`rt_fmt_flt`, `rt_print_flt`, `DEFNUM`) bitgenau zur Referenz. Weiter: Strings (Halde, Zuweisung,
+Funktionen), Felder, Prozeduren mit Parametern und `LOCAL`, `ON ERROR`, `DATA`, Eingabe.
 
 - LIR → Z80-Assembler, `runtime/z80`, `platform/cpc` (AMSDOS-Header, `.sna`) und `platform/z80-test`.
 - Konformanz- und Differenztests, Größenbudgets.

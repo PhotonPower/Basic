@@ -1,6 +1,7 @@
 ;! module    rt_print
 ;! provides  rt_print_str rt_print_int rt_print_nl rt_print_comma rt_print_apos rt_print_tab rt_print_spc rt_print_begin rt_print_out rt_print_col rt_pos
-;! requires  plat_putc
+;! provides  rt_print_flt rt_set_defnum rt_defnum
+;! requires  plat_putc rt_fmt_flt
 ;! group     print
 ;! clobbers  AF BC DE HL
 ;! doc       PRINT: strings, integers, separators; the column since the last line feed (POS) and the zone of ',' (as runtime/m68k).
@@ -161,6 +162,45 @@ rt_print__pr:
         INC     HL
         JR      rt_print__pr
 
+; DE -> binary64: as PRINT writes it (rt_defnum digits)
+rt_print_flt:
+        LD      HL,rt_print__fbuf
+        LD      A,(rt_defnum)
+        CALL    rt_fmt_flt
+        LD      DE,rt_print__fbuf
+        JP      rt_print_str
+
+; DE -> n: DEFNUM n (2..13)
+rt_set_defnum:
+        EX      DE,HL
+        LD      A,(HL)
+        INC     HL
+        LD      C,(HL)
+        INC     HL
+        LD      B,(HL)
+        INC     HL
+        LD      D,(HL)
+        BIT     7,D                     ; negative: 2
+        JR      NZ,rt_print__dlo
+        LD      E,A
+        LD      A,C
+        OR      B
+        OR      D
+        LD      A,13
+        JR      NZ,rt_print__dset       ; large: 13
+        LD      A,E
+        CP      2
+        JR      C,rt_print__dlo
+        CP      14
+        JR      C,rt_print__dset
+        LD      A,13
+        JR      rt_print__dset
+rt_print__dlo:
+        LD      A,2
+rt_print__dset:
+        LD      (rt_defnum),A
+        RET
+
 ; -> HL -> POS: the column as 32 bits at (HL)
 rt_pos:
         LD      DE,(rt_print_col)
@@ -220,8 +260,12 @@ rt_print_col:
         DW      0
 rt_print__zone:
         DW      0
+rt_defnum:
+        DB      13
 
 ;! section bss
+rt_print__fbuf:
+        DS      32
 rt_print__num:
         DS      4
 rt_print__dp:

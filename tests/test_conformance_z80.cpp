@@ -127,6 +127,8 @@ public:
     std::uint64_t cycles_ = 0, calls_ = 0;
     bool carry_ = false;
     void poke(const std::string& sym, std::uint8_t v) { rt_->write8(rt_->symbol(sym), v); }
+    void poke64(std::uint16_t a, std::uint64_t v) { rt_->write64(a, v); }
+    Z80Routines& raw() { return *rt_; }
 
 private:
     std::unique_ptr<Z80Routines> rt_;
@@ -328,6 +330,38 @@ int main() {
             r = rt.call("rt_conv_byte", u(a));
             report("rt_conv_byte", u(a), 0, r.first & 0xFFFFFFFFu, r.second, by ? u(a) : 0u, by ? -1 : 3);
         }
+    }
+    {  // rt_fmt_flt: the text of PRINT/STR$ for 2..13 digits
+        Rng rng;
+        std::vector<f64> vals = edgeCases();
+        const f64 more[] = {0x3FB999999999999Au /* 0.1 */, 0x4059000000000000u /* 100 */, 0x42D6BCC41E900000u /* 1e14 */,
+                            0x42C6BCC41E900000u /* 5e13 */, 0x3EE4F8B588E368F1u /* 1e-5 */, 0x3EB0C6F7A0B5ED8Du /* 1e-6 */,
+                            0x7FE1CCF385EBC8A0u /* 1e308 */, 0x0010000000000000u, 0x3FE0000000000000u, 0x4024000000000000u};
+        vals.insert(vals.end(), std::begin(more), std::end(more));
+        for (int k = 0; k < cases / 4; ++k) vals.push_back(randomF64(rng, k % 2 == 0 ? 1 : 980, k % 2 == 0 ? 2046 : 1080));
+        for (f64 x : vals)
+            for (int digits : {13, 2, 7}) {
+                char want[64];
+                const int n = rt_fmt_flt(want, x, digits);
+                rt.poke64(kA, x);
+                Z80Regs in;
+                in.hl = 0xE100;
+                in.de = kA;
+                in.af = static_cast<std::uint16_t>(digits << 8);
+                in.ix = 0x1357;
+                in.iy = 0x2468;
+                const auto res = rt.raw().call("rt_fmt_flt", in, 50'000'000);
+                std::string got;
+                if (res.ok)
+                    for (int i = 0; i < res.regs.bc && i < 60; ++i) got += static_cast<char>(rt.raw().read8(static_cast<std::uint16_t>(0xE100 + i)));
+                ++g_checks;
+                if (!res.ok || got != std::string(want, static_cast<std::size_t>(n))) {
+                    ++g_failures;
+                    if (g_shown++ < 20)
+                        std::fprintf(stderr, "rt_fmt_flt(%016llX, %d): got \"%s\" want \"%s\" %s\n", static_cast<unsigned long long>(x), digits,
+                                     got.c_str(), want, res.error.c_str());
+                }
+            }
     }
     if (rt.calls_ > 0) std::fprintf(stderr, "average %llu T-states per call\n", static_cast<unsigned long long>(rt.cycles_ / rt.calls_));
     return report("conformance_z80");
