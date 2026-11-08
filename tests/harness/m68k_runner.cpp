@@ -212,7 +212,10 @@ M68kRun runM68kSource(const std::string& source, M68kPlatform platform, const M6
             failed.error = "an amiga program needs SECTION lines (hunk output)";
             return failed;
         }
-        return runAmiga(m68k::writeHunkFile(assembled.sections), options);
+        const std::vector<std::uint8_t> file = m68k::writeHunkFile(assembled.sections);
+        M68kRun run = runAmiga(file, options);
+        run.bytes = file.size();
+        return run;
     }
     if (assembled.hunk) {
         M68kRun failed;
@@ -224,7 +227,10 @@ M68kRun runM68kSource(const std::string& source, M68kPlatform platform, const M6
         failed.error = "the program must start at the origin " + hex8(options.origin);
         return failed;
     }
-    return runTest(assembled.flatten(), options);
+    const std::vector<std::uint8_t> image = assembled.flatten();
+    M68kRun run = runTest(image, options);
+    run.bytes = image.size();
+    return run;
 }
 
 }  // namespace basic::harness

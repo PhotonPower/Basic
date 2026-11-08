@@ -1,0 +1,29 @@
+' test: groups core print
+' Messprogramm (Meilenstein 0.6): Rekursion, Prozeduren mit LOCAL und VAR-Parametern.
+PRINT @fib(17)
+s%=0
+FOR i%=1 TO 300
+  @addiere(i%,s%)
+NEXT i%
+PRINT s%
+PRINT @ack(2,3)
+FUNCTION fib(k%)
+  IF k%<2
+    RETURN k%
+  ENDIF
+  RETURN @fib(k%-1)+@fib(k%-2)
+ENDFUNC
+PROCEDURE addiere(a%,VAR b%)
+  LOCAL c%
+  c%=a%*2
+  b%=b%+c%-a%
+RETURN
+FUNCTION ack(m%,n%)
+  IF m%=0
+    RETURN n%+1
+  ENDIF
+  IF n%=0
+    RETURN @ack(m%-1,1)
+  ENDIF
+  RETURN @ack(m%-1,@ack(m%,n%-1))
+ENDFUNC

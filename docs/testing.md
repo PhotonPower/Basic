@@ -88,6 +88,12 @@ Größe unerwartet, zeigt die Map-Datei des Linkers, welches Modul hereingezogen
 - Eine Änderung an `runtime/ref` ist eine Änderung der Semantik: Sie braucht einen Eintrag in
   [decisions.md](decisions.md) und neue Sollwerte für alle Ports.
 
+## Messprogramme
+
+`tests/programs/bench_*.lst` laufen wie alle Testprogramme; `tools/bench.py` sammelt Befehle,
+T-States und Größe auf z80-test und m68k-test und vergleicht mit `tests/bench/baseline.json`
+([performance.md](performance.md)).
+
 ## Z80
 
 `test_conformance_z80` vergleicht die Module von `runtime/z80` mit `runtime/ref` (wie beim 68000,

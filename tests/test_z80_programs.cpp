@@ -113,7 +113,7 @@ int main() {
                 ++g_failures;
                 std::cerr << label << ": " << run.error << " (" << size << " bytes)\n--- expected\n" << expected << "--- actual\n" << got << "\n";
             } else {
-                std::cout << label << ": ok (" << run.instructions << " instructions, " << size << " bytes)\n";
+                std::cout << label << ": ok (" << run.instructions << " instructions, " << run.cycles << " cycles, " << size << " bytes)\n";
             }
         }
     }

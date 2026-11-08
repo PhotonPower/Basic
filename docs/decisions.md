@@ -164,9 +164,11 @@ Nachtrag (Optimierung der Assembler-Ziele, gleiche Ergebnisse): Geht `a+b`, `a-b
 Ganzzahlen (oder ganzzahliger Konstanten) direkt in eine Ganzzahl (`%`, `&`, `|`, `TOINT`), rechnet
 das Lowering mit 32 Bit und Überlaufprüfung: Das exakte Ergebnis passt in 32 Bit oder die Umwandlung
 schlägt fehl, mit dem Fehler der Zielbreite (2, 4, 3). Vergleiche zweier Ganzzahlen sind `CMP`.
-`FOR` mit `%`-Variable, ganzzahligem Endwert und konstanter ganzzahliger Schrittweite zählt in 32 Bit;
+`FOR` mit `%`-Variable, ganzzahligem Endwert und ganzzahliger Schrittweite zählt in 32 Bit;
 ein Überlauf heißt, dass der exakte Wert hinter dem Ende liegt (die Variable behält den umgebrochenen
-Wert). Ketten wie `a+b-c` oder `t+k*2` rechnen in 32 Bit;
+Wert). Ist die Schrittweite keine Konstante (eine Ganzzahlvariable, ein Element), wird sie einmal
+ausgewertet und ihr Vorzeichen wählt zur Laufzeit die Prüfungen; 0 zählt wie im Float-Weg als
+aufwärts (0.6, [performance.md](performance.md)). Ketten wie `a+b-c` oder `t+k*2` rechnen in 32 Bit;
 läuft ein Zwischenergebnis über, springt der Code auf den Float-Weg und rechnet den ganzen Ausdruck
 dort neu. Ohne Überlauf ist jeder Zwischenwert betragsmäßig kleiner als 2^31, der Float-Weg also
 exakt und das Ergebnis gleich. Weil die Operanden dabei zweimal ausgewertet werden, gilt das nur für

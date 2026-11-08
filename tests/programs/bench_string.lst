@@ -1,0 +1,18 @@
+' test: groups core string print
+' Messprogramm (Meilenstein 0.6): Verketten, Teilstrings, Suchen, Vergleichen.
+t$=""
+FOR i%=1 TO 200
+  t$=t$+CHR$(65+i% MOD 26)
+NEXT i%
+n%=0
+FOR i%=1 TO 190
+  IF MID$(t$,i%,3)="XYZ"
+    INC n%
+  ENDIF
+  n%=n%+INSTR(t$,LEFT$(MID$(t$,i%,10),2),i%)
+NEXT i%
+u$=""
+FOR i%=1 TO 60
+  u$=STR$(i%)+","+RIGHT$(u$,40)
+NEXT i%
+PRINT LEN(t$);" ";n%;" ";LEN(u$);" ";LEFT$(u$,20);" ";UPPER$("abc")<"ABD"

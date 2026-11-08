@@ -120,7 +120,7 @@ int main() {
                 std::cerr << label << ": " << run.error << (unemulated.empty() ? "" : " unemulated calls:" + unemulated)
                           << "\n--- expected\n" << expected << "--- actual\n" << run.console << "\n";
             } else {
-                std::cout << label << ": ok (" << run.instructions << " instructions)\n";
+                std::cout << label << ": ok (" << run.instructions << " instructions, " << run.bytes << " bytes)\n";
             }
         }
     }

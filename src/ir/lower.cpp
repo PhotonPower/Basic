@@ -726,8 +726,7 @@ private:
         if (s.target->op != Op::Load) unsupported("arrays");
         const int v = s.target->var;
         const Type ty = var(v).type;
-        if (ty == Type::Int && !onError_ && isIntLeaf(*s.end) && isIntLeaf(*s.step) && s.step->op != Op::Conv)
-            return intForLoop(s, v);
+        if (ty == Type::Int && !onError_ && isIntLeaf(*s.end) && isIntLeaf(*s.step)) return intForLoop(s, v);
         // with ON ERROR: an error in the FOR line and RESUME NEXT run the body once, NEXT increases
         // the variable (by 1 if the step is unknown) and leaves the loop (D19, probe11 T4)
         Reg failed, step;
@@ -770,10 +769,13 @@ private:
         place(exit);
     }
 
-    // FOR i% with an integer end and a constant integer step: the value plus the step exactly in 32
-    // bits; an overflow means the exact value lies beyond the end (the loop ends, the variable keeps
-    // the wrapped value, as rt_for_wrap_int). The same results as the float loop above.
+    // FOR i% with an integer end and an integer step: the value plus the step exactly in 32 bits; an
+    // overflow means the exact value lies beyond the end (the loop ends, the variable keeps the
+    // wrapped value, as rt_for_wrap_int). The same results as the float loop above. A step that is
+    // not a constant (an integer variable, element, ...) is evaluated once; its sign chooses the
+    // tests at run time (0 counts as upwards, as fp_cmp in the float loop).
     void intForLoop(const hir::Stmt& s, int v) {
+        if (s.step->op == Op::Conv) return intForLoopDyn(s, v);
         double d = 0;
         if (s.step->op == Op::ConstFloat) std::memcpy(&d, &s.step->fval, sizeof d);
         else d = s.step->ival;
@@ -793,6 +795,37 @@ private:
         store(v, next);
         branchNZ(cmp(down ? "gt" : "lt", next, now), exit);  // overflow: beyond the end
         branchNZ(cmp(down ? "ge" : "le", next, end), top);
+        place(exit);
+    }
+
+    void intForLoopDyn(const hir::Stmt& s, int v) {
+        store(v, expr(*s.start));
+        Reg end = intLeaf(*s.end);
+        Reg step = reg(VT::I32);
+        copyTo(step, intLeaf(*s.step));
+        Reg down = reg(VT::I32);
+        copyTo(down, cmp("lt", step, constI(0)));
+        const int top = label(), exit = label(), firstDown = label(), testDown = label();
+        branchNZ(down, firstDown);
+        branchZ(cmp("le", load(v), end), exit);
+        jump(top);
+        place(firstDown);
+        branchZ(cmp("ge", load(v), end), exit);
+        place(top);
+        exitLabels_.push_back(exit);
+        block(s.body);
+        exitLabels_.pop_back();
+        reenter();
+        Reg now = load(v);
+        Reg next = op("add", now, step);
+        store(v, next);
+        branchNZ(down, testDown);
+        branchNZ(cmp("lt", next, now), exit);  // overflow: beyond the end
+        branchNZ(cmp("le", next, end), top);
+        jump(exit);
+        place(testDown);
+        branchNZ(cmp("gt", next, now), exit);
+        branchNZ(cmp("ge", next, end), top);
         place(exit);
     }
 

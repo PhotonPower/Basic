@@ -1,0 +1,26 @@
+' test: groups core print
+' Messprogramm (Meilenstein 0.6): Sieb des Eratosthenes mit Integer- und Byte-Feldern.
+DIM s|(2000)
+FOR r%=1 TO 3
+  FOR i%=0 TO 2000
+    s|(i%)=1
+  NEXT i%
+  s|(0)=0
+  s|(1)=0
+  FOR i%=2 TO 44
+    IF s|(i%)
+      FOR j%=i%*i% TO 2000 STEP i%
+        s|(j%)=0
+      NEXT j%
+    ENDIF
+  NEXT i%
+NEXT r%
+n%=0
+z%=0
+FOR i%=0 TO 2000
+  IF s|(i%)
+    INC n%
+    ADD z%,i%
+  ENDIF
+NEXT i%
+PRINT n%;" Primzahlen bis 2000, Summe ";z%

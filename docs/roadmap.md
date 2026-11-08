@@ -106,18 +106,27 @@ Plattform, Bereinigung, Zwischenergebnisse; `rt_strfn`: Verkettung, Vergleich, `
 `RESTORE`, ✔ transzendente Funktionen und `^` (bitgleich), ✔ Tastatur (`INPUT`, `LINE INPUT`, `INKEY$`,
 `INPUT$`), `WRITE`, ✔ Bitfunktionen, `SELECT` mit Strings, `MKx$`/`CVx`, `HEX$`/`BIN$`/`OCT$`, ✔ `PRINT USING`/`MODE`/`STR$(x,y,z)`, `LSET`/`RSET`/`MID$()=`,
 `RESERVE`/`FRE`, `TIMER`, ✔ Matrizen, ✔ Codegröße (erster Schritt), ✔ Plattform `cpc` (Ausgabe, Tastatur, `TIMER`, AMSDOS-Binary), ✔ Cursor und Bildschirm (`CLS`,
-`LOCATE`, `PRINT AT`, `HTAB`/`VTAB`, `CRSCOL`/`CRSLIN`), ✔ Gruppe `memory` (Little-Endian, eigene erwartete Ausgaben), ✔ sequentielle Dateien (`rt_file`, RAM-Disk auf z80-test), `RINSTR`, `MAT INPUT #`, ✔ AMSDOS-Dateien, ✔ `.sna`-Snapshot, ✔ Test auf der echten 6128-Firmware (`z80_firmware`). Weiter:
+`LOCATE`, `PRINT AT`, `HTAB`/`VTAB`, `CRSCOL`/`CRSLIN`), ✔ Gruppe `memory` (Little-Endian, eigene erwartete Ausgaben), ✔ sequentielle Dateien (`rt_file`, RAM-Disk auf z80-test), `RINSTR`, `MAT INPUT #`, ✔ AMSDOS-Dateien, ✔ `.sna`-Snapshot, ✔ Test auf der echten 6128-Firmware (`z80_firmware`),
 ✔ Grafik über die Firmware (`GRA`, Stufe 1), ✔ `POLYLINE`/`POLYFILL`, ✔ Linienmuster (`DEFLINE`, 664/6128). Weiter: Test der AMSDOS-Anbindung mit
 echtem AMSDOS-ROM.
 
 - LIR → Z80-Assembler, `runtime/z80`, `platform/cpc` (AMSDOS-Header, `.sna`) und `platform/z80-test`.
 - Konformanz- und Differenztests, Größenbudgets.
 
+## 0.6 – Optimierungen
+
+Schnellerer und kleinerer Code auf beiden CPUs bei gleichen Ergebnissen; gemessen mit
+`tools/bench.py` an den Programmen `bench_*` ([performance.md](performance.md)).
+
+Stand: ✔ Messprogramme, Messwerkzeug und Ausgangsmessung, ✔ `FOR` mit variabler ganzzahliger
+Schrittweite in 32 Bit. Weiter: Konstanten falten (Umwandlungen), Ganzzahlarithmetik und Vergleiche
+auf dem Z80 inline statt über `zi_*`, Kopien über Register statt `LDIR`, Feldzugriffe mit
+konstanten Grenzen, Fließkomma (Werte nicht über den Speicher), Peephole.
+
 ## Danach
 
 - Transzendente Funktionen, `PRINT USING`, Arrays, `ON ERROR`/`RESUME`, `INPUT`, Dateien, `memory`, `matrix`.
 - Grafik (Amiga, CPC), dann GUI, Sprites, Sound, Kapitel 11 (Amiga).
-- Optimierungen (Wertebereiche, Peephole).
 - FPGA-Plattformen auf Basis von `z80-test`/`m68k-test`; Feature-Flags.
 - CPC 6128: Bankumschaltung für Strings/Arrays.
 

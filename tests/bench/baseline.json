@@ -1,0 +1,57 @@
+{
+ "bench_calls": {
+  "m68k-test": {
+   "bytes": 4352,
+   "instructions": 826673
+  },
+  "z80-test": {
+   "bytes": 7084,
+   "cycles": 64560840,
+   "instructions": 5999223
+  }
+ },
+ "bench_float": {
+  "m68k-test": {
+   "bytes": 12224,
+   "instructions": 10774234
+  },
+  "z80-test": {
+   "bytes": 12684,
+   "cycles": 2449042316,
+   "instructions": 246139490
+  }
+ },
+ "bench_sieve": {
+  "m68k-test": {
+   "bytes": 6832,
+   "instructions": 5929742
+  },
+  "z80-test": {
+   "bytes": 9019,
+   "cycles": 551613641,
+   "instructions": 53753003
+  }
+ },
+ "bench_sort": {
+  "m68k-test": {
+   "bytes": 7528,
+   "instructions": 8691209
+  },
+  "z80-test": {
+   "bytes": 9575,
+   "cycles": 751106597,
+   "instructions": 74150234
+  }
+ },
+ "bench_string": {
+  "m68k-test": {
+   "bytes": 7098,
+   "instructions": 896332
+  },
+  "z80-test": {
+   "bytes": 8534,
+   "cycles": 133308544,
+   "instructions": 15183466
+  }
+ }
+}

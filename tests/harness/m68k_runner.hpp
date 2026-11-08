@@ -18,6 +18,7 @@ struct M68kRun {
     std::string console;
     std::string error;
     std::uint64_t instructions = 0;
+    std::uint64_t bytes = 0;  ///< runM68kSource: size of the program (test: the image; amiga: the hunk file)
     std::vector<std::string> unemulatedCalls;  ///< amiga: library calls that only were logged
     std::string gfx;         ///< test: digest of the graphics drawn through the ports (D25), "" if none
 };

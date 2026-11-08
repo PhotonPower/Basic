@@ -13,6 +13,9 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
   abgefangenen Fehler im Original unbrauchbar ist.
 
 ### Hinzugefügt
+- Meilenstein 0.6 (Optimierungen): Messprogramme `bench_*`, `tools/bench.py` mit Ausgangsmessung
+  (`docs/performance.md`); die Testtreiber nennen T-States (Z80) und Größe (68000). `FOR` mit
+  variabler ganzzahliger Schrittweite zählt in 32 Bit (Sieb: Z80 −70 % Takte, 68000 −68 % Befehle).
 - MC68000, zweiter Teil: LIR mit Lowering (`--emit-lir`), 68000-Backend
   (`basicc --target m68k-test`), Runtime-Module für `PRINT`, Ganzzahlhilfen, `FOR`, Potenz; die
   Module sind in `basicc` eingebettet. Das erste Golden-Programm (`numbers`) läuft übersetzt im
