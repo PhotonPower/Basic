@@ -1,7 +1,7 @@
 ;! module    rt_print
 ;! provides  rt_print_str rt_print_int rt_print_nl rt_print_comma rt_print_apos rt_print_tab rt_print_spc rt_print_begin rt_print_out rt_print_col rt_pos
 ;! provides  rt_print_flt rt_set_defnum rt_defnum
-;! requires  plat_putc rt_fmt_flt
+;! requires  plat_putc rt_fmt_flt fp_from_i32
 ;! group     print
 ;! clobbers  AF BC DE HL
 ;! doc       PRINT: strings, integers, separators; the column since the last line feed (POS) and the zone of ',' (as runtime/m68k).
@@ -90,8 +90,17 @@ rt_print__tp:
         CALL    rt_print__putc
         JR      rt_print__tp
 
-; DE -> 32-bit integer: its decimal digits, "-" in front of a negative value
+; DE -> 32-bit integer: as PRINT writes a number (with DEFNUM below 13 digits: through the float
+; form, 123456 with DEFNUM 4 is 123500); else its decimal digits, "-" in front of a negative value
 rt_print_int:
+        LD      A,(rt_defnum)
+        CP      13
+        JR      NC,rt_print__idig
+        LD      HL,rt_print__fv
+        CALL    fp_from_i32
+        LD      DE,rt_print__fv
+        JP      rt_print_flt
+rt_print__idig:
         EX      DE,HL
         LD      DE,rt_print__num
         LD      BC,4
@@ -264,6 +273,8 @@ rt_defnum:
         DB      13
 
 ;! section bss
+rt_print__fv:
+        DS      8
 rt_print__fbuf:
         DS      32
 rt_print__num:

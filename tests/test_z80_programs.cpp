@@ -57,11 +57,6 @@ int main() {
         std::string expected = read(fs::path(entry.path()).replace_extension(".out"));
         if (const fs::path e = fs::path(entry.path()).replace_extension(".err"); fs::exists(e))
             expected += "\nruntime error " + std::to_string(std::stoi(read(e))) + "\n";
-        if (fs::exists(fs::path(entry.path()).replace_extension(".in"))) {
-            std::cout << label << ": skipped (keyboard input not yet on z80-test)\n";
-            ++skipped;
-            continue;
-        }
         bool unsupported = false;
         std::string message;
         const std::string source = compile(read(entry.path()), unsupported, message);
@@ -78,6 +73,7 @@ int main() {
         }
         harness::Z80Options opt;
         opt.maxInstructions = 500'000'000;
+        if (const fs::path in = fs::path(entry.path()).replace_extension(".in"); fs::exists(in)) opt.input = read(in);
         const harness::Z80Run run = harness::runZ80Source(source, harness::Z80Platform::Test, opt);
         ++ran;
         if (!run.error.empty() || run.console != expected) {

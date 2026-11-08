@@ -43,7 +43,12 @@ Z80Run runZ80Image(const std::vector<std::uint8_t>& image, Z80Platform platform,
 
     std::string firmwareError;
     if (platform == Z80Platform::Test) {
-        cpu.setPortHandlers([](z80::Word) -> z80::Byte { return 0xFF; },
+        cpu.setPortHandlers([&options, inputPos = std::size_t{0}](z80::Word port) mutable -> z80::Byte {
+                                if ((port & 0xFF) == 0x03) return inputPos < options.input.size() ? 1 : 0;
+                                if ((port & 0xFF) == 0x02 && inputPos < options.input.size())
+                                    return static_cast<z80::Byte>(options.input[inputPos++]);
+                                return 0xFF;
+                            },
                             [&result](z80::Word port, z80::Byte value) {
                                 if ((port & 0xFF) == kTestConsolePort) result.console += static_cast<char>(value);
                             });

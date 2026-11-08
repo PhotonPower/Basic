@@ -3,6 +3,7 @@
 // the same bits and raise the same error (docs/testing.md). IX and IY must be preserved.
 // BASIC_CONFORMANCE_CASES sets the number of random cases per routine (default 2000).
 
+#include <algorithm>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -447,6 +448,63 @@ int main() {
                     std::fprintf(stderr, "rt_val(\"%s\"): got %016llX used %d, want %016llX used %d %s\n", t.c_str(),
                                  static_cast<unsigned long long>(got), gotUsed, static_cast<unsigned long long>(want), used, res.error.c_str());
             }
+        }
+    }
+    {  // transcendental functions (the same sequence of basic operations as runtime/ref)
+        const int n = std::max(cases / 4, 20);
+        checkUnary(rt, "rt_exp", rt_exp, n, {0x40862E42FEFA39F0u, 0xC087C00000000001u, 0x4086000000000000u});
+        checkUnary(rt, "rt_log", rt_log, n, {0x3FF6A09E667F3BCDu, 0x3FF6A09E667F3BCEu, 0xBFF0000000000000u});
+        checkUnary(rt, "rt_log10", rt_log10, n);
+        checkUnary(rt, "rt_sin", rt_sin, n, {0x400921FB54442D18u, 0x4415AF1D78B58C40u /* 1e20 */});
+        checkUnary(rt, "rt_cos", rt_cos, n, {0x3FF921FB54442D18u});
+        checkUnary(rt, "rt_tan", rt_tan, n, {0x3FE921FB54442D18u});
+        checkUnary(rt, "rt_atn", rt_atn, n, {0x3FD126145E9ECD56u, 0x3FD126145E9ECD57u});
+        checkUnary(rt, "rt_asin", rt_asin, n, {0x3FEFFFFFFFFFFFFFu, 0xBFF0000000000000u, 0x3FF0000000000001u});
+        checkUnary(rt, "rt_acos", rt_acos, n, {0x3FE0000000000000u, 0x3FE0000000000001u, 0xBFEFFFFFFFFFFFFFu});
+        checkUnary(rt, "rt_deg", rt_deg, n);
+        checkUnary(rt, "rt_rad", rt_rad, n);
+        Rng rng;
+        for (int k = 0; k < n; ++k) {
+            const f64 x = k % 5 == 0 ? 0 : randomF64(rng, 1000, 1040) & (k % 3 == 0 ? ~0ULL : 0x7FFFFFFFFFFFFFFFULL);
+            const f64 y = randomF64(rng, 1000, 1030);
+            g_error = -1;
+            const f64 want = rt_powf(x, y);
+            const int wantErr = g_error;
+            const auto [got, err] = rt.call("rt_powf", x, y);
+            report("rt_powf", x, y, got, err, want, wantErr);
+        }
+        for (int k = 0; k < n; ++k) {  // x^y as platform/pc power: integer exponents by squaring
+            const f64 x = randomF64(rng, 1015, 1032);
+            f64 y;
+            if (k % 3 == 0) y = fp_from_i32(rng.range(-40, 40));
+            else if (k % 3 == 1) y = randomF64(rng, 1015, 1030);
+            else y = fp_from_i32(rng.range(-1100, 1100));
+            g_error = -1;
+            f64 want = 0;
+            {  // platform/pc power, with the error of the first failing operation
+                const f64 t = fp_trunc(y);
+                if (fp_cmp(t, y) != 0) {
+                    want = rt_powf(x, y);
+                } else if (fp_cmp(t & 0x7FFFFFFFFFFFFFFFULL, 0x41DFFFFFFFC00000ULL) > 0) {
+                    rt_error(1);
+                } else {
+                    std::int64_t e = fp_to_i32(t);
+                    const bool neg = e < 0;
+                    if (neg) e = -e;
+                    f64 r = F64_ONE, b = x;
+                    while (e > 0 && g_error < 0) {
+                        if (e & 1) r = fp_mul(r, b);
+                        e >>= 1;
+                        if (e > 0 && g_error < 0) b = fp_mul(b, b);
+                    }
+                    if (neg && g_error < 0) r = fp_div(F64_ONE, r);
+                    want = g_error < 0 ? r : 0;
+                }
+            }
+            const int wantErr = g_error;
+            const auto [got, err] = rt.call("rt_power", x, y);
+            if (wantErr < 0 || err == wantErr) report("rt_power", x, y, got, err, wantErr < 0 ? want : got, wantErr);
+            else report("rt_power", x, y, got, err, want, wantErr);
         }
     }
     if (rt.calls_ > 0) std::fprintf(stderr, "average %llu T-states per call\n", static_cast<unsigned long long>(rt.cycles_ / rt.calls_));

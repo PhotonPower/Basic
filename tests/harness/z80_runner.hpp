@@ -24,6 +24,7 @@ struct Z80Run {
 struct Z80Options {
     std::uint16_t origin = 0x4000;              ///< load address and entry point
     std::uint64_t maxInstructions = 10'000'000;
+    std::string input;  ///< z80-test: keyboard input (IN from &03: 1 if a byte is left, IN from &02: the byte)
 };
 
 /// Assembles `source` with the sister project's assembler and runs it from `options.origin`.

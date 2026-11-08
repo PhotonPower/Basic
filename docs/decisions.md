@@ -595,6 +595,11 @@ kopieren.
   Eingaben, die extrem nah an einem Halbpunkt zweier binary64-Zahlen liegen, kann die Rundung
   abweichen. Exponenten wachsen ab 3000 nicht mehr (die Referenz: 100000); das ändert nur Eingaben mit
   Tausenden von Ziffern. Die großen Ganzzahlen haben dafür 176 Bytes.
+- Die transzendenten Funktionen (`rt_math`) sind aus einer Beschreibung erzeugt, die Zeile für Zeile
+  `runtime/ref/rt_math.c` folgt (Hilfsroutine `rt_math__op`: Funktion, Ziel, Operanden hinter dem
+  `CALL`); sie rechnen bitgleich mit der Referenz.
+- Tastatur: eine Eingabezeile hat auf dem Z80 höchstens 255 Zeichen (der Rest wird übergangen),
+  `INPUT$(n)` liefert höchstens 255. z80-test liest über die Ports &03 (Zeichen vorhanden) und &02.
 - Der Linker meldet in Z80-Modulen Labels, die sich nur in Groß-/Kleinschreibung unterscheiden.
 - Der erzeugte Code ist noch groß (jeder Zugriff berechnet die Adresse des Stapelplatzes): `arrays.lst`
   braucht 24,7 KB mit Laufzeit. Für den CPC (rund 40 KB) muss das Backend später sparsamer werden.
