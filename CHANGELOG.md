@@ -6,6 +6,12 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 
 ## [Unreleased]
 
+## [0.6.0] – 2026-11-08
+
+Zwischen-Release, das Projekt pausiert. `basicc` übersetzt für Amiga (MC68000), Amstrad CPC (Z80),
+den PC (C++) und die nackten Testplattformen; Meilensteine 0.1 bis 0.6 der Roadmap. Die Einträge
+darunter sammeln alles seit dem Gerüst.
+
 ### Geändert
 - `gfa_run.py`: Tastenfolge am Original geprüft und korrigiert (Rückfrage bei *New*, vorbelegtes
   Dateifeld im Merge-Requester); Tastenwiederholung `key:<name>*<n>`; Standard-Tastaturbelegung `us`.

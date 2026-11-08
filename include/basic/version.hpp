@@ -2,6 +2,6 @@
 
 namespace basic {
 
-inline constexpr const char* kVersion = "0.0.1";
+inline constexpr const char* kVersion = "0.6.0";
 
 }  // namespace basic

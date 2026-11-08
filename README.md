@@ -14,9 +14,14 @@ Arten von Zielsystemen übersetzt:
 
 dazu nackte Z80- und MC68000-Testplattformen, die auch als Vorlage für **FPGA-Implementierungen** dienen.
 
-> **Status: Version 0.0.1 – Gerüst.** Es gibt die Projektstruktur, das Zielregister
-> (`basicc --targets`), die Emulator-Harness auf Basis der Schwesterprojekte und die Dokumentation des
-> Entwurfs. Übersetzt wird noch nichts; der Weg dahin steht in der [Roadmap](docs/roadmap.md).
+> **Status: Version 0.6.0 – Zwischenstand, das Projekt pausiert.** `basicc` übersetzt GFA-BASIC-3.5-
+> Programme für alle Ziele: AmigaDOS-Programme für den Amiga (MC68000), Binärdateien mit AMSDOS-Header
+> und `.sna`-Snapshots für den Amstrad CPC (Z80), C++-Quelltext für den PC sowie Assembler für die
+> nackten Testplattformen; dazu ein Referenz-Interpreter (`basicc --run`). Alle Testprogramme laufen
+> mit den Ausgaben des Originals (bzw. dokumentierten Abweichungen) im Interpreter, als C++, im
+> 68000- und Z80-Emulator und auf der echten CPC-Firmware. Meilenstein 0.6 hat den erzeugten Code
+> deutlich schneller gemacht ([docs/performance.md](docs/performance.md)). Als Nächstes stehen
+> FPGA-Plattformen an ([Roadmap](docs/roadmap.md)).
 
 ## Grundideen
 

@@ -107,8 +107,9 @@ Plattform, Bereinigung, Zwischenergebnisse; `rt_strfn`: Verkettung, Vergleich, `
 `INPUT$`), `WRITE`, ✔ Bitfunktionen, `SELECT` mit Strings, `MKx$`/`CVx`, `HEX$`/`BIN$`/`OCT$`, ✔ `PRINT USING`/`MODE`/`STR$(x,y,z)`, `LSET`/`RSET`/`MID$()=`,
 `RESERVE`/`FRE`, `TIMER`, ✔ Matrizen, ✔ Codegröße (erster Schritt), ✔ Plattform `cpc` (Ausgabe, Tastatur, `TIMER`, AMSDOS-Binary), ✔ Cursor und Bildschirm (`CLS`,
 `LOCATE`, `PRINT AT`, `HTAB`/`VTAB`, `CRSCOL`/`CRSLIN`), ✔ Gruppe `memory` (Little-Endian, eigene erwartete Ausgaben), ✔ sequentielle Dateien (`rt_file`, RAM-Disk auf z80-test), `RINSTR`, `MAT INPUT #`, ✔ AMSDOS-Dateien, ✔ `.sna`-Snapshot, ✔ Test auf der echten 6128-Firmware (`z80_firmware`),
-✔ Grafik über die Firmware (`GRA`, Stufe 1), ✔ `POLYLINE`/`POLYFILL`, ✔ Linienmuster (`DEFLINE`, 664/6128). Weiter: Test der AMSDOS-Anbindung mit
-echtem AMSDOS-ROM.
+✔ Grafik über die Firmware (`GRA`, Stufe 1), ✔ `POLYLINE`/`POLYFILL`, ✔ Linienmuster (`DEFLINE`, 664/6128).
+Offen: Test der AMSDOS-Anbindung mit echtem AMSDOS-ROM (der Emulator kann es nicht einbinden),
+Tastatureingabe auf der echten Firmware.
 
 - LIR → Z80-Assembler, `runtime/z80`, `platform/cpc` (AMSDOS-Header, `.sna`) und `platform/z80-test`.
 - Konformanz- und Differenztests, Größenbudgets.
@@ -124,15 +125,22 @@ Multiplikationen, Vergleich mit Sprung über Flags, Profil je Routine, ✔ Z80: 
 mit Tabelle der Viertelquadrate, Schieben ohne Schleifen, ✔ 68000: Profil je Routine,
 Normalisieren in großen Schritten, Feldzugriff ohne unnötige Multiplikationen, ✔ `STR$`/`PRINT`
 von Ganzzahlen ohne Fließkomma-Formatierung, ✔ Z80: Variablen als Operanden ohne Kopie, schnellere
-32-Bit-Hilfsroutinen. Weiter: Konstanten falten
-(Umwandlungen), Ganzzahlarithmetik auf dem Z80 inline statt über `zi_*`, Kopien über Register statt `LDIR`, Feldzugriffe mit
-konstanten Grenzen, Fließkomma (Werte nicht über den Speicher), Peephole.
+32-Bit-Hilfsroutinen. **Abgeschlossen mit Version 0.6.0** (8. November 2026).
+
+Mögliche weitere Optimierungen (nicht mehr Teil von 0.6): Konstanten falten (Umwandlungen),
+Ganzzahlarithmetik auf dem Z80 inline statt über `zi_*`, Kopien über Register statt `LDIR`, Aufrufe
+(Argumente, `LOCAL`), ein Taktmodell für den 68000 (Fließkomma), Peephole.
+
+## Pause nach 0.6.0
+
+Das Projekt pausiert mit dem Zwischen-Release 0.6.0. Nächster geplanter Schwerpunkt: FPGA-Plattformen
+auf Basis von `z80-test`/`m68k-test` und die Feature-Flags der CPU-Backends.
 
 ## Danach
 
-- Transzendente Funktionen, `PRINT USING`, Arrays, `ON ERROR`/`RESUME`, `INPUT`, Dateien, `memory`, `matrix`.
-- Grafik (Amiga, CPC), dann GUI, Sprites, Sound, Kapitel 11 (Amiga).
-- FPGA-Plattformen auf Basis von `z80-test`/`m68k-test`; Feature-Flags.
+- FPGA-Plattformen auf Basis von `z80-test`/`m68k-test`; Feature-Flags (nächster Schwerpunkt).
+- Amiga vervollständigen: Sprites/BOBs, `SOUND`/`WAVE`, Kapitel 11, Felder mit mehr als 3 Dimensionen
+  auf dem 68000, `ABSOLUTE` mit Speicherabbild (D6), Menüauswahl mit der Maus prüfen.
 - CPC 6128: Bankumschaltung für Strings/Arrays.
 
 ## Offene Fragen

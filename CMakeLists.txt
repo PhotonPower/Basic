@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 
 project(BasicCompiler
-        VERSION 0.0.1
+        VERSION 0.6.0
         DESCRIPTION "GFA-BASIC 3.5 compiler for MC68000 (Amiga), Z80 (Amstrad CPC) and C++ (PC)"
         LANGUAGES C CXX)
 
