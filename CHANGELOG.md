@@ -40,6 +40,9 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 - `RESUME` setzt `ERR` auf 0 (probe12 T1); damit ist `errors2` am Original gleich.
 - `gfa_run.py`: Startmenü der Diskette nach einem Kaltstart (`boot` in `keys.json`), längere
   Wartezeiten für den Merge-Dialog und das Einlesen.
+- Verzeichnisbefehle auf dem 68000: `MKDIR`, `RMDIR`, `CHDIR`, `FILES`/`DIR [TO]` (`rt_dir`); Amiga
+  über dos.library, m68k-test mit Verzeichnissen in der RAM-Disk. `dirs` läuft auf m68k-test und
+  unter Kickstart 1.2.
 - Fehler behoben: `RESUME` in einem Programm ohne `ON ERROR` (auskommentiertes `ON ERROR GOSUB`)
   ließ sich auf dem 68000 nicht linken (`prg_rlab` fehlte). Testprogramm `resumenoerr`.
 - Requester und Menüs auf dem Amiga (D26 Stufe 2b): `plat_gui` mit Intuition-Fenstern für `ALERT`

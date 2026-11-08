@@ -212,7 +212,11 @@ Diese Punkte sind aus dem Handbuch nicht sicher zu entnehmen und werden am Origi
     Referenz). `POLYFILL` schließt und füllt jede Zeile zwischen den äußersten Umrisspunkten, mit
     `BOUNDARY 1` den Umriss im Randstift (T8). Die Punkte stehen in x(0)…x(n−1). Auf dem Amiga zeichnen
     `AreaMove`/`AreaDraw`/`AreaEnd`; `poly1` gibt unter Kickstart 1.2 im FS-UAE genau `poly1.out` aus.
-  - Die Verzeichnisbefehle sind im Interpreter und im C++-Ziel umgesetzt; auf dem 68000 folgen sie.
+  - Die Verzeichnisbefehle gibt es in allen Ausführungen. Auf dem Amiga sind es `CreateDir`,
+    `DeleteFile` (`RMDIR`), `Lock`/`CurrentDir` (das Startverzeichnis kommt am Ende zurück) und
+    `Examine`/`ExNext`; `FILES` zeigt die Einträge in der Reihenfolge von `ExNext` mit Datum aus dem
+    DateStamp, unter Kickstart 1.2 geprüft. Die RAM-Disk von m68k-test kennt Verzeichnisse, aber kein
+    Datum (1.1.1978).
 - **Fehlerroutine ohne `RESUME`** (probe12 T2): Endet die Routine von `ON ERROR GOSUB` mit `RETURN`
   ohne `RESUME`, gilt der Fehler als nicht abgefangen; das Original zeigt die Meldung und hält an. Wir
   beenden das Programm mit der Fehlermeldung. `RESUME` löscht `ERR` (probe12 T1, T3, T4).

@@ -1060,6 +1060,26 @@ private:
             rtcallVoid("rt_file_kill", {expr(*s.args[0])});
             return;
         }
+        if (n == "MKDIR" || n == "CHDIR") {  // probe25 T3, T5
+            rtcallVoid(n == "MKDIR" ? "rt_mkdir" : "rt_chdir", {expr(*s.args[0])});
+            return;
+        }
+        if (n == "RMDIR") {  // DeleteFile: a full directory 216, a file is deleted (probe25 T6)
+            rtcallVoid("rt_file_kill", {expr(*s.args[0])});
+            return;
+        }
+        if (n == "FILES" || n == "DIR") {  // probe25 T4
+            Reg path = expr(*s.args[0]);
+            Reg to;
+            if (s.mode == 1) {
+                to = expr(*s.args[1]);
+            } else {
+                to = reg(VT::Str);
+                emit(Kind::ConstS).dst = to;
+            }
+            rtcallVoid("rt_files", {path, to, constI(n == "FILES" ? 1 : 0)});
+            return;
+        }
         if (n == "NAME") {
             Reg from = expr(*s.args[0]);
             rtcallVoid("rt_file_name", {from, expr(*s.args[1])});
