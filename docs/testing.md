@@ -101,6 +101,15 @@ z80-test, weil der CPC die getippten Zeichen auf dem Bildschirm wiederholt. Der 
 Größe jedes Programms (`prg_end` minus Ladeadresse). Dateien landen auf z80-test in einer RAM-Disk
 des Testtreibers (Anfrageblock über Port `&10`, Fehler wie die RAM-Disk von m68k-test), auf cpc in
 einem AMSDOS-Modell (`CAS IN …`/`CAS OUT …`, `|ERA`). Wo die Grenzen von AMSDOS ein Programm
-treffen, gilt auf cpc `<name>.cpc.out` (`files`). Wo der Z80 andere Bytes sieht (Gruppe `memory`:
+treffen, gilt auf cpc `<name>.cpc.out` (`files`).
+
+`test_z80_firmware` (`z80_firmware`) lässt die cpc-Programme ohne Tastatureingabe und ohne Dateien auf
+der **echten CPC-6128-Firmware** laufen. Die Firmware wird im Emulator des Schwesterprojekts einmal bis
+zum BASIC-Prompt gebootet, jedes Programm wird geladen und wie von BASIC mit `CALL &100` gestartet
+(unteres ROM aus, 300-Hz-Interrupts). Mitgeschrieben wird, was an `TXT OUTPUT`, `TXT SET CURSOR` und
+`TXT CLEAR WINDOW` ankommt; die Firmware zeichnet es dabei wirklich. `numbers` und `matrix` laufen
+zusätzlich über einen Snapshot (`basicc -o x.sna`), der in eine frische Maschine geladen wird. Der Test
+braucht das 32-KiB-ROM-Abbild in `CPC_ROM`; ohne meldet er „skipped“ und gilt als bestanden. AMSDOS
+ist ein eigenes ROM und fehlt dort, deshalb laufen Dateiprogramme nur gegen das AMSDOS-Modell. Wo der Z80 andere Bytes sieht (Gruppe `memory`:
 Little-Endian, Deskriptoren mit 16-Bit-Adressen), gilt `<name>.z80.out` statt `<name>.out`; diese
 Dateien sind von Hand Zeile für Zeile gegen das Speicherlayout geprüft (`memory`, `ptr`).

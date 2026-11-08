@@ -37,4 +37,27 @@ struct Z80Options {
 [[nodiscard]] Z80Run runZ80Image(const std::vector<std::uint8_t>& image, Z80Platform platform,
                                  const Z80Options& options = {});
 
+/// A CPC 6128 with its real firmware (the 32 KiB ROM image: lower ROM and BASIC), booted once to
+/// the BASIC prompt in the emulator of PhotonPower/Z80. `run` loads a program and CALLs it as BASIC
+/// would (lower ROM off, 300 Hz interrupts); the console is what reached TXT OUTPUT, with
+/// TXT SET CURSOR and TXT CLEAR WINDOW written as ANSI sequences (as the stubs of Z80Platform::Cpc).
+class CpcFirmware {
+public:
+    explicit CpcFirmware(const std::string& romFile);
+    ~CpcFirmware();
+    CpcFirmware(const CpcFirmware&) = delete;
+    CpcFirmware& operator=(const CpcFirmware&) = delete;
+
+    [[nodiscard]] bool booted() const { return booted_; }
+    [[nodiscard]] const std::string& error() const { return error_; }
+    /// Assembles `source` (origin `origin`), loads it without the BSS and CALLs `origin`.
+    [[nodiscard]] Z80Run run(const std::string& source, std::uint16_t origin, std::uint64_t maxInstructions);
+
+private:
+    struct Impl;
+    Impl* impl_;
+    bool booted_ = false;
+    std::string error_;
+};
+
 }  // namespace basic::harness

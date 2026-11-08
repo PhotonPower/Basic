@@ -68,7 +68,9 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
   Adresse; sequentielle Dateien (`OPEN` I/O/A, `PRINT #`, `WRITE #`, `INPUT #`, `LINE INPUT #`,
   `INPUT$`, `EOF`, `LOF`, `EXIST`, `KILL`, `INP`/`OUT #`, `MAT PRINT #`, `MAT INPUT #`) mit einer
   RAM-Disk im Testtreiber auf z80-test, auf cpc über AMSDOS (je eine Ein- und Ausgabedatei, Anhängen
-  durch Kopieren, `KILL` über `|ERA`; AMSDOS-Modell im Testtreiber, `files.cpc.out`), `RINSTR`; Aufrufhilfe
+  durch Kopieren, `KILL` über `|ERA`; AMSDOS-Modell im Testtreiber, `files.cpc.out`), `RINSTR`;
+  `basicc --target cpc -o x.sna --rom <6128.rom>` schreibt einen Snapshot; Test `z80_firmware` auf
+  der echten 6128-Firmware (mit `CPC_ROM`); Aufrufhilfe
   `Z80Routines`, Konformanztest `conformance_z80`; Linker-Anordnung `PlainZ80`.
 - Maus und Joystick (D29): `MOUSEX`, `MOUSEY`, `MOUSEK`, `MOUSE`, `STICK()`, `STRIG()` statt Variablen
   und Feldern; auf dem Amiga aus der Window-Struktur und der Hardware. Testprogramm `mouse`.

@@ -7,7 +7,9 @@
 
 #include "z80/assembler.hpp"
 #include "z80/cpu.hpp"
+#include "z80/json.hpp"
 #include "z80/memory.hpp"
+#include "z80/session.hpp"
 
 namespace basic::harness {
 
@@ -323,6 +325,77 @@ Z80Run runZ80Source(const std::string& source, Z80Platform platform, const Z80Op
     for (const auto& [name, sym] : assembled.symbols)
         if (name == "PRG_END" || name == "prg_end") run.end = static_cast<std::uint32_t>(sym.value);
     return run;
+}
+
+// ---- the real firmware --------------------------------------------------------------------------
+
+struct CpcFirmware::Impl {
+    z80::Session session{z80::SessionOptions{true}};
+    z80::Json call(const std::string& line) { return z80::Json::parse(session.handleLine(line)); }
+    static bool ok(const z80::Json& j) {
+        const z80::Json* o = j.find("ok");
+        return o != nullptr && o->asBool();
+    }
+};
+
+CpcFirmware::CpcFirmware(const std::string& romFile) : impl_(new Impl) {
+    auto step = [&](const std::string& line) {
+        const z80::Json r = impl_->call(line);
+        if (!Impl::ok(r) && error_.empty()) error_ = line + ": " + r.dump();
+        return r;
+    };
+    step(R"({"cmd":"machine","type":"cpc"})");
+    z80::Json load = z80::Json::object();
+    load.set("cmd", "load_rom").set("file", romFile).set("which", "both");
+    step(load.dump());
+    step(R"({"cmd":"set","regs":{"PC":0,"SP":"0xBFFF"}})");
+    step(R"({"cmd":"run","irq_every_cycles":13312,"max_instructions":30000000})");  // to the BASIC prompt
+    step(R"({"cmd":"checkpoint","name":"booted"})");
+    booted_ = error_.empty();
+}
+
+CpcFirmware::~CpcFirmware() { delete impl_; }
+
+Z80Run CpcFirmware::run(const std::string& source, std::uint16_t origin, std::uint64_t maxInstructions) {
+    Z80Run result;
+    z80::AssemblerOptions asmOptions;
+    asmOptions.origin = origin;
+    const z80::AssemblyResult assembled = z80::Assembler(asmOptions).assemble(source);
+    if (!assembled.ok()) {
+        result.error = assembled.formatDiagnostics("<source>");
+        return result;
+    }
+    std::vector<std::uint8_t> image = assembled.flatten();
+    for (const auto& [name, sym] : assembled.symbols) {
+        if ((name == "PRG_BSS" || name == "prg_bss") && sym.value >= origin)
+            image.resize(std::min<std::size_t>(image.size(), static_cast<std::size_t>(sym.value - origin)));
+        if (name == "PRG_END" || name == "prg_end") result.end = static_cast<std::uint32_t>(sym.value);
+    }
+    impl_->call(R"({"cmd":"rollback","name":"booted"})");
+    for (std::size_t k = 0; k < image.size(); ++k) impl_->session.memory().write(static_cast<z80::Word>(origin + k), image[k]);
+    z80::Cpu& cpu = impl_->session.cpu();
+    cpu.setExecHook(kTxtOutput, kTxtSetCursor, [&result](z80::Cpu& c) {  // watch, the firmware does the work
+        const z80::Registers& r = c.regs();
+        if (r.pc == kTxtOutput) result.console += static_cast<char>(r.a());
+        else if (r.pc == kTxtSetCursor) result.console += "\x1b[" + std::to_string(r.hl() & 0xFF) + ";" + std::to_string(r.hl() >> 8) + "H";
+        else if (r.pc == kTxtClearWindow) result.console += "\x1b[H\x1b[J";
+        return false;
+    });
+    const z80::Json off = impl_->call(R"({"cmd":"call","addr":"0xB909","irq_every_cycles":13312,"max_instructions":100000})");  // KL L ROM DISABLE
+    if (!Impl::ok(off)) {
+        cpu.clearExecHook();
+        result.error = "KL L ROM DISABLE: " + off.dump();
+        return result;
+    }
+    const std::uint64_t before = cpu.instructionCount();
+    const z80::Json r = impl_->call("{\"cmd\":\"call\",\"addr\":" + std::to_string(origin) +
+                                    ",\"irq_every_cycles\":13312,\"max_instructions\":" + std::to_string(maxInstructions) + "}");
+    cpu.clearExecHook();
+    result.instructions = cpu.instructionCount() - before;
+    const z80::Json* returned = r.find("returned");
+    result.finished = Impl::ok(r) && returned != nullptr && returned->asBool();
+    if (!result.finished) result.error = "did not return: " + r.dump().substr(0, 400);
+    return result;
 }
 
 }  // namespace basic::harness

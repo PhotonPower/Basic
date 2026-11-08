@@ -5,13 +5,16 @@
 > `--target pc <programm.lst> [-o <datei.cpp>]` (C++-Quelltext, siehe `platform/pc/README.md`),
 > `--target amiga <programm.lst> [-o <programm>]` (AmigaDOS-Programm als Hunk-Datei; mit `-o x.s`
 > der Assembler-Quelltext), `--target m68k-test <programm.lst> [-o <datei.s>]` (MC68000-Assembler
-> für den nackten Prozessor) und `--emit-lir <programm.lst>`
+> für den nackten Prozessor), `--target cpc <programm.lst> [-o <datei>]` (Binärdatei mit
+> AMSDOS-Header; `-o x.s` Quelltext; `-o x.sna --rom <6128.rom>` Snapshot), `--target z80-test` und
+> `--emit-lir <programm.lst>`
 > (Syntaxbaum, eine Zeile je Anweisung; Syntaxfehler als `datei:zeile:spalte: meldung` auf stderr,
 > Rückgabewert 1). Der Rest beschreibt die geplante Kommandozeile.
 
 ```sh
 basicc --targets                                   # Zielsysteme und ihre Befehlsgruppen
 basicc --target cpc   programm.lst -o PROGRAMM.BIN # Amstrad CPC: Binary mit AMSDOS-Header
+basicc --target cpc   programm.lst -o prog.sna --rom cpc6128.rom  # CPC-Snapshot für Emulatoren
 basicc --target amiga programm.lst -o programm     # Amiga: AmigaDOS-Programm (Hunk)
 basicc --target pc    programm.lst -o programm.cpp # C++-Quelltext, mit runtime/ref zu übersetzen
 ```
@@ -26,7 +29,7 @@ basicc --target pc    programm.lst -o programm.cpp # C++-Quelltext, mit runtime/
 | `--emit-ast`, `--emit-hir`, `--emit-lir` | Zwischenstufen als Text ausgeben ([ir.md](ir.md)) |
 | `--emit-asm` | den zusammengelinkten Assembler-Quelltext ausgeben |
 | `--map <datei>` | Map: Module, Adressen, Größen, wer welches Modul angefordert hat |
-| `--sna <datei>` | (cpc) zusätzlich einen Snapshot für Emulatoren schreiben |
+| `--rom <datei>` | (cpc, umgesetzt) ROM-Abbild der CPC 6128 (32 KiB: unteres ROM und BASIC) für `-o x.sna` |
 | `--seed <n>` | fester Startwert für den Zufallsgenerator (Tests) |
 | `--short-errors` | unbehandelte Fehler nur als Nummer ausgeben (spart die Texttabelle) |
 | `--run` | (z80-test, m68k-test, cpc, amiga) direkt im Emulator der Schwesterprojekte ausführen |

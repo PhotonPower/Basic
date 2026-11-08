@@ -91,6 +91,12 @@ if(BASIC_WITH_EMULATORS)
   target_compile_definitions(test_z80_programs PRIVATE BASIC_SOURCE_DIR="${PROJECT_SOURCE_DIR}")
   basic_set_warnings(test_z80_programs)
   add_test(NAME z80_programs COMMAND test_z80_programs)
+
+  add_executable(test_z80_firmware test_z80_firmware.cpp)
+  target_link_libraries(test_z80_firmware PRIVATE basic_harness basiccore basic_cpcsna)
+  target_compile_definitions(test_z80_firmware PRIVATE BASIC_SOURCE_DIR="${PROJECT_SOURCE_DIR}")
+  basic_set_warnings(test_z80_firmware)
+  add_test(NAME z80_firmware COMMAND test_z80_firmware)  # needs CPC_ROM, else it reports "skipped"
 endif()
 
 # Tools written in Python (standard library only); skipped without Python 3.

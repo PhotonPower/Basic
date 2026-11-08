@@ -8,6 +8,8 @@
 plat_start__top EQU &A600               ; the stack (1 KB) below HIMEM of a 6128 with AMSDOS (&A67B)
 
 plat_start:
+        PUSH    IX                      ; BASIC and the firmware keep using them after CALL
+        PUSH    IY
         LD      (plat_start__sp),SP
         LD      SP,plat_start__top
         LD      HL,prg_bss              ; variables, runtime state: 0
@@ -34,6 +36,8 @@ plat_exit:
         JP      (HL)
 plat_start__end:
         LD      SP,(plat_start__sp)
+        POP     IY
+        POP     IX
         RET
 
 ;! section data

@@ -636,6 +636,10 @@ kopieren.
   eine RAM-Disk im Testtreiber (Port `&10`) mit den Regeln der RAM-Disk von m68k-test, damit
   `files`, `console`, `matfile`, `matinput` gegen die Ausgaben des Originals laufen. `MAT INPUT #`
   liest jede Zahl erst in eine Zelle: nach einem Fehler bleibt das Element (probe18 T5).
+- Echte Firmware: `plat_start` sichert IX und IY für BASIC (auf der echten 6128-Firmware geprüft,
+  `z80_firmware`). Der `.sna`-Snapshot braucht ein ROM-Abbild, weil er den RAM-Zustand einer
+  gebooteten Firmware enthält; ein Lader bei `&A600` ruft das Programm auf und springt mit allen
+  Registern an die Stelle zurück, an der die Firmware stand.
 - cpc-Dateien über AMSDOS (Kennung 1 Eingabe, 2 Ausgabe), Grenzen in [targets.md](targets.md#cpc-z80).
   Wo sie ein Programm treffen, gilt `<name>.cpc.out` (`files`: Kanal 0 hält in T8 noch die
   Ausgabedatei).

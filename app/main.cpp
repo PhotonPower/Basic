@@ -28,6 +28,7 @@
 #endif
 #ifdef BASIC_HAVE_Z80_ASSEMBLER
 #include "z80/assembler.hpp"
+#include "backend/z80/cpc_snapshot.hpp"
 #endif
 
 namespace {
@@ -39,7 +40,8 @@ void usage(std::ostream& out) {
         << "                                                        AmigaDOS executable (-o x.s: assembler\n"
         << "                                                        source), m68k-test -> assembler source,\n"
         << "                                                        cpc -> binary with AMSDOS header (-o x.s:\n"
-        << "                                                        source), z80-test -> assembler source\n"
+        << "                                                        source; -o x.sna --rom <6128.rom>: snapshot),\n"
+        << "                                                        z80-test -> assembler source\n"
         << "  basicc --targets                                      list targets and their command groups\n"
         << "  basicc --emit-ast <program.lst>                       print the syntax tree\n"
         << "  basicc --emit-hir <program.lst>                       print the typed intermediate code\n"
@@ -172,7 +174,7 @@ int compileM68k(const std::string& path, std::string output, bool amiga) {
 // Z80: lowering, backend, source-level linker. z80-test writes the assembler source (ORG &4000);
 // cpc writes a binary with AMSDOS header (load and entry &0100; without the BSS, which the program
 // clears at its start), or the source if the output name ends in ".s".
-int compileZ80(const std::string& path, std::string output, bool cpc) {
+int compileZ80(const std::string& path, std::string output, bool cpc, const std::string& rom) {
     basic::hir::Program h;
     if (!frontEnd(path, h)) return 1;
     basic::Diagnostics diags;
@@ -186,6 +188,11 @@ int compileZ80(const std::string& path, std::string output, bool cpc) {
             output += cpc ? ".bin" : ".s";
         }
         const bool asSource = !cpc || (output.size() > 2 && output.compare(output.size() - 2, 2, ".s") == 0);
+        const bool snapshot = cpc && output.size() > 4 && output.compare(output.size() - 4, 4, ".sna") == 0;
+        if (snapshot && rom.empty()) {
+            std::cerr << "basicc: a snapshot needs the CPC 6128 ROM image (--rom <file>, 32 KiB: lower ROM and BASIC)\n";
+            return 2;
+        }
         std::vector<std::uint8_t> bytes(source.begin(), source.end());
         if (!asSource) {
 #ifdef BASIC_HAVE_Z80_ASSEMBLER
@@ -206,8 +213,17 @@ int compileZ80(const std::string& path, std::string output, bool cpc) {
             }
             if (bss != assembled.symbols.end() && bss->second.value >= options.origin)
                 image.resize(std::min<std::size_t>(image.size(), static_cast<std::size_t>(bss->second.value - options.origin)));
-            bytes = basic::amsdosHeader(output, options.origin, options.origin, image.size());
-            bytes.insert(bytes.end(), image.begin(), image.end());
+            if (snapshot) {
+                const basic::CpcSnapshot sna = basic::cpcSnapshot(image, options.origin, rom);
+                if (!sna.error.empty()) {
+                    std::cerr << "basicc: snapshot: " << sna.error << "\n";
+                    return 1;
+                }
+                bytes = sna.bytes;
+            } else {
+                bytes = basic::amsdosHeader(output, options.origin, options.origin, image.size());
+                bytes.insert(bytes.end(), image.begin(), image.end());
+            }
 #else
             std::cerr << "basicc: built without the Z80 assembler (BASIC_WITH_EMULATORS=OFF); use -o name.s\n";
             return 2;
@@ -300,9 +316,10 @@ int main(int argc, char** argv) {
         }
         return run(args[1], seed, gfx);
     }
-    std::string target, input, output;
+    std::string target, input, output, rom;
     for (std::size_t i = 0; i < args.size(); ++i) {
         if (args[i] == "--target" && i + 1 < args.size()) target = args[++i];
+        else if (args[i] == "--rom" && i + 1 < args.size()) rom = args[++i];
         else if (args[i] == "-o" && i + 1 < args.size()) output = args[++i];
         else if (input.empty() && args[i].rfind("-", 0) != 0) input = args[i];
         else {
@@ -320,7 +337,7 @@ int main(int argc, char** argv) {
     }
     if (target == "pc") return compilePc(input, output);
     if (target == "m68k-test" || target == "amiga") return compileM68k(input, output, target == "amiga");
-    if (target == "z80-test" || target == "cpc") return compileZ80(input, output, target == "cpc");
+    if (target == "z80-test" || target == "cpc") return compileZ80(input, output, target == "cpc", rom);
     std::cerr << "basicc: target '" << target << "' is not implemented yet (see docs/roadmap.md)\n";
     return 2;
 }

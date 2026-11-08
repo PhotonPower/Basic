@@ -47,8 +47,14 @@ außerhalb dieses Speichers lösen einen Fehler aus.
 
 - Ausgabe: `basicc --target cpc prog.lst` schreibt `prog.bin` mit AMSDOS-Header (Typ 2, Laden und
   Start bei `&0100`, ohne den BSS-Teil, den das Programm beim Start löscht); Start mit `RUN"prog.bin"`
-  oder `MEMORY &FF: LOAD"prog.bin": CALL &100`. `-o prog.s` liefert den Assembler-Quelltext. Ein
-  `.sna`-Snapshot für Emulatoren ist geplant; `.dsk`-Images erzeugen externe Werkzeuge (z. B. iDSK).
+  oder `MEMORY &FF: LOAD"prog.bin": CALL &100`. `-o prog.s` liefert den Assembler-Quelltext.
+  `-o prog.sna --rom cpc6128.rom` schreibt einen Snapshot (Version 1, 64 KiB): Die echte Firmware
+  wird im Emulator des Schwesterprojekts bis zum BASIC-Prompt gebootet, das Programm geladen, und der
+  Snapshot startet einen kleinen Lader bei `&A600`. Er sichert die Register, schaltet das untere ROM
+  ab, ruft `&0100` auf und kehrt danach zum Prompt zurück. Das ROM gehört nicht zum Projekt (es liegt
+  z. B. Caprice32 bei; Amstrad hat die Weitergabe für Emulatoren erlaubt). Der Snapshot enthält den
+  Zustand einer Firmware **ohne AMSDOS**: Programme mit Dateien gehören in die Binärdatei.
+  `.dsk`-Images erzeugen externe Werkzeuge (z. B. iDSK).
 - Speicher: Programm ab `&0100`, dahinter Felder (untere Hälfte des freien Raums) und Strings (obere
   Hälfte) bis `&A200`, darüber 1 KB eigener Stapel bis `&A600` (unter `HIMEM` eines 6128 mit AMSDOS,
   `&A67B`). Ein Programm, das mehr braucht, lehnt `basicc` ab. `END` kehrt mit dem gesicherten
@@ -89,8 +95,8 @@ außerhalb dieses Speichers lösen einen Fehler aus.
   `TXT SET CURSOR`/`TXT CLEAR WINDOW` → dieselben ANSI-Folgen wie auf dem Amiga, `CAS IN …`/
   `CAS OUT …`, `KL FIND COMMAND` und `KL FAR PCHL` für `|ERA` → ein AMSDOS-Modell mit denselben
   Grenzen); ein
-  nicht emulierter Aufruf bricht den Lauf mit Meldung ab. Das Schwesterprojekt kann außerdem die echte
-  6128-Firmware booten und den Bildschirm rendern, was für Grafiktests genutzt werden kann.
+  nicht emulierter Aufruf bricht den Lauf mit Meldung ab. Mit `CPC_ROM` laufen die Programme
+  außerdem auf der echten 6128-Firmware (`z80_firmware`, [testing.md](testing.md#z80)).
 
 ## z80-test und m68k-test
 
