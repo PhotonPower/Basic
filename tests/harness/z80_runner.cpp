@@ -110,7 +110,10 @@ Z80Run runZ80Source(const std::string& source, Z80Platform platform, const Z80Op
         failed.error = "the program must start at the origin " + hex4(options.origin);
         return failed;
     }
-    return runZ80Image(assembled.flatten(), platform, options);
+    Z80Run run = runZ80Image(assembled.flatten(), platform, options);
+    for (const auto& [name, sym] : assembled.symbols)
+        if (name == "PRG_END" || name == "prg_end") run.end = static_cast<std::uint32_t>(sym.value);
+    return run;
 }
 
 }  // namespace basic::harness

@@ -614,6 +614,222 @@ int main() {
             }
         }
     }
+    {  // MAT (runtime/z80/rt_mat.s) against runtime/ref/rt_mat.c: the same data as host matrix and in
+       // the emulator (column-major like an array: rs = 8, cs = 8 * rows), the same view, bit for bit
+        Rng r;
+        const std::uint16_t views = rt.raw().symbol("rt_mat_v");
+        int shown = 0;
+        struct MatCase {
+            std::uint16_t addr;
+            std::int32_t rows, cols;
+            std::vector<f64> data;  // column-major
+            rt_mat host() { return rt_mat{data.data(), rows, cols, 1, rows}; }
+        };
+        auto fail = [&](const std::string& what) {
+            ++g_failures;
+            if (++shown <= 10) std::cerr << "rt_mat: " << what << "\n";
+        };
+        auto value = [&](int kind) -> f64 {
+            switch (kind) {
+                case 0: return fp_from_i32(r.range(-3, 3));
+                case 1: return randomF64(r, 1000, 1046) | (r.next() & 1 ? f64{1} << 63 : 0);
+                case 2: return fp_from_i32(r.range(-2, 2) * (1 << r.range(0, 3)));
+                default: return fp_div(fp_from_i32(r.range(-9, 9)), fp_from_i32(r.range(1, 7)));
+            }
+        };
+        auto make = [&](std::uint16_t addr, std::int32_t rows, std::int32_t cols, int kind) {
+            MatCase m{addr, rows, cols, std::vector<f64>(static_cast<std::size_t>(std::max(rows * cols, 1)))};
+            for (f64& x : m.data) x = value(kind);
+            return m;
+        };
+        auto put = [&](const MatCase& m) {
+            for (std::size_t k = 0; k < m.data.size(); ++k) rt.raw().write64(static_cast<std::uint16_t>(m.addr + 8 * k), m.data[k]);
+        };
+        auto w16 = [&](std::uint16_t a, std::int32_t v) {
+            rt.raw().write8(a, static_cast<std::uint8_t>(v));
+            rt.raw().write8(static_cast<std::uint16_t>(a + 1), static_cast<std::uint8_t>(v >> 8));
+        };
+        auto view = [&](int k, const MatCase& m, int dims = 2) {
+            const std::uint16_t v = static_cast<std::uint16_t>(views + 12 * k);
+            w16(v, m.addr);
+            w16(static_cast<std::uint16_t>(v + 2), m.rows);
+            w16(static_cast<std::uint16_t>(v + 4), m.cols);
+            w16(static_cast<std::uint16_t>(v + 6), 8);
+            w16(static_cast<std::uint16_t>(v + 8), 8 * m.rows);
+            rt.raw().write8(static_cast<std::uint16_t>(v + 10), static_cast<std::uint8_t>(dims));
+        };
+        auto same = [&](const char* what, const MatCase& m) {  // emulator memory = host data
+            ++g_checks;
+            for (std::size_t k = 0; k < m.data.size(); ++k) {
+                const f64 got = rt.raw().read64(static_cast<std::uint16_t>(m.addr + 8 * k));
+                if (got != m.data[k]) {
+                    char b[160];
+                    std::snprintf(b, sizeof b, "%s element %zu: %016llX, expected %016llX", what, k, static_cast<unsigned long long>(got),
+                                  static_cast<unsigned long long>(m.data[k]));
+                    fail(b);
+                    return;
+                }
+            }
+        };
+        auto scalar = [&](const char* what, f64 got, int err, f64 want, int werr) {
+            ++g_checks;
+            if (got != want || err != werr) {
+                char b[160];
+                std::snprintf(b, sizeof b, "%s: %016llX err %d, expected %016llX err %d", what, static_cast<unsigned long long>(got), err,
+                              static_cast<unsigned long long>(want), werr);
+                fail(b);
+            }
+        };
+        const std::uint16_t A = 0xE400, B = 0xE600, C = 0xE800, T = 0xEA00;
+        for (int round = 0; round < cases / 20; ++round) {
+            const int kind = r.range(0, 3);
+            const std::int32_t n = r.range(0, 6), m = r.range(1, 5), q = r.range(1, 5);
+            MatCase a = make(A, n, n, kind);
+            if (n > 1 && r.range(0, 2) == 0)  // the last row the sum of the others
+                for (std::int32_t j = 0; j < n; ++j) {
+                    f64 sum = 0;
+                    for (std::int32_t i = 0; i + 1 < n; ++i) sum = fp_add(sum, a.data[static_cast<std::size_t>(i + j * n)]);
+                    a.data[static_cast<std::size_t>(n - 1 + j * n)] = sum;
+                }
+            if (round % 8 == 0)
+                for (f64& x : a.data) x = 0;
+            for (int quick = 0; quick < 3; ++quick) {
+                put(a);
+                view(0, a);
+                const rt_mat ha = a.host();
+                g_error = -1;
+                const f64 want = quick == 2 ? rt_mat_rank(&ha) : rt_mat_det(&ha, quick);
+                const int werr = g_error;
+                const auto [got, err] = rt.call(quick == 2 ? "rt_mat_rank" : "rt_mat_det", static_cast<std::uint32_t>(quick & 1));
+                scalar(quick == 2 ? "rank" : quick ? "qdet" : "det", got, err, want, werr);
+                same("det input unchanged", a);
+            }
+            {  // INV into a target that is sometimes of the wrong size
+                MatCase t = make(T, r.range(0, 4) == 0 ? n + 1 : n, n, 1);
+                put(a);
+                put(t);
+                view(0, t);
+                view(1, a);
+                const rt_mat ht = t.host(), ha = a.host();
+                g_error = -1;
+                rt_mat_inv(&ht, &ha);
+                const int werr = g_error;
+                const int err = rt.call("rt_mat_inv", 0).second;
+                scalar("inv error", 0, err, 0, werr);
+                same("inv", t);
+            }
+            {  // MUL, DOT, TRIPLE
+                MatCase b = make(B, n, r.range(0, 5) == 0 ? q + 1 : q, kind), c = make(C, q, m, kind), t = make(T, n, m, 1);
+                put(b);
+                put(c);
+                put(t);
+                view(0, t);
+                view(1, b);
+                view(2, c);
+                const rt_mat ht = t.host(), hb = b.host(), hc = c.host();
+                g_error = -1;
+                rt_mat_mul(&ht, &hb, &hc);
+                int werr = g_error;
+                int err = rt.call("rt_mat_mul", 0).second;
+                scalar("mul error", 0, err, 0, werr);
+                same("mul", t);
+                MatCase u = make(A, 1, q, kind), v = make(B, 1, r.range(0, 4) == 0 ? q + 1 : q, kind), w = make(C, q, m, kind),
+                        z = make(T, 1, m, kind);
+                put(u);
+                put(v);
+                put(w);
+                put(z);
+                view(0, u, 1);
+                view(1, v, 1);
+                const rt_mat hu = u.host(), hv = v.host(), hw = w.host(), hz = z.host();
+                g_error = -1;
+                f64 want = rt_mat_dot(&hu, &hv);
+                werr = g_error;
+                auto res = rt.call("rt_mat_dot", 0);
+                scalar("dot", res.first, res.second, want, werr);
+                view(1, w);
+                view(2, z, 1);
+                g_error = -1;
+                want = rt_mat_triple(&hu, &hw, &hz);
+                werr = g_error;
+                res = rt.call("rt_mat_triple", 0);
+                scalar("triple", res.first, res.second, want, werr);
+            }
+            for (int byCol = 0; byCol < 2; ++byCol) {  // NORM, sometimes with a zero line
+                MatCase t = make(A, n, m, kind);
+                if (n > 0 && r.range(0, 3) == 0)
+                    for (std::int32_t j = 0; j < m; ++j) t.data[static_cast<std::size_t>(n - 1 + j * n)] = 0;
+                put(t);
+                view(0, t);
+                const rt_mat ht = t.host();
+                g_error = -1;
+                rt_mat_norm(&ht, byCol);
+                const int werr = g_error;
+                const int err = rt.call("rt_mat_norm", static_cast<std::uint32_t>(byCol)).second;
+                scalar("norm error", 0, err, 0, werr);
+                same("norm", t);
+            }
+            {  // TRANS, ADD/SUB, scalar operations
+                MatCase s2 = make(A, n, m, kind), t = make(T, r.range(0, 4) == 0 ? m + 1 : m, n, 1);
+                put(s2);
+                put(t);
+                view(0, t);
+                view(1, s2);
+                const rt_mat ht = t.host(), hs = s2.host();
+                g_error = -1;
+                rt_mat_trans(&ht, &hs);
+                int werr = g_error;
+                int err = rt.call("rt_mat_trans", 0).second;
+                scalar("trans error", 0, err, 0, werr);
+                same("trans", t);
+                MatCase x = make(B, n, m, kind), y = make(C, n, r.range(0, 4) == 0 ? m + 1 : m, kind), z = make(T, n, m, 1);
+                put(x);
+                put(y);
+                put(z);
+                view(0, z);
+                view(1, x);
+                view(2, y);
+                const int sub = r.range(0, 1);
+                const rt_mat hz = z.host(), hx = x.host(), hy = y.host();
+                g_error = -1;
+                rt_mat_addsub(&hz, &hx, &hy, sub);
+                werr = g_error;
+                err = rt.call("rt_mat_addsub", static_cast<std::uint32_t>(sub)).second;
+                scalar("addsub error", 0, err, 0, werr);
+                same("addsub", z);
+                const int op = r.range(0, 2);
+                const f64 v = value(kind);
+                view(0, x);
+                rt_mat_scalar(&hx, v, op);
+                (void)rt.call("rt_mat_scalar", v, static_cast<std::uint32_t>(op));
+                same("scalar", x);
+            }
+            {  // CPY/XCPY: source and destination at random offsets (views moved like rt_mat_at)
+                MatCase s2 = make(A, r.range(0, 5), r.range(0, 5), kind), d = make(T, r.range(0, 5), r.range(0, 5), 1);
+                const std::int32_t si = r.range(0, 2), sj = r.range(0, 2), di = r.range(0, 2), dj = r.range(0, 2);
+                const std::int32_t h = r.range(-1, 4), w = r.range(-1, 4);
+                const int tr = r.range(0, 1);
+                put(s2);
+                put(d);
+                auto moved = [&](int k, const MatCase& c, std::int32_t i, std::int32_t j) {
+                    view(k, c);
+                    const std::uint16_t at = static_cast<std::uint16_t>(views + 12 * k);
+                    w16(at, c.addr + 8 * (i + j * c.rows));
+                    w16(static_cast<std::uint16_t>(at + 2), c.rows - i);
+                    w16(static_cast<std::uint16_t>(at + 4), c.cols - j);
+                };
+                moved(0, d, di, dj);
+                moved(1, s2, si, sj);
+                const rt_mat hd = d.host(), hs = s2.host();
+                rt_mat_cpy(&hd, di, dj, &hs, si, sj, h, w, tr);
+                const std::uint16_t argp = rt.raw().symbol("rt_argp"), kTr = 0xE030;
+                rt.raw().write32(kTr, static_cast<std::uint32_t>(tr));
+                w16(argp, kTr);
+                (void)rt.call("rt_mat_cpy", static_cast<std::uint32_t>(h), static_cast<std::uint32_t>(w));
+                same(tr ? "xcpy" : "cpy", d);
+            }
+        }
+    }
     {  // rt_mkstr: MKD$/CVD (GFA 8-byte float), MKS$/CVS (IEEE single), MKI$/MKL$/CVI/CVL
         auto mk = [&](const char* name, std::uint64_t x, int n, std::vector<std::uint8_t>& got, int& err) {
             rt.raw().write64(kA, x);

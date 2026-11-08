@@ -1,5 +1,5 @@
 ;! module    rt_arr
-;! provides  rt_arr_dim rt_arr_elem rt_arr_count rt_arr_erase rt_arr_base rt_arr_set_base rt_swap8
+;! provides  rt_arr_dim rt_arr_elem rt_arr_count rt_arr_erase rt_arr_base rt_arr_set_base rt_swap8 rt_arr_work
 ;! requires  rt_error rt_argp rt_str_free plat_arr plat_arr_end
 ;! group     core
 ;! clobbers  AF BC DE HL
@@ -434,6 +434,27 @@ rt_arr__k1:
         INC     HL
         DJNZ    rt_arr__k1
         RET
+
+; BC = bytes -> HL = free room above the arrays (valid until the next DIM; MAT work storage);
+; error 8 if it is too small
+rt_arr_work:
+        LD      HL,(rt_arr__top)
+        LD      A,H
+        OR      L
+        JR      NZ,rt_arr__w1
+        LD      HL,plat_arr
+rt_arr__w1:
+        PUSH    HL
+        ADD     HL,BC
+        JR      C,rt_arr__w2
+        EX      DE,HL
+        LD      HL,plat_arr_end
+        OR      A
+        SBC     HL,DE
+rt_arr__w2:
+        POP     HL
+        RET     NC
+        JP      rt_arr__mem
 
 ; DE -> 0 or 1: OPTION BASE
 rt_arr_set_base:

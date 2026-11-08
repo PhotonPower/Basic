@@ -19,6 +19,7 @@ struct Z80Run {
     std::string error;           ///< assembler errors, unknown firmware call, limit, ...
     std::uint64_t instructions = 0;
     std::uint64_t cycles = 0;    ///< T-states, useful to compare the speed of runtime routines
+    std::uint32_t end = 0;       ///< runZ80Source: the label prg_end (first byte after code, data and BSS), if any
 };
 
 struct Z80Options {

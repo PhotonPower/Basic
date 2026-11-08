@@ -603,6 +603,13 @@ kopieren.
 - `HEX$`/`BIN$`/`OCT$`: die Breite ist auf dem Z80 höchstens 32767, ebenso `STR$(x,n)`.
 - `PRINT USING` schreibt seinen Text in Stücken von 512 Zeichen (ohne Obergrenze); `STR$(x,y,z)`
   liefert wie auf dem 68000 höchstens 512 Zeichen.
+- Codegröße: Ein virtuelles Register, das nur einmal mit einer Konstanten belegt wird (Zahl, String,
+  Adresse einer Variablen oder Routine), hat keinen Platz im Rahmen, sondern zeigt auf eine geteilte
+  8-Byte-Zelle im Datenteil (`k<n>`); die übrigen Plätze sind lückenlos nummeriert, die ersten 16 über
+  `(IX-d)` erreichbar. Mit `ON ERROR` schreibt `rt_err_line` (Sprungziele inline hinter dem `CALL`)
+  den Anweisungsdatensatz.
+- Matrizen: Sichten mit 16-Bit-Feldern (12 Byte), Arbeitsspeicher oberhalb der Felder (`rt_arr_work`,
+  gültig bis zum nächsten `DIM`); zwei eindimensionale Faktoren bei `MAT MUL`: der erste als Spalte.
 - Der Linker meldet in Z80-Modulen Labels, die sich nur in Groß-/Kleinschreibung unterscheiden.
 - Der erzeugte Code ist noch groß (jeder Zugriff berechnet die Adresse des Stapelplatzes): `arrays.lst`
   braucht 24,7 KB mit Laufzeit. Für den CPC (rund 40 KB) muss das Backend später sparsamer werden.

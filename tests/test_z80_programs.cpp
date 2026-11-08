@@ -78,9 +78,9 @@ int main() {
         ++ran;
         if (!run.error.empty() || run.console != expected) {
             ++g_failures;
-            std::cerr << label << ": " << run.error << "\n--- expected\n" << expected << "--- actual\n" << run.console << "\n";
+            std::cerr << label << ": " << run.error << " (" << (run.end > 0x4000 ? run.end - 0x4000 : 0) << " bytes)\n--- expected\n" << expected << "--- actual\n" << run.console << "\n";
         } else {
-            std::cout << label << ": ok (" << run.instructions << " instructions)\n";
+            std::cout << label << ": ok (" << run.instructions << " instructions, " << (run.end > 0x4000 ? run.end - 0x4000 : 0) << " bytes)\n";
         }
     }
     std::cout << ran << " programs run, " << skipped << " skipped (not yet supported by the backend)\n";

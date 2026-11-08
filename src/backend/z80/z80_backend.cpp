@@ -97,27 +97,48 @@ private:
     // HL = address of the storage of v (through the pointer of a VAR-bound variable)
     std::string varAddr(int v) const { return indirect(v) ? "LD      HL,(p" + std::to_string(v) + ")" : "LD      HL," + var(v); }
     int local_ = 0;
+    // per register of the function: the label of its constant (no slot), or its slot number
+    std::vector<std::string> constCell_;
+    std::vector<int> slot_;
+    int slots_ = 0;
+    std::map<std::string, std::string> cells_;  // constant contents -> label (shared by all functions)
     std::set<int> savedVars_;  // variables with a Save (ON ERROR: descriptors for the save log)
     // ON ERROR: the record of the running statement (12 bytes below the slots)
     bool hasRecord() const { return p_.onError && !f_->deffn; }
     void recToHL() {
         line("PUSH    IX");
         line("POP     HL");
-        line("LD      BC," + std::to_string(-8 * f_->regs - 12));
+        line("LD      BC," + std::to_string(-8 * slots_ - 12));
         line("ADD     HL,BC");
     }
 
-    // HL = address of the slot of r (IX - 8 * (id + 1)); uses BC
+    bool isConst(const Reg& r) const { return !constCell_[static_cast<std::size_t>(r.id)].empty(); }
+    int offset(const Reg& r) const { return -8 * (slot_[static_cast<std::size_t>(r.id)] + 1); }
+    static std::string ix(int o) { return o < 0 ? "(IX-" + std::to_string(-o) + ")" : "(IX+" + std::to_string(o) + ")"; }
+    bool near(const Reg& r) const { return !isConst(r) && offset(r) >= -128; }  // IX+d reaches both bytes
+
+    // HL = address of the slot of r (IX - 8 * (slot + 1); a constant: its cell); uses BC
     void slotToHL(const Reg& r) {
+        if (isConst(r)) {
+            line("LD      HL," + constCell_[static_cast<std::size_t>(r.id)]);
+            return;
+        }
         line("PUSH    IX");
         line("POP     HL");
-        line("LD      BC," + std::to_string(-8 * (r.id + 1)));
+        line("LD      BC," + std::to_string(offset(r)));
         line("ADD     HL,BC");
     }
     // HL = the argument as the runtime gets it: numbers by address, strings and addresses by value
     void argToHL(const Reg& r) {
-        slotToHL(r);
-        if (r.type == VT::Str || r.type == VT::Addr) {
+        if (r.type != VT::Str && r.type != VT::Addr) {
+            slotToHL(r);
+        } else if (isConst(r)) {
+            line("LD      HL,(" + constCell_[static_cast<std::size_t>(r.id)] + ")");
+        } else if (near(r)) {
+            line("LD      L," + ix(offset(r)));
+            line("LD      H," + ix(offset(r) + 1));
+        } else {
+            slotToHL(r);
             line("LD      A,(HL)");
             line("INC     HL");
             line("LD      H,(HL)");
@@ -126,12 +147,69 @@ private:
     }
     // stores the 16-bit value in HL into the slot of r
     void storeHL(const Reg& r) {
+        if (near(r)) {
+            line("LD      " + ix(offset(r)) + ",L");
+            line("LD      " + ix(offset(r) + 1) + ",H");
+            return;
+        }
         line("EX      DE,HL");
         slotToHL(r);
         line("LD      (HL),E");
         line("INC     HL");
         line("LD      (HL),D");
     }
+    // the label of an 8-byte constant cell with this contents (DB/DW operands)
+    std::string cell(const std::string& contents) {
+        const auto it = cells_.find(contents);
+        if (it != cells_.end()) return it->second;
+        const std::string l = "k" + std::to_string(cells_.size());
+        cells_.emplace(contents, l);
+        out_.data += l + ":\n        " + contents + "\n";
+        return l;
+    }
+    static std::string dbOf(std::uint64_t v, int n) {
+        std::string r = "DB      ";
+        for (int k = 0; k < 8; ++k) r += (k ? "," : "") + std::to_string(k < n ? static_cast<unsigned>((v >> (8 * k)) & 0xFF) : 0u);
+        return r;
+    }
+    // registers set once by a constant (number, string, address of a variable or routine) and nowhere
+    // else get a cell instead of a slot; the other registers are numbered without gaps
+    void planRegisters(const lir::Function& f) {
+        const std::size_t n = static_cast<std::size_t>(f.regs);
+        std::vector<int> defs(n, 0);
+        std::vector<const Instr*> def(n, nullptr);
+        for (const Instr& i : f.code)
+            if (i.dst.id >= 0) {
+                ++defs[static_cast<std::size_t>(i.dst.id)];
+                def[static_cast<std::size_t>(i.dst.id)] = &i;
+            }
+        for (const Reg& r : f.params) defs[static_cast<std::size_t>(r.id)] += 2;
+        constCell_.assign(n, "");
+        slot_.assign(n, -1);
+        slots_ = 0;
+        for (std::size_t k = 0; k < n; ++k) {
+            const Instr* i = def[k];
+            if (defs[k] == 1 && i != nullptr) {
+                if (i->kind == Kind::ConstI) constCell_[k] = cell(dbOf(static_cast<std::uint32_t>(i->imm), 4));
+                else if (i->kind == Kind::ConstF) constCell_[k] = cell(dbOf(i->fimm, 8));
+                else if (i->kind == Kind::ConstS) constCell_[k] = cell("DW      " + constString(i->text) + ",0,0,0");
+                else if (i->kind == Kind::Addr && !indirect(i->var)) constCell_[k] = cell("DW      " + var(i->var) + ",0,0,0");
+                else if (i->kind == Kind::RoutineAddr) constCell_[k] = cell("DW      " + fname(i->routine) + ",0,0,0");
+            }
+            if (constCell_[k].empty()) slot_[k] = slots_++;
+        }
+    }
+    // the descriptor of a string constant (shared by equal texts)
+    std::string constString(const std::string& text) {
+        const auto it = strConsts_.find(text);
+        if (it != strConsts_.end()) return it->second;
+        const std::string l = "c" + std::to_string(strings_++);
+        out_.data += l + ":\n        DW      " + (text.empty() ? std::string("0") : l + "t") + "," + std::to_string(text.size()) + "\n";
+        if (!text.empty()) out_.data += l + "t:\n        DB      " + dbBytes(text) + "\n";
+        strConsts_.emplace(text, l);
+        return l;
+    }
+    std::map<std::string, std::string> strConsts_;
     void bytesAt(const std::vector<std::uint8_t>& b) {  // HL -> the bytes, HL advanced
         for (std::size_t k = 0; k < b.size(); ++k) {
             line("LD      (HL)," + std::to_string(b[k]));
@@ -152,18 +230,26 @@ private:
             argToHL(args[k]);
             line("LD      (rt_argp+" + std::to_string(2 * (k - 2)) + "),HL");
         }
-        if (args.size() >= 2) {
+        // the second argument first (computing a slot address uses BC), then the first one into DE
+        // (kept by slot addresses), the numeric result address into HL; constants directly
+        const bool push1 = args.size() >= 2 && !isConst(args[1]);
+        if (push1) {
             argToHL(args[1]);
             line("PUSH    HL");
         }
-        if (!args.empty()) {
+        if (!args.empty() && !isConst(args[0])) {
             argToHL(args[0]);
-            line("PUSH    HL");
+            line("EX      DE,HL");
         }
         const bool numeric = dst.id >= 0 && (dst.type == VT::I32 || dst.type == VT::F64);
         if (numeric) slotToHL(dst);
-        if (!args.empty()) line("POP     DE");
-        if (args.size() >= 2) line("POP     BC");
+        if (push1) line("POP     BC");
+        auto direct = [&](const Reg& r, const char* rr) {
+            const std::string& c = constCell_[static_cast<std::size_t>(r.id)];
+            line(std::string("LD      ") + rr + "," + (r.type == VT::Str || r.type == VT::Addr ? "(" + c + ")" : c));
+        };
+        if (!args.empty() && isConst(args[0])) direct(args[0], "DE");
+        if (args.size() >= 2 && isConst(args[1])) direct(args[1], "BC");
         line("CALL    " + sym);
         if (dst.id >= 0 && !numeric) storeHL(dst);
     }
@@ -171,11 +257,12 @@ private:
     void function(const lir::Function& f) {
         f_ = &f;
         ++fn_;
+        planRegisters(f);
         out_.code += "; ---- " + (f.routine < 0 ? std::string("main program") : f.name) + "\n" + fname(f.routine) + ":\n";
         line("PUSH    IX");
         line("LD      IX,0");
         line("ADD     IX,SP");
-        const int frame = 8 * f.regs + (hasRecord() ? 12 : 0);
+        const int frame = 8 * slots_ + (hasRecord() ? 12 : 0);
         if (frame > 0) {
             line("LD      HL," + std::to_string(-frame));
             line("ADD     HL,SP");
@@ -234,6 +321,7 @@ private:
     }
 
     void instr(const Instr& i) {
+        if (i.dst.id >= 0 && isConst(i.dst)) return;  // the value lies in its constant cell
         switch (i.kind) {
             case Kind::ConstI: {
                 slotToHL(i.dst);
@@ -249,14 +337,10 @@ private:
                 bytesAt(b);
                 return;
             }
-            case Kind::ConstS: {  // descriptor: address, length
-                const std::string l = "c" + std::to_string(strings_++);
-                out_.data += l + ":\n        DW      " + (i.text.empty() ? std::string("0") : l + "t") + "," + std::to_string(i.text.size()) + "\n";
-                if (!i.text.empty()) out_.data += l + "t:\n        DB      " + dbBytes(i.text) + "\n";
-                line("LD      HL," + l);
+            case Kind::ConstS:  // descriptor: address, length
+                line("LD      HL," + constString(i.text));
                 storeHL(i.dst);
                 return;
-            }
             case Kind::Load: {
                 const hir::Type t = varType(i.var);
                 if (t == hir::Type::Str) {  // the descriptor of the variable
@@ -487,28 +571,10 @@ private:
             case Kind::Line:
                 line_ = i.imm;
                 line("; line " + std::to_string(i.imm));
-                if (i.label >= 0 && hasRecord()) {  // the record: repeat, after, SP, IX
-                    line("LD      (prg_tmp),SP");
-                    recToHL();
-                    line("INC     HL");
-                    line("INC     HL");
-                    for (const std::string& v : {label(i.label), label(i.label2)}) {
-                        line("LD      DE," + v);
-                        line("LD      (HL),E");
-                        line("INC     HL");
-                        line("LD      (HL),D");
-                        line("INC     HL");
-                    }
-                    line("LD      DE,(prg_tmp)");
-                    line("LD      (HL),E");
-                    line("INC     HL");
-                    line("LD      (HL),D");
-                    line("INC     HL");
-                    line("PUSH    IX");
-                    line("POP     DE");
-                    line("LD      (HL),E");
-                    line("INC     HL");
-                    line("LD      (HL),D");
+                if (i.label >= 0 && hasRecord()) {  // the record: repeat, after, SP, IX (rt_err_line)
+                    uses_.insert("rt_err_line");
+                    line("CALL    rt_err_line");
+                    line("DW      " + label(i.label) + "," + label(i.label2));
                 }
                 return;
             case Kind::Save: {  // the 8 bytes of the variable on the stack

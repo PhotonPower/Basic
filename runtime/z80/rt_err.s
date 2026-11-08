@@ -1,5 +1,6 @@
 ;! module    rt_err
 ;! provides  rt_error rt_err_hook rt_err_code rt_err_get rt_err_ctx rt_err_log rt_err_handler rt_err_at rt_err_frame
+;! provides  rt_err_line
 ;! requires  plat_error
 ;! group     core
 ;! clobbers  AF BC DE HL
@@ -58,6 +59,30 @@ rt_err_get:
         LD      (HL),A
         RET
 
+; start of a statement (inline after the CALL: DW repeat, after): the record of the running
+; routine (rt_err_ctx) gets both addresses, SP and IX
+rt_err_line:
+        POP     HL                      ; HL -> the two addresses
+        LD      (rt_err__sp),SP         ; SP of the statement
+        LD      DE,(rt_err_ctx)
+        INC     DE
+        INC     DE
+        LD      BC,4
+        LDIR                            ; repeat, after; HL = return address
+        PUSH    HL
+        LD      HL,(rt_err__sp)
+        EX      DE,HL
+        LD      (HL),E
+        INC     HL
+        LD      (HL),D
+        INC     HL
+        PUSH    IX
+        POP     DE
+        LD      (HL),E
+        INC     HL
+        LD      (HL),D
+        RET
+
 ;! section data
 rt_err_handler:
         DW      0
@@ -75,3 +100,5 @@ rt_err_code:
         DB      0
 rt_err__a:
         DB      0
+rt_err__sp:
+        DW      0
