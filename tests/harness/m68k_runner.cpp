@@ -1,5 +1,7 @@
 #include "m68k_runner.hpp"
 
+#include <cstdlib>
+
 #include "rt_gfx.hpp"
 #include "rt_gui.hpp"
 
@@ -36,6 +38,9 @@ std::string hex8(std::uint32_t v) {
     std::snprintf(buf, sizeof buf, "$%08X", v);
     return buf;
 }
+
+using Routines68 = std::map<std::uint32_t, std::string>;
+thread_local const Routines68* g_routines68 = nullptr;
 
 M68kRun runTest(const std::vector<std::uint8_t>& image, const M68kOptions& options) {
     M68kRun result;
@@ -140,8 +145,34 @@ M68kRun runTest(const std::vector<std::uint8_t>& image, const M68kOptions& optio
     st.regs.pc = options.origin;
     st.regs.a[7] = kTestStackTop;
     cpu.setState(st);
+    std::map<std::string, std::pair<std::uint64_t, std::uint64_t>> spent;  // instructions, data accesses
+    std::string where = "?";
+    if (g_routines68 != nullptr) {
+        cpu.traceHook = [&spent, &where](const m68k::Registers&, m68k::Address pc, m68k::Word) {
+            auto it = g_routines68->upper_bound(pc);
+            where = it == g_routines68->begin() ? "?" : std::prev(it)->second;
+            ++spent[where].first;
+        };
+        cpu.accessHook = [&spent, &where](m68k::Address, m68k::Size, m68k::Long, bool) { ++spent[where].second; };
+    }
     const m68k::RunResult run = cpu.run(options.maxInstructions);
     result.instructions = run.instructions;
+    if (g_routines68 != nullptr) {
+        std::vector<std::pair<std::uint64_t, std::string>> top;
+        std::uint64_t total = 0;
+        for (const auto& [name, c] : spent) {
+            top.emplace_back(c.first, name);
+            total += c.first;
+        }
+        std::sort(top.rbegin(), top.rend());
+        char buf[160];
+        for (std::size_t k = 0; k < top.size() && k < 30; ++k) {
+            std::snprintf(buf, sizeof buf, "%12llu %5.1f%% %12llu acc  %s\n", static_cast<unsigned long long>(top[k].first),
+                          total ? 100.0 * static_cast<double>(top[k].first) / static_cast<double>(total) : 0.0,
+                          static_cast<unsigned long long>(spent[top[k].second].second), top[k].second.c_str());
+            result.profile += buf;
+        }
+    }
     if (gfx.used()) result.gfx = gfx.digest();
     if (run.reason == m68k::StopReason::Stopped) result.finished = true;
     else result.error = "stopped (reason " + std::to_string(static_cast<int>(run.reason)) + ") at " + hex8(cpu.registers().pc);
@@ -228,7 +259,19 @@ M68kRun runM68kSource(const std::string& source, M68kPlatform platform, const M6
         return failed;
     }
     const std::vector<std::uint8_t> image = assembled.flatten();
+    Routines68 routines;
+    if (options.profile) {
+        const char* fine = std::getenv("BASIC_M68K_PROFILE");  // "2": every label on its own
+        for (const auto& [name, value] : assembled.symbols) {
+            std::string n = name;
+            if (const auto u = n.find("__"); u != std::string::npos && !(fine != nullptr && std::string(fine) == "2")) n.resize(u);
+            if (n.rfind("rt_", 0) != 0 && n.rfind("fp_", 0) != 0 && n.rfind("plat_", 0) != 0 && n.rfind("ix_", 0) != 0) n = "program";
+            routines[static_cast<std::uint32_t>(value)] = n;
+        }
+        g_routines68 = &routines;
+    }
     M68kRun run = runTest(image, options);
+    g_routines68 = nullptr;
     run.bytes = image.size();
     return run;
 }

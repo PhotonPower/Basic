@@ -124,24 +124,28 @@ rt_arr_elem:
         MOVE.L  -4(A2,D1.L),D1
         CMP.L   D1,D0
         BGE     .range
+        CMP.L   #1,D7                   ; index += (i - base) * multiplier (the first: 1)
+        BEQ     .one
         MOVE.L  D1,-(SP)
-        MOVE.L  D7,D1                   ; index += (i - base) * multiplier
-        JSR     rt_imul
-        ADD.L   D0,D4
-        MOVE.L  (SP)+,D1                ; multiplier *= extent
-        MOVE.L  D7,D0
-        JSR     rt_imul
-        MOVE.L  D0,D7
+        MOVE.L  D7,D1
+        JSR     rt_imul                 ; (fits: below the number of elements)
+        MOVE.L  (SP)+,D1
+.one:   ADD.L   D0,D4
         ADDQ.L  #4,D5
         CMP.L   D6,D5
-        BCS     .ix
-        LEA     12(SP),SP
-        MOVE.L  D4,D0                   ; address = block + 4 * dims + index * size
-        MOVEQ   #0,D1
-        MOVE.W  6(A3),D1
+        BCC     .last
+        MOVE.L  D7,D0                   ; multiplier *= extent (not after the last index)
         JSR     rt_imul
-        LEA     0(A2,D6.L),A0
-        ADD.L   D0,A0
+        MOVE.L  D0,D7
+        BRA     .ix
+.last:  LEA     12(SP),SP
+        MOVE.W  6(A3),D1                ; address = block + 4 * dims + index * size (1, 2, 4, 8)
+.sz:    LSR.W   #1,D1
+        BCS     .szd
+        ADD.L   D4,D4
+        BRA     .sz
+.szd:   LEA     0(A2,D6.L),A0
+        ADD.L   D4,A0
         MOVEM.L (SP)+,D4-D7/A2-A3
         RTS
 .range: LEA     12(SP),SP

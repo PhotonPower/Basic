@@ -21,12 +21,14 @@ struct M68kRun {
     std::uint64_t bytes = 0;  ///< runM68kSource: size of the program (test: the image; amiga: the hunk file)
     std::vector<std::string> unemulatedCalls;  ///< amiga: library calls that only were logged
     std::string gfx;         ///< test: digest of the graphics drawn through the ports (D25), "" if none
+    std::string profile;     ///< test with M68kOptions::profile: instructions and data accesses per routine
 };
 
 struct M68kOptions {
     std::uint32_t origin = 0x1000;   ///< test: load address and entry point; amiga: base of the first hunk
     std::uint64_t maxInstructions = 10'000'000;
     std::string input;                ///< test: keyboard input, read byte by byte from $00FF0004 (-1 at the end)
+    bool profile = false;             ///< runM68kSource, test: count per routine (label; module__x counts as module)
 };
 
 /// Assembles `source` with the sister project's assembler (test: plain program with ORG semantics;

@@ -58,6 +58,14 @@ Auf einem CPC (rund 4 MHz) wären das für `bench_float` etwa 10 Minuten, für `
    1 KB an einer Seitengrenze im BSS, beim ersten Aufruf gefüllt): `fp_mul` −24 %, `bench_float`
    −13 %; die Programme brauchen gut 1,2 KB mehr Speicher (nicht in der Datei).
 
+7. 68000: `fp_round_pack` normalisiert um 16 und 8 Bit auf einmal, bitweise nur noch höchstens
+   7 Schritte (kleine ganze Zahlen als Fließkomma brauchten bis zu 63): `bench_calls` −23 %
+   Befehle. `rt_arr_elem` ohne Multiplikation mit 1 und nach der letzten Dimension, die
+   Elementgröße als Verschiebung: `bench_sort` −34 % Befehle. `fp_mul` rechnet schon mit `MULU`
+   (16 Teilprodukte 16 × 16 Bit); ohne Taktzählung im Emulator lässt sich dort nichts belegen.
+
 Werkzeug dafür: `BASIC_Z80_PROFILE=1 BASIC_Z80_PROGRAM=<datei> build/tests/test_z80_programs` zeigt
 die T-States je Routine (Marke im Quelltext; `modul__x` zählt zum Modul, Programmcode als
-`program`); `BASIC_Z80_PROFILE=2` zeigt jede Marke einzeln.
+`program`); `BASIC_Z80_PROFILE=2` zeigt jede Marke einzeln. Für den 68000 zeigt
+`BASIC_M68K_PROFILE=1` (bzw. `=2`) mit `build/tests/test_m68k_programs` die Befehle und Datenzugriffe je
+Routine auf m68k-test (der Emulator zählt keine Takte).

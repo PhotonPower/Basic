@@ -1,6 +1,7 @@
 // Differential test of the MC68000 target: every tests/programs/<name>.lst that the backend
 // supports is compiled for m68k-test, run in the emulator of PhotonPower/MC68000 and its output
-// compared with <name>.out (made on the original). BASIC_M68K_PROGRAM=<file> runs one program.
+// compared with <name>.out (made on the original). BASIC_M68K_PROGRAM=<file> runs one program;
+// BASIC_M68K_PROFILE=1 (2: every label) prints instructions and data accesses per routine (m68k-test).
 
 #include <cstdlib>
 #include <filesystem>
@@ -105,6 +106,7 @@ int main() {
                 opt.input = read(inputPath);
             }
             if (amiga) opt.origin = 0x20000;  // hunk standard (docs/amiga500.md)
+            opt.profile = !amiga && std::getenv("BASIC_M68K_PROFILE") != nullptr;  // per routine (m68k-test)
             const harness::M68kRun run = harness::runM68kSource(source, amiga ? harness::M68kPlatform::Amiga : harness::M68kPlatform::Test, opt);
             ++ran;
             std::string unemulated;
@@ -120,7 +122,7 @@ int main() {
                 std::cerr << label << ": " << run.error << (unemulated.empty() ? "" : " unemulated calls:" + unemulated)
                           << "\n--- expected\n" << expected << "--- actual\n" << run.console << "\n";
             } else {
-                std::cout << label << ": ok (" << run.instructions << " instructions, " << run.bytes << " bytes)\n";
+                std::cout << label << ": ok (" << run.instructions << " instructions, " << run.bytes << " bytes)\n" << run.profile;
             }
         }
     }

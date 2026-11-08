@@ -18,7 +18,9 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
   variabler ganzzahliger Schrittweite oder einer Kette als Ende zählt in 32 Bit (Sieb: Z80 −70 %
   Takte, 68000 −68 % Befehle); Z80: Feldzugriff ohne unnötige Multiplikationen, Vergleich mit Sprung
   über Flags (`zi_cmpf`), `BASIC_Z80_PROFILE` (Takte je Routine); `fp_mul` byteweise und Schieben
-  ohne Schleifen, Tabelle der Viertelquadrate (Mandelbrot: Z80 −65 % Takte, bitgleich).
+  ohne Schleifen, Tabelle der Viertelquadrate (Mandelbrot: Z80 −65 % Takte, bitgleich); 68000:
+  `fp_round_pack` normalisiert in großen Schritten, `rt_arr_elem` ohne unnötige Multiplikationen,
+  `BASIC_M68K_PROFILE` (Befehle und Zugriffe je Routine).
 - MC68000, zweiter Teil: LIR mit Lowering (`--emit-lir`), 68000-Backend
   (`basicc --target m68k-test`), Runtime-Module für `PRINT`, Ganzzahlhilfen, `FOR`, Potenz; die
   Module sind in `basicc` eingebettet. Das erste Golden-Programm (`numbers`) läuft übersetzt im

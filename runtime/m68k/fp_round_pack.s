@@ -29,12 +29,37 @@ fp_round_pack:
         MOVE.L  D1,D0
         MOVEQ   #0,D1
         SUB.L   #32,D2
-.norm:  TST.L   D0
+.norm:  TST.L   D0                      ; already normalised, or one bit short (the usual cases
+        BMI     .normed                 ; after mul, div, add)
+        ADD.L   D1,D1
+        ADDX.L  D0,D0
+        SUBQ.L  #1,D2
+        TST.L   D0
+        BMI     .normed
+        MOVE.L  D0,D4                   ; the high word of D0 empty: 16 bits at once
+        SWAP    D4
+        TST.W   D4
+        BNE     .n8
+        SWAP    D0
+        SWAP    D1
+        MOVE.W  D1,D0
+        CLR.W   D1
+        SUB.L   #16,D2
+.n8:    MOVE.L  D0,D4                   ; the high byte empty: 8 bits at once
+        ROL.L   #8,D4
+        TST.B   D4
+        BNE     .nb
+        LSL.L   #8,D0
+        ROL.L   #8,D1
+        MOVE.B  D1,D0
+        CLR.B   D1
+        SUBQ.L  #8,D2
+.nb:    TST.L   D0                      ; then bit by bit (at most 7)
         BMI     .normed
         ADD.L   D1,D1
         ADDX.L  D0,D0
         SUBQ.L  #1,D2
-        BRA     .norm
+        BRA     .nb
 .normed:
         MOVE.L  D1,D4                   ; D4 = the 11 bits below the 53 kept ones
         AND.L   #$7FF,D4
