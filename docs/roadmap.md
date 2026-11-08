@@ -120,7 +120,8 @@ Schnellerer und kleinerer Code auf beiden CPUs bei gleichen Ergebnissen; gemesse
 
 Stand: ✔ Messprogramme, Messwerkzeug und Ausgangsmessung, ✔ `FOR` mit variabler ganzzahliger
 Schrittweite und mit einer Kette als Ende in 32 Bit, ✔ Z80: Feldzugriff ohne unnötige
-Multiplikationen, Vergleich mit Sprung über Flags, Profil je Routine. Weiter: Konstanten falten
+Multiplikationen, Vergleich mit Sprung über Flags, Profil je Routine, ✔ Z80: `fp_mul` byteweise,
+Schieben ohne Schleifen. Weiter: Konstanten falten
 (Umwandlungen), Ganzzahlarithmetik auf dem Z80 inline statt über `zi_*`, Kopien über Register statt `LDIR`, Feldzugriffe mit
 konstanten Grenzen, Fließkomma (Werte nicht über den Speicher), Peephole.
 

@@ -20,11 +20,14 @@ fp_w_unpack:
         LD      H,A
         LD      A,(fp_w__src+6)
         LD      L,A
-        LD      B,4
-fp_w__u1:
+        SRL     H                       ; >> 4 (unrolled)
+        RR      L
         SRL     H
         RR      L
-        DJNZ    fp_w__u1
+        SRL     H
+        RR      L
+        SRL     H
+        RR      L
         LD      A,H
         OR      L
         JR      Z,fp_w__zero
@@ -68,26 +71,46 @@ fp_w__z1:
         LD      (HL),1
         RET
 
-; HL = 8 bytes: shift left by 1 (carry out in CF)
+; HL = 8 bytes: shift left by 1 (carry out in CF; unrolled)
 fp_w_shl1:
         OR      A
-        LD      B,8
-fp_w__l1:
         RL      (HL)
         INC     HL
-        DJNZ    fp_w__l1
+        RL      (HL)
+        INC     HL
+        RL      (HL)
+        INC     HL
+        RL      (HL)
+        INC     HL
+        RL      (HL)
+        INC     HL
+        RL      (HL)
+        INC     HL
+        RL      (HL)
+        INC     HL
+        RL      (HL)
         RET
 
-; HL = 8 bytes: shift right by 1 (bit 0 out in CF)
+; HL = 8 bytes: shift right by 1 (bit 0 out in CF; unrolled)
 fp_w_shr1:
         LD      BC,7
         ADD     HL,BC
         OR      A
-        LD      B,8
-fp_w__r1:
         RR      (HL)
         DEC     HL
-        DJNZ    fp_w__r1
+        RR      (HL)
+        DEC     HL
+        RR      (HL)
+        DEC     HL
+        RR      (HL)
+        DEC     HL
+        RR      (HL)
+        DEC     HL
+        RR      (HL)
+        DEC     HL
+        RR      (HL)
+        DEC     HL
+        RR      (HL)
         RET
 
 ; HL = destination, DE = operand: (HL) += (DE), carry out in CF

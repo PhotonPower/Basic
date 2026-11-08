@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstdlib>
 #include <cstdio>
 #include <map>
 
@@ -356,7 +357,8 @@ Z80Run runZ80Source(const std::string& source, Z80Platform platform, const Z80Op
         for (const auto& [name, sym] : assembled.symbols) {
             std::string n = name;
             for (char& ch : n) ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
-            if (const auto u = n.find("__"); u != std::string::npos) n.resize(u);
+            const char* fine = std::getenv("BASIC_Z80_PROFILE");  // "2": every label on its own
+            if (const auto u = n.find("__"); u != std::string::npos && !(fine != nullptr && std::string(fine) == "2")) n.resize(u);
             if (n.rfind("rt_", 0) != 0 && n.rfind("fp_", 0) != 0 && n.rfind("zi", 0) != 0 && n.rfind("ix_", 0) != 0 &&
                 n.rfind("plat_", 0) != 0)
                 n = "program";

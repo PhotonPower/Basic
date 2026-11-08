@@ -50,6 +50,13 @@ Auf einem CPC (rund 4 MHz) wären das für `bench_float` etwa 10 Minuten, für `
    `zi_cmpf` die Flags (Z gleich, CF kleiner) und ein bedingter Sprung folgt; `gt`/`le` tauschen
    die Operanden. Kein −1/0 im Speicher, keine Fallunterscheidung über `zi_cmp_code`.
 
+5. Z80, `fp_mul`: byteweises Schulverfahren (Zeile a[i] · b mit Übertrag in einem Byte,
+   ausgeschriebene 8×8-Multiplikation, Null-Bytes übersprungen) statt 53 Schritten über das ganze
+   Produkt; nach dem Produkt nur die 9 gebrauchten Bytes verschieben. `fp_w_shl1`/`fp_w_shr1` und
+   das Entpacken des Exponenten ohne Schleife. Bitgleich (Konformanztest): `bench_float` −59 %.
+   Eine Tabelle der Viertelquadrate (a·b = ⌊(a+b)²/4⌋ − ⌊(a−b)²/4⌋) würde `fp_mul` noch etwa um
+   ein Drittel beschleunigen, kostet aber 1,3 KB Speicher; offen.
+
 Werkzeug dafür: `BASIC_Z80_PROFILE=1 BASIC_Z80_PROGRAM=<datei> build/tests/test_z80_programs` zeigt
 die T-States je Routine (Marke im Quelltext; `modul__x` zählt zum Modul, Programmcode als
-`program`).
+`program`); `BASIC_Z80_PROFILE=2` zeigt jede Marke einzeln.
