@@ -177,11 +177,11 @@ Result link(const Library& lib, const Program& program, const std::vector<std::s
     if (layout == Layout::Sections) s += "        SECTION code,CODE\n";
     s += code;
     if (!trim(data).empty()) {
-        s += layout == Layout::Sections ? "        SECTION data,DATA\n" : "        EVEN\n";
+        s += layout == Layout::Sections ? "        SECTION data,DATA\n" : layout == Layout::PlainZ80 ? "" : "        EVEN\n";
         s += data;
     }
     if (!trim(bss).empty()) {
-        s += layout == Layout::Sections ? "        SECTION bss,BSS\n" : "        EVEN\n";
+        s += layout == Layout::Sections ? "        SECTION bss,BSS\n" : layout == Layout::PlainZ80 ? "" : "        EVEN\n";
         s += bss;
     }
     return r;

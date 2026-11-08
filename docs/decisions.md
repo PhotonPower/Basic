@@ -557,3 +557,21 @@ Variablen bzw. Felder (`STICK(1)` gab Fehler 15). Jetzt:
 
 Unter Kickstart 1.2 ohne Bewegung geprüft (Zeiger oben links: `MOUSEY` = -11 in Fenster 0, Tasten und
 Joystick 0). Bewegung und Tasten lassen sich im FS-UAE nicht automatisch erzeugen.
+
+<a id="d30"></a>
+## D30 – Z80: Werte im Speicher, Laufzeit über Zeiger
+
+Der Z80 hat keine 32- oder 64-Bit-Register. Wie in der Laufzeitdokumentation vorgesehen, liegen alle
+Werte im Speicher (Little-Endian; Integer 4 Bytes, Fließkomma 8 Bytes im IEEE-Format binary64 wie auf
+den anderen Zielen), und die Laufzeit bekommt Zeiger: HL auf das Ergebnis, DE und BC auf die
+Argumente. So kann das Backend direkt auf die Stapelplätze der virtuellen Register zeigen, ohne zu
+kopieren.
+
+- Die Laufzeit benutzt weder IX (Rahmenzeiger) noch IY noch die Schattenregister (auf dem CPC gehören
+  sie der Firmware).
+- Der Assembler kennt keine lokalen Labels: Jedes Label eines Moduls beginnt mit `<modul>__`.
+- Der Fließkomma-Kern folgt der C-Referenz Schritt für Schritt (`fp_w`: Arbeitsbereiche und
+  64-Bit-Grundoperationen; Multiplikation durch Schieben und Addieren, Division wiederherstellend).
+  `tests/test_conformance_z80.cpp` vergleicht jede Routine mit `runtime/ref` (Randfälle und
+  Zufallsoperanden, Ergebnis-Bits, Fehlernummer, IX/IY).
+- Der Linker hat dafür die Anordnung `PlainZ80` (wie `Plain`, ohne `EVEN`).

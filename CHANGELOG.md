@@ -40,6 +40,9 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 - `RESUME` setzt `ERR` auf 0 (probe12 T1); damit ist `errors2` am Original gleich.
 - `gfa_run.py`: Startmenü der Diskette nach einem Kaltstart (`boot` in `keys.json`), längere
   Wartezeiten für den Merge-Dialog und das Einlesen.
+- Z80 (Meilenstein 0.5, D30): Fließkomma-Kern in `runtime/z80` (Addition, Subtraktion,
+  Multiplikation, Division, Vergleich, Umwandlungen), bitgenau zur C-Referenz; Aufrufhilfe
+  `Z80Routines`, Konformanztest `conformance_z80`; Linker-Anordnung `PlainZ80`.
 - Maus und Joystick (D29): `MOUSEX`, `MOUSEY`, `MOUSEK`, `MOUSE`, `STICK()`, `STRIG()` statt Variablen
   und Feldern; auf dem Amiga aus der Window-Struktur und der Hardware. Testprogramm `mouse`.
 - AmigaOS-Bibliotheksfunktionen beim Namen (D28): Tabelle mit LVO und Registern, `rt_lib` und

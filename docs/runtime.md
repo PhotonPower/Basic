@@ -151,10 +151,11 @@ alle Variablen zurück, die nach Beginn der Zielanweisung gesichert wurden, und 
 Satzes. `RESUME Marke` sucht in der Kette der Aufrufer den Rahmen der Routine mit der Marke.
 Ohne Fehlerroutine endet das Programm über `plat_error` der Plattform.
 
-**Z80:** 16-Bit-Werte in HL (und DE als zweites Argument), 8-Bit-Werte in A, 32-Bit-Werte als
-Zeiger auf vier Bytes. Fließkomma-Routinen arbeiten auf Speicher: HL = Ziel, DE = erster Operand,
-BC = zweiter Operand (Zeiger auf je 8 Bytes, Ziel darf gleich einem Operanden sein). IX ist der
-Rahmenzeiger des erzeugten Codes und bleibt erhalten. Auf dem CPC sind die Schattenregister (`EXX`,
+**Z80** ([D30](decisions.md#d30)): Alle Werte liegen im Speicher, das niederwertige Byte zuerst
+(Integer 4 Bytes, Fließkomma 8 Bytes binary64). Jede Laufzeitroutine bekommt Zeiger: HL = Ergebnis,
+DE = erstes, BC = zweites Argument; weitere Argumente über eine Zeigertabelle. Das Ziel darf gleich
+einem Operanden sein. Fehler: `rt_error` mit der Nummer in A. IX ist der Rahmenzeiger des erzeugten
+Codes und bleibt erhalten, IY ebenso (die Laufzeit benutzt es nicht). Auf dem CPC sind die Schattenregister (`EXX`,
 `EX AF,AF'`) für die Firmware reserviert, weil deren Interrupt-Routine sie benutzt; die Runtime
 verwendet sie dort nicht (auf `z80-test` sind sie frei).
 

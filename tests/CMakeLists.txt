@@ -53,7 +53,8 @@ if(BASIC_WITH_EMULATORS)
   add_library(basic_harness STATIC
     harness/z80_runner.cpp
     harness/m68k_runner.cpp
-    harness/m68k_routines.cpp)
+    harness/m68k_routines.cpp
+    harness/z80_routines.cpp)
   target_include_directories(basic_harness PUBLIC harness)
   target_link_libraries(basic_harness PUBLIC z80core m68kcore basic_rt_pc)
   basic_set_warnings(basic_harness)
@@ -66,6 +67,12 @@ if(BASIC_WITH_EMULATORS)
   endforeach()
 
   # MC68000 runtime against runtime/ref (docs/testing.md#konformanz-der-runtime)
+  add_executable(test_conformance_z80 test_conformance_z80.cpp)
+  target_link_libraries(test_conformance_z80 PRIVATE basic_harness basiccore basic_rt_ref)
+  target_compile_definitions(test_conformance_z80 PRIVATE BASIC_SOURCE_DIR="${PROJECT_SOURCE_DIR}")
+  basic_set_warnings(test_conformance_z80)
+  add_test(NAME conformance_z80 COMMAND test_conformance_z80)
+
   add_executable(test_conformance_m68k test_conformance_m68k.cpp)
   target_link_libraries(test_conformance_m68k PRIVATE basic_harness basiccore basic_rt_ref)
   target_compile_definitions(test_conformance_m68k PRIVATE BASIC_SOURCE_DIR="${PROJECT_SOURCE_DIR}")
