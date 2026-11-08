@@ -31,7 +31,7 @@ const std::set<std::string, std::less<>> kGfxCommands = {
 
 const std::set<std::string, std::less<>> kCommands = {
     "INC",    "DEC",       "ADD",    "SUB",    "MUL",    "DIV",    "SWAP",   "CLR",     "ERASE",    "ABSOLUTE", "VSYNC",
-    "ALERT",  "FILESELECT", "MENU",  "SLEEP",  "RESERVE", "MKDIR",  "RMDIR",  "CHDIR",   "WAVE",
+    "ALERT",  "FILESELECT", "MENU",  "SLEEP",  "RESERVE", "MKDIR",  "RMDIR",  "CHDIR",   "WAVE", "MOUSE",
     "DEFNUM", "MODE",      "RANDOMIZE", "ERROR", "QUIT", "SYSTEM", "STOP",   "END",     "EDIT",
     "CLEAR",  "LSET",      "RSET",   "DEFINT", "DEFFLT", "DEFSTR", "DEFBIT", "DEFBYT",  "DEFWRD",
     "DEFSNG", "DEFDBL",    "PAUSE",  "DELAY",  "CLS",    "NEW",    "ARRAYFILL", "INSERT", "DELETE",

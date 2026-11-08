@@ -81,6 +81,7 @@ am Original; Polygone in allen Ausführungen, `RESERVE`/`FRE`/`CLEAR`/`SOUND` au
 probe27).
 ✔ Bibliotheksfunktionen beim Namen, `WINDOW()`, `SCREEN()`, `DIR$()` (D28); die drei
 Anwenderprogramme starten auf dem Amiga.
+✔ Maus und Joystick (D29).
 Weiter: Menüauswahl mit der Maus prüfen (von Hand); Felder mit mehr als 3 Dimensionen auf dem 68000; `ABSOLUTE` mit dem vollen Speicherabbild nach D6; weitere Optimierungen (Variablen in Registern innerhalb von Schleifen ohne Aufrufe, Fließkomma inline).
 
 - Quelltext-Linker (`src/link`) mit Map-Datei und Label-Prüfung.

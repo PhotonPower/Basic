@@ -438,6 +438,8 @@ private:
             });
         }
         if (n == "POS") return "brt::rt.out.pos()";
+        if (n == "MOUSEX" || n == "MOUSEY" || n == "MOUSEK") return "std::int32_t(0)";  // D29
+        if (n == "STICK" || n == "STRIG") return "((void)(" + a(0) + "), std::int32_t(0))";
         if (n == "LIBCALL" || n == "WINDOW" || n == "SCREEN") {  // no AmigaOS here: 0 (D28)
             std::string r = "(";
             for (std::size_t k = 0; k < e.args.size(); ++k) r += "(void)(" + a(k) + "), ";
@@ -1156,6 +1158,10 @@ private:
         }
         if (n == "SOUND" || n == "WAVE") {
             for (std::size_t k = 0; k < s.args.size(); ++k) line(in, "(void)(" + arg(k) + ");");
+            return;
+        }
+        if (n == "MOUSE") {
+            for (const auto& t : s.targets) line(in, lvalue(*t) + " = " + conv("std::int32_t(0)", Type::Int, t->type) + ";");
             return;
         }
         if (n == "MKDIR" || n == "RMDIR") {

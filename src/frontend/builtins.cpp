@@ -37,6 +37,8 @@ constexpr std::array kBuiltins = {
     Builtin{"FALSE", 'i', 0, 0, ""},      Builtin{"POS", 'i', 1, 1, "n"},
     Builtin{"CRSCOL", 'i', 0, 0, ""},     Builtin{"CRSLIN", 'i', 0, 0, ""},
     Builtin{"TIMER", 'i', 0, 0, ""},      Builtin{"RINSTR", 'i', 2, 3, "xxx"},
+    Builtin{"MOUSEX", 'i', 0, 0, ""},     Builtin{"MOUSEY", 'i', 0, 0, ""},     Builtin{"MOUSEK", 'i', 0, 0, ""},
+    Builtin{"STICK", 'i', 1, 1, "n"},     Builtin{"STRIG", 'i', 1, 1, "n"},
     Builtin{"LPOS", 'i', 1, 1, "n"},      Builtin{"MENU", 'i', 1, 1, "n"},  Builtin{"WINDOW", 'i', 1, 1, "n"}, Builtin{"DIR$", 's', 1, 1, "n"}, Builtin{"SCREEN", 'i', 1, 1, "n"},      Builtin{"POINT", 'i', 2, 2, "nn"},      Builtin{"FRE", 'i', 0, 1, "n"},      Builtin{"PI", 'f', 0, 0, ""},
     Builtin{"ERR", 'i', 0, 0, ""},        Builtin{"TIMER", 'i', 0, 0, ""},
     Builtin{"EXP", 'f', 1, 1, "n"},       Builtin{"LOG", 'f', 1, 1, "n"},

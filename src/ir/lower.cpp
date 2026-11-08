@@ -982,6 +982,13 @@ private:
             clearAll();
             return;
         }
+        if (n == "MOUSE") {
+            for (std::size_t k = 0; k < 3; ++k) {
+                const hir::Expr& t = *s.targets[k];
+                storeTarget(t, convF(rtcall("rt_mouse", {constI(static_cast<std::int32_t>(k))}, VT::I32), var(t.var).type));
+            }
+            return;
+        }
         if (n == "SOUND" || n == "WAVE") {  // no sound yet; SOUND does not wait (probe25 T7)
             for (const auto& a : s.args) expr(*a);
             return;
@@ -1659,6 +1666,9 @@ private:
             return rtcall("rt_lib_call", {constI(f.lib), constI(f.lvo)}, VT::I32);
         }
         if (n == "WINDOW" || n == "SCREEN") return rtcall(n == "WINDOW" ? "rt_window" : "rt_screen", {toI(arg(e, 0))}, VT::I32);
+        if (n == "MOUSEX" || n == "MOUSEY" || n == "MOUSEK")  // D29
+            return rtcall("rt_mouse", {constI(n == "MOUSEX" ? 0 : n == "MOUSEY" ? 1 : 2)}, VT::I32);
+        if (n == "STICK" || n == "STRIG") return rtcall(n == "STICK" ? "rt_stick" : "rt_strig", {toI(arg(e, 0))}, VT::I32);
         if (n == "DIR$") return rtcall("rt_dirstr", {toI(arg(e, 0))}, VT::Str);
         if (n == "FRE") {
             if (!e.args.empty()) expr(*e.args[0]);

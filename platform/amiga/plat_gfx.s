@@ -1,5 +1,5 @@
 ;! module    plat_gfx
-;! provides  plat_gfx plat_gfx_point plat_gfx_window plat_gfx_putc plat_gfx_win plat_gfx_scr
+;! provides  plat_gfx plat_gfx_point plat_gfx_window plat_gfx_putc plat_gfx_win plat_gfx_scr plat_gfx_current
 ;! requires  plat_exit_gfx plat_putc_gfx
 ;! group     graphics
 ;! clobbers  D0-D3/A0-A1
@@ -291,6 +291,17 @@ plat_gfx_putc:
         MOVEM.L (SP)+,D4-D5
 .out:   MOVEM.L (SP)+,D0-D4/A0-A1/A6
         RTS
+
+; -> D0 = the current window, 0 if the graphics are not open (nothing is opened here)
+plat_gfx_current:
+        MOVEQ   #0,D0
+        TST.L   plat_gfx__gb
+        BEQ     .out
+        MOVE.L  plat_gfx__cur,D0
+        LSL.L   #2,D0
+        LEA     plat_gfx__win,A0
+        MOVE.L  0(A0,D0.L),D0
+.out:   RTS
 
 ; D0 = n -> D0 = the Window (plat_gfx_win) / Screen (plat_gfx_scr) structure n, 0 if not open
 ; (WINDOW(n), SCREEN(n); screen 0 and window 0 are opened first)

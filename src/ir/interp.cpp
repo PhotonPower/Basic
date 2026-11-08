@@ -549,6 +549,11 @@ private:
             return I(brt::rinstr(s(1), s(2), f(0)));
         }
         if (n == "POS") return I(out_.pos());
+        if (n == "MOUSEX" || n == "MOUSEY" || n == "MOUSEK") return I(0);  // no mouse here (D29)
+        if (n == "STICK" || n == "STRIG") {
+            eval(*e.args[0]);
+            return I(0);
+        }
         if (n == "LIBCALL" || n == "WINDOW" || n == "SCREEN") {  // no AmigaOS here: 0 (D28)
             for (const auto& x : e.args) eval(*x);
             return I(0);
@@ -1390,6 +1395,10 @@ private:
         if (n == "RESERVE") {  // the size of the memory; the variables are cleared (probe25 T2)
             if (!s.args.empty()) reserve_ = toI32(fp_trunc(eval(*s.args[0]).f));
             for (Slot& sl : slots_) sl = Slot();
+            return;
+        }
+        if (n == "MOUSE") {
+            for (const auto& t : s.targets) storeTarget(*t, convert(Value::ofInt(0), var(t->var).type));
             return;
         }
         if (n == "SOUND" || n == "WAVE") {

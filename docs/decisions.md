@@ -541,3 +541,19 @@ GFA-BASIC 3.5 ruft Funktionen von exec, dos, graphics und intuition direkt beim 
 
 Geprüft unter Kickstart 1.2: `AvailMem`, `OpenLibrary`, `WINDOW(0)`, `SCREEN(0)`; VEKTOR_WORLOCK zeigt
 mit `~ActivateWindow(WINDOW(1))` sein Hauptmenü.
+
+<a id="d29"></a>
+## D29 – Maus und Joystick
+
+`MOUSEX`, `MOUSEY`, `MOUSEK` (ohne Klammern), `MOUSE mx,my,mk`, `STICK(p)`, `STRIG(p)` waren bisher
+Variablen bzw. Felder (`STICK(1)` gab Fehler 15). Jetzt:
+
+- Amiga: die Position aus der Window-Struktur des aktuellen Fensters (GZZMouseX/Y bei
+  GIMMEZEROZERO, sonst MouseX/Y; außerhalb des Fensters negativ, wie die Referenz sagt; ohne Grafik
+  0). Tasten und Joystick von der Hardware: linke Maustaste und Feuerknöpfe CIA-A PRA Bit 6/7, rechte
+  und mittlere Taste POTGOR Bit 10/8, Richtungen aus JOY0DAT/JOY1DAT (1 oben, 2 unten, 4 links,
+  8 rechts). `STRIG` liefert -1 oder 0.
+- Interpreter, C++-Ziel und m68k-test haben weder Maus noch Joystick: alles 0.
+
+Unter Kickstart 1.2 ohne Bewegung geprüft (Zeiger oben links: `MOUSEY` = -11 in Fenster 0, Tasten und
+Joystick 0). Bewegung und Tasten lassen sich im FS-UAE nicht automatisch erzeugen.

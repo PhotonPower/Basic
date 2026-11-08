@@ -181,6 +181,8 @@ Diese Punkte sind aus dem Handbuch nicht sicher zu entnehmen und werden am Origi
 - **Text im Grafikfenster** (probe26, probe27, [D25](decisions.md#d25)): Auf dem Amiga erscheint
   `PRINT` auch im aktuellen Fenster, Stift 1 auf 0 (JAM2), Zellen 8 × 8, `LOCATE` 1,1 im Fenster mit
   Flags bei (4, 11). `CIRCLE` auf LowRes rund (ry = r), Interlace doppelt hoch.
+- **Maus und Joystick** ([D29](decisions.md#d29)): `MOUSEX`/`MOUSEY`/`MOUSEK`, `MOUSE`, `STICK()`,
+  `STRIG()`; auf dem Amiga von Intuition und der Hardware, sonst 0.
 - **Bibliotheksfunktionen** ([D28](decisions.md#d28)): exec, dos, graphics, intuition beim Namen,
   `WINDOW()`, `SCREEN()`, `DIR$()`; nur auf dem Amiga wirksam, sonst 0.
 - **Requester und Menüs** (Stufe 1, [D26](decisions.md#d26)): `ALERT`, `FILESELECT`, `FORM INPUT`,

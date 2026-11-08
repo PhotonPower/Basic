@@ -861,6 +861,9 @@ private:
             h->mode = s.variant;
             if (s.args.size() == static_cast<std::size_t>(s.variant)) h->args.push_back(makeExpr(Op::ConstStr, Type::Str));
             for (const auto& a : s.args) h->args.push_back(convertTo(expr(*a), Type::Str, a->pos));
+        } else if (n == "MOUSE") {  // MOUSE mx,my,mk: position in the current window and buttons
+            argc(3, 3);
+            for (const auto& a : s.args) h->targets.push_back(numericTarget(*a));
         } else if (n == "SOUND") {  // no sound on a console; SOUND does not wait (probe25 T7)
             argc(2, 4);
             for (const auto& a : s.args) h->args.push_back(convertTo(expr(*a), Type::Float, a->pos));

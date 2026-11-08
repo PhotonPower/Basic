@@ -40,6 +40,8 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 - `RESUME` setzt `ERR` auf 0 (probe12 T1); damit ist `errors2` am Original gleich.
 - `gfa_run.py`: Startmenü der Diskette nach einem Kaltstart (`boot` in `keys.json`), längere
   Wartezeiten für den Merge-Dialog und das Einlesen.
+- Maus und Joystick (D29): `MOUSEX`, `MOUSEY`, `MOUSEK`, `MOUSE`, `STICK()`, `STRIG()` statt Variablen
+  und Feldern; auf dem Amiga aus der Window-Struktur und der Hardware. Testprogramm `mouse`.
 - AmigaOS-Bibliotheksfunktionen beim Namen (D28): Tabelle mit LVO und Registern, `rt_lib` und
   `plat_libcall`; `WINDOW()`, `SCREEN()`, `DIR$()`. Testprogramm `libcall`. Fehler behoben:
   `WINDOW()`/`SCREEN()` lieferten beim ersten Aufruf 0 (Register von `plat_gfx__init` überschrieben).

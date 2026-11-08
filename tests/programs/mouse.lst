@@ -1,0 +1,12 @@
+' test: groups core print amiga-os
+' Maus und Joystick (D29): ohne Maus und Joystick (Interpreter, C++, m68k-test) alles 0.
+PRINT MOUSEX;" ";MOUSEY;" ";MOUSEK
+MOUSE mx,my%,mk&
+PRINT mx;" ";my%;" ";mk&
+FOR p%=0 TO 1
+  PRINT STICK(p%);" ";STRIG(p%)
+NEXT p%
+IF (STICK(1) AND 8)=8 THEN
+  PRINT "rechts"
+ENDIF
+PRINT "ende"
