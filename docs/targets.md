@@ -95,6 +95,8 @@ FPGA-Implementierungen**:
 | Stapel | `&FFF0` abwärts | `$80000` abwärts |
 | `plat_putc` | `OUT (&01),A` | `MOVE.B D0,$00FF0000` |
 | `plat_exit` | `DI` + `HALT` | `STOP #$2700` |
+| Tastatur | Ports `&02`/`&03` (Eingabe des Testtreibers) | `plat_getc` (Eingabe des Testtreibers) |
+| Dateien | RAM-Disk im Testtreiber, Anfrageblock über Port `&10` | RAM-Disk in `plat_file.s` (16 Dateien à 16 KiB) |
 
 Ein FPGA-Board bekommt ein eigenes Verzeichnis unter `platform/` mit eigenem Startcode, eigener
 Speicheraufteilung und eigenen Primitiven (z. B. `plat_putc` auf einen UART). Mathematik, Strings und

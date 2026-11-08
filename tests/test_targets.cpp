@@ -30,7 +30,8 @@ int main() {
     CHECK(!contains(findTarget("cpc")->supported, Group::Gui));
     CHECK(!contains(findTarget("cpc")->supported, Group::FileRandom));  // AMSDOS: one file in, one out
     CHECK(contains(findTarget("cpc")->supported, Group::Graphics));
-    CHECK(!contains(findTarget("z80-test")->supported, Group::Input));
+    CHECK(contains(findTarget("z80-test")->supported, Group::FileSeq));  // the RAM disk of the test driver
+    CHECK(!contains(findTarget("z80-test")->supported, Group::Graphics));
 
     // group names are unique and stable
     std::set<std::string> groups;

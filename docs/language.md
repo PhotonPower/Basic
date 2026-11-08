@@ -45,8 +45,8 @@ Geplanter Umfang (✓ geplant, – nicht vorgesehen, (✓) mit Einschränkung):
 | float | ✓ | ✓ | ✓ | ✓ | ✓ |
 | string | ✓ | ✓ | ✓ | ✓ | ✓ |
 | print | ✓ | ✓ | ✓ | ✓ | ✓ |
-| input | ✓ | ✓ | ✓ | – | – |
-| file-seq | ✓ | ✓ | (✓) eine Ein- und eine Ausgabedatei | – | – |
+| input | ✓ | ✓ | ✓ | (✓) Eingabe des Testtreibers | (✓) Eingabe des Testtreibers |
+| file-seq | ✓ | ✓ | (✓) eine Ein- und eine Ausgabedatei | (✓) RAM-Disk des Testtreibers | (✓) RAM-Disk |
 | file-random | ✓ | ✓ | – | – | – |
 | memory | (✓) emulierter Speicher | ✓ | (✓) Little-Endian, 16-Bit-Adressen | ✓ | ✓ |
 | graphics | später | ✓ | (✓) Firmware-Grafik | – | – |

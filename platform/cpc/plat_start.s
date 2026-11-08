@@ -1,9 +1,9 @@
 ;! module    plat_start
-;! provides  plat_start plat_exit
+;! provides  plat_start plat_exit plat_exit_hook
 ;! requires  main prg_bss prg_end
 ;! group     core
 ;! clobbers  -
-;! doc       cpc: entry (CALL or RUN): own stack below HIMEM, BSS cleared; plat_exit back to the caller.
+;! doc       cpc: entry (CALL or RUN): own stack below HIMEM, BSS cleared; plat_exit (after its hook) back to the caller.
 
 plat_start__top EQU &A600               ; the stack (1 KB) below HIMEM of a 6128 with AMSDOS (&A67B)
 
@@ -23,9 +23,21 @@ plat_start__clr:
 plat_start__go:
         CALL    main
 plat_exit:
+        LD      HL,(plat_exit_hook)     ; the hook first (rt_file closes the files)
+        LD      A,H
+        OR      L
+        JR      Z,plat_start__end
+        LD      DE,0
+        LD      (plat_exit_hook),DE
+        LD      DE,plat_exit
+        PUSH    DE
+        JP      (HL)
+plat_start__end:
         LD      SP,(plat_start__sp)
         RET
 
 ;! section data
+plat_exit_hook:
+        DW      0
 plat_start__sp:
         DW      0

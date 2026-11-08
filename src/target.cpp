@@ -27,9 +27,11 @@ constexpr std::array kTargets{
                "Amstrad CPC, Z80, firmware and AMSDOS", kComputing | Group::Input | Group::FileSeq |
                                                          Group::Graphics},
     TargetInfo{"z80-test", Cpu::Z80, "z80-test", "raw binary",
-               "bare Z80 (emulator, FPGA template): console on port &01, end with HALT", kComputing},
+               "bare Z80 (emulator, FPGA template): console on port &01, end with HALT",
+               kComputing | Group::Input | Group::FileSeq},
     TargetInfo{"m68k-test", Cpu::M68000, "m68k-test", "raw binary / S-Record",
-               "bare MC68000 (emulator, FPGA template): console at $00FF0000, end with STOP", kComputing},
+               "bare MC68000 (emulator, FPGA template): console at $00FF0000, end with STOP",
+               kComputing | Group::Input | Group::FileSeq},
 };
 
 }  // namespace

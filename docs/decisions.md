@@ -629,6 +629,13 @@ kopieren.
   Zeichen jedes String-Blocks steht ein Nullbyte, damit `CHAR{V:a$}` wie am Amiga endet. `TYPE`/
   `SWAP *p` über die Tabelle `prg_vtypes` (16-Bit-Adresse, Kennzahl), die das Backend bei Bedarf
   erzeugt. `V:` einer Variablen kopiert die Adresse als 32-Bit-Zahl.
+- Dateien (`rt_file`, Gruppe `file-seq`): Kanäle 0–99 mit 8-Byte-Sätzen, ein vorausgelesenes Byte
+  je Kanal; gepuffert wird in der Plattform (`plat_fgetc`/`plat_fputc` byteweise, das passt zu
+  `CAS IN CHAR`/`CAS OUT CHAR` von AMSDOS). Gelesener Text sammelt sich im freien Raum oberhalb der
+  Felder. Modi `U` und `R` (wahlfreier Zugriff) gibt es auf dem Z80 nicht (Fehler 21). z80-test hat
+  eine RAM-Disk im Testtreiber (Port `&10`) mit den Regeln der RAM-Disk von m68k-test, damit
+  `files`, `console`, `matfile`, `matinput` gegen die Ausgaben des Originals laufen. `MAT INPUT #`
+  liest jede Zahl erst in eine Zelle: nach einem Fehler bleibt das Element (probe18 T5).
 - Der Linker meldet in Z80-Modulen Labels, die sich nur in Groß-/Kleinschreibung unterscheiden.
 - Der erzeugte Code ist noch groß (jeder Zugriff berechnet die Adresse des Stapelplatzes): `arrays.lst`
   braucht 24,7 KB mit Laufzeit. Für den CPC (rund 40 KB) muss das Backend später sparsamer werden.

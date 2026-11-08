@@ -1,7 +1,9 @@
 #include "z80_runner.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <cstdio>
+#include <map>
 
 #include "z80/assembler.hpp"
 #include "z80/cpu.hpp"
@@ -23,6 +25,93 @@ constexpr std::uint16_t kKlTimePlease = 0xBD0D;
 constexpr std::uint16_t kTxtSetCursor = 0xBB75;
 constexpr std::uint16_t kTxtClearWindow = 0xBB6C;
 constexpr std::uint8_t kTestConsolePort = 0x01;
+constexpr std::uint8_t kTestFilePort = 0x10;
+
+// z80-test files: a RAM disk as on m68k-test (platform/m68k-test/plat_file.s). The program writes a
+// request block and OUT (C),L with B = H, C = &10 (block address HL): +0 command, +1 mode or
+// handle, +2 status (0 or the AmigaDOS error), +4 name address or byte, +6 name length; results
+// (handle, byte, size) as 32 bits at +4.
+class RamDisk {
+public:
+    void request(z80::Memory& m, z80::Word block) {
+        auto rd = [&](unsigned k) { return m.read(static_cast<z80::Word>(block + k)); };
+        auto rw = [&](unsigned k) { return static_cast<unsigned>(rd(k) | rd(k + 1) << 8); };
+        auto result = [&](unsigned status, std::uint32_t v) {
+            m.write(static_cast<z80::Word>(block + 2), static_cast<z80::Byte>(status));
+            for (unsigned k = 0; k < 4; ++k) m.write(static_cast<z80::Word>(block + 4 + k), static_cast<z80::Byte>(v >> (8 * k)));
+        };
+        std::string name;
+        for (unsigned k = 0; k < rw(6) && k < 32; ++k)
+            name += static_cast<char>(std::toupper(m.read(static_cast<z80::Word>(rw(4) + k))));
+        const unsigned arg = rd(1);
+        Handle* h = arg >= 1 && arg <= kHandles && handles_[arg - 1].used ? &handles_[arg - 1] : nullptr;
+        switch (rd(0)) {
+            case 1: {  // open: mode 0 read, 1 write, 2 append
+                auto it = files_.find(name);
+                if (arg == 0 && it == files_.end()) return result(205, 0);  // object not found
+                if (it != files_.end() && (it->second.writer || (arg != 0 && it->second.readers != 0))) return result(202, 0);
+                unsigned k = 0;
+                while (k < kHandles && handles_[k].used) ++k;
+                if (k == kHandles) return result(221, 0);
+                File& f = files_[name];
+                if (arg == 1) f.data.clear();
+                handles_[k] = {true, name, arg == 2 ? f.data.size() : 0, arg != 0};
+                (arg == 0 ? f.readers : f.writer) += 1;
+                return result(0, k + 1);
+            }
+            case 2: {  // getc: status 1 at the end
+                if (h == nullptr) return result(1, 0);
+                const File& f = files_[h->name];
+                if (h->pos >= f.data.size()) return result(1, 0);
+                return result(0, f.data[h->pos++]);
+            }
+            case 3: {  // putc
+                if (h == nullptr) return result(221, 0);
+                File& f = files_[h->name];
+                if (h->pos >= kCapacity) return result(221, 0);  // disk full
+                if (h->pos >= f.data.size()) f.data.resize(h->pos + 1);
+                f.data[h->pos++] = rd(4);
+                return result(0, 0);
+            }
+            case 4:  // close
+                if (h != nullptr) {
+                    File& f = files_[h->name];
+                    (h->write ? f.writer : f.readers) -= 1;
+                    h->used = false;
+                }
+                return result(0, 0);
+            case 5:  // size
+                return result(0, h == nullptr ? 0 : static_cast<std::uint32_t>(files_[h->name].data.size()));
+            case 6:  // exists: 1 or 0
+                return result(0, files_.count(name) != 0 ? 1 : 0);
+            case 7: {  // delete
+                auto it = files_.find(name);
+                if (it == files_.end()) return result(205, 0);
+                if (it->second.readers != 0 || it->second.writer != 0) return result(202, 0);
+                files_.erase(it);
+                return result(0, 0);
+            }
+            default:
+                return result(255, 0);
+        }
+    }
+
+private:
+    static constexpr unsigned kHandles = 16;
+    static constexpr std::size_t kCapacity = 16384;
+    struct File {
+        std::vector<std::uint8_t> data;
+        int readers = 0, writer = 0;
+    };
+    struct Handle {
+        bool used = false;
+        std::string name;
+        std::size_t pos = 0;
+        bool write = false;
+    };
+    std::map<std::string, File> files_;
+    Handle handles_[kHandles];
+};
 
 std::string hex4(unsigned v) {
     char buf[8];
@@ -57,8 +146,9 @@ Z80Run runZ80Image(const std::vector<std::uint8_t>& image, Z80Platform platform,
                                     return static_cast<z80::Byte>(options.input[inputPos++]);
                                 return 0xFF;
                             },
-                            [&result](z80::Word port, z80::Byte value) {
+                            [&result, &memory, disk = RamDisk{}](z80::Word port, z80::Byte value) mutable {
                                 if ((port & 0xFF) == kTestConsolePort) result.console += static_cast<char>(value);
+                                if ((port & 0xFF) == kTestFilePort) disk.request(memory, static_cast<z80::Word>((port & 0xFF00) | value));
                             });
     } else {
         // The program is CALLed like from BASIC: RET from the entry lands on the sentinel.

@@ -65,7 +65,9 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
   Testprogramm `screen` (wie `console`, ohne Dateien); Gruppe `memory` (`PEEK`/`POKE`, `BYTE{}` …
   `CHAR{}`, `MALLOC`/`MFREE`, `BMOVE`, `ARRPTR`, `TYPE`, `SWAP *p`) mit nativen Bytes, erwartete
   Ausgaben `memory.z80.out`/`ptr.z80.out`; behoben: `V:x` lieferte auf dem Z80 den Wert statt der
-  Adresse; Aufrufhilfe
+  Adresse; sequentielle Dateien (`OPEN` I/O/A, `PRINT #`, `WRITE #`, `INPUT #`, `LINE INPUT #`,
+  `INPUT$`, `EOF`, `LOF`, `EXIST`, `KILL`, `INP`/`OUT #`, `MAT PRINT #`, `MAT INPUT #`) mit einer
+  RAM-Disk im Testtreiber auf z80-test, `RINSTR`; Aufrufhilfe
   `Z80Routines`, Konformanztest `conformance_z80`; Linker-Anordnung `PlainZ80`.
 - Maus und Joystick (D29): `MOUSEX`, `MOUSEY`, `MOUSEK`, `MOUSE`, `STICK()`, `STRIG()` statt Variablen
   und Feldern; auf dem Amiga aus der Window-Struktur und der Hardware. Testprogramm `mouse`.
