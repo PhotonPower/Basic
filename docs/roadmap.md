@@ -122,7 +122,8 @@ Stand: ✔ Messprogramme, Messwerkzeug und Ausgangsmessung, ✔ `FOR` mit variab
 Schrittweite und mit einer Kette als Ende in 32 Bit, ✔ Z80: Feldzugriff ohne unnötige
 Multiplikationen, Vergleich mit Sprung über Flags, Profil je Routine, ✔ Z80: `fp_mul` byteweise
 mit Tabelle der Viertelquadrate, Schieben ohne Schleifen, ✔ 68000: Profil je Routine,
-Normalisieren in großen Schritten, Feldzugriff ohne unnötige Multiplikationen. Weiter: Konstanten falten
+Normalisieren in großen Schritten, Feldzugriff ohne unnötige Multiplikationen, ✔ `STR$`/`PRINT`
+von Ganzzahlen ohne Fließkomma-Formatierung. Weiter: Konstanten falten
 (Umwandlungen), Ganzzahlarithmetik auf dem Z80 inline statt über `zi_*`, Kopien über Register statt `LDIR`, Feldzugriffe mit
 konstanten Grenzen, Fließkomma (Werte nicht über den Speicher), Peephole.
 

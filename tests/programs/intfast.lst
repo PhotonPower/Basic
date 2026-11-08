@@ -212,6 +212,27 @@ FOR i%=2147483646 TO m%*2-m%+1 STEP 1
   EXIT IF n%=4
 NEXT i%
 PRINT "57 ";n%;" ";i%
+' STR$ und PRINT einer Ganzzahl: die Ziffern (DEFNUM 13), sonst ueber Float gerundet
+DIM zq%(7)
+zq%(0)=0
+zq%(1)=-1
+zq%(2)=7
+zq%(3)=2147483647
+zq%(4)=-2147483647-1
+zq%(5)=1000000000
+zq%(6)=-99999
+zq%(7)=123456
+FOR k%=0 TO 7
+  PRINT "58 ";STR$(zq%(k%));"|";zq%(k%);"|";LEN(STR$(zq%(k%)))
+NEXT k%
+DEFNUM 4
+FOR k%=3 TO 7
+  PRINT "59 ";STR$(zq%(k%));"|";zq%(k%)
+NEXT k%
+DEFNUM 13
+w&=-32768
+b|=255
+PRINT "60 ";STR$(w&);" ";STR$(b|);" ";STR$(k%*2)
 END
 PROCEDURE fehler
   PRINT "Fehler ";ERR

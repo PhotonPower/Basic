@@ -1784,7 +1784,11 @@ private:
         }
         if (n == "UPPER$") return rtcall("rt_str_upper", {arg(e, 0)}, VT::Str);
         if (n == "TRIM$") return rtcall("rt_str_trim", {arg(e, 0)}, VT::Str);
-        if (n == "STR$" && argc == 1) return rtcall("rt_str_str", {arg(e, 0)}, VT::Str);
+        if (n == "STR$" && argc == 1) {  // an integer: its digits (DEFNUM 13), without the float formatting
+            const hir::Expr& x = *e.args[0];
+            if (x.op == Op::Conv && hir::isInteger(x.args[0]->type)) return rtcall("rt_str_int", {expr(*x.args[0])}, VT::Str);
+            return rtcall("rt_str_str", {arg(e, 0)}, VT::Str);
+        }
         if (n == "STR$" && argc == 2) {
             Reg x = arg(e, 0);
             return rtcall("rt_str_n", {x, toI(arg(e, 1))}, VT::Str);

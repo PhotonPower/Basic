@@ -6,5 +6,5 @@
 
 plat_start:
         LEA     $80000,SP
-        BSR     main
-        BRA     plat_exit
+        JSR     main                    ; (JSR/JMP: the program may be larger than 32 KB)
+        JMP     plat_exit

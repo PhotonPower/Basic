@@ -2,7 +2,7 @@
 ;! provides  rt_print_str rt_print_int rt_print_nl rt_print_comma rt_print_apos rt_print_tab rt_print_spc rt_print_begin rt_print_out rt_print_col rt_pos
 ;! provides  rt_print_flt rt_set_defnum rt_defnum
 ;! provides  rt_print_at rt_print_locate rt_print_htab rt_print_vtab rt_print_cls rt_crscol rt_crslin
-;! requires  plat_putc plat_locate plat_cls rt_fmt_flt fp_from_i32
+;! requires  plat_putc plat_locate plat_cls rt_fmt_flt fp_from_i32 rt_fmt_int
 ;! group     print
 ;! clobbers  AF BC DE HL
 ;! doc       PRINT: strings, integers, separators; the column since the last line feed (POS), the zone of ',' and the cursor (as runtime/m68k).
@@ -101,76 +101,11 @@ rt_print_int:
         CALL    fp_from_i32
         LD      DE,rt_print__fv
         JP      rt_print_flt
-rt_print__idig:
-        EX      DE,HL
-        LD      DE,rt_print__num
-        LD      BC,4
-        LDIR
-        LD      A,(rt_print__num+3)
-        BIT     7,A
-        JR      Z,rt_print__pos
-        LD      HL,rt_print__num        ; 0 - n (-2^31 stays as unsigned 2^31)
-        LD      B,4
-        OR      A
-rt_print__ng:
-        LD      A,0
-        SBC     A,(HL)
-        LD      (HL),A
-        INC     HL
-        DJNZ    rt_print__ng
-        LD      A,'-'
-        CALL    rt_print__putc
-rt_print__pos:
-        LD      HL,rt_print__dig+10     ; digits from the right
-        LD      (rt_print__dp),HL
-rt_print__dv:
-        LD      HL,rt_print__num+3      ; num /= 10, the remainder in A
-        LD      B,4
-        XOR     A
-rt_print__d1:
-        LD      C,(HL)                  ; A:C / 10 -> quotient byte, remainder A
-        PUSH    BC
-        LD      B,8
-        LD      E,C
-rt_print__d2:                           ; 16/8 division by shifting: A = rest, E = bits
-        SLA     E
-        RLA
-        CP      10
-        JR      C,rt_print__d3
-        SUB     10
-        INC     E
-rt_print__d3:
-        DJNZ    rt_print__d2
-        LD      (HL),E
-        POP     BC
-        DEC     HL
-        DJNZ    rt_print__d1
-        ADD     A,'0'
-        LD      HL,(rt_print__dp)
-        DEC     HL
-        LD      (HL),A
-        LD      (rt_print__dp),HL
-        LD      HL,rt_print__num
-        LD      A,(HL)
-        INC     HL
-        OR      (HL)
-        INC     HL
-        OR      (HL)
-        INC     HL
-        OR      (HL)
-        JR      NZ,rt_print__dv
-        LD      HL,(rt_print__dp)       ; print them
-rt_print__pr:
-        LD      DE,rt_print__dig+10
-        OR      A
-        PUSH    HL
-        SBC     HL,DE
-        POP     HL
-        RET     Z
-        LD      A,(HL)
-        CALL    rt_print__putc
-        INC     HL
-        JR      rt_print__pr
+rt_print__idig:                         ; its digits
+        LD      HL,rt_print__fbuf
+        CALL    rt_fmt_int
+        LD      DE,rt_print__fbuf
+        JP      rt_print_str
 
 ; DE -> binary64: as PRINT writes it (rt_defnum digits)
 rt_print_flt:
@@ -394,9 +329,3 @@ rt_print__fv:
         DS      8
 rt_print__fbuf:
         DS      32
-rt_print__num:
-        DS      4
-rt_print__dp:
-        DS      2
-rt_print__dig:
-        DS      10

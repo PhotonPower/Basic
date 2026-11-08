@@ -1,7 +1,7 @@
 ;! module    rt_print
 ;! provides  rt_print_flt rt_print_int rt_print_str rt_print_nl rt_print_comma rt_print_apos rt_print_tab rt_print_spc rt_set_defnum rt_defnum rt_print_out rt_print_col
 ;! provides  rt_print_begin rt_print_at rt_print_locate rt_print_htab rt_print_vtab rt_print_cls rt_pos rt_crscol rt_crslin
-;! requires  plat_putc rt_fmt_flt fp_from_i32
+;! requires  plat_putc rt_fmt_flt fp_from_i32 rt_fmt_int
 ;! group     print
 ;! clobbers  D0-D3/A0-A1
 ;! doc       PRINT: numbers (DEFNUM), strings, separators; the column since the last line feed (POS).
@@ -16,7 +16,17 @@
 ; ANSI sequences (ESC [ line ; column H, ESC [ H ESC [ J). That routine must keep all registers.
 
 rt_print_int:
+        CMP.W   #13,rt_defnum           ; DEFNUM 13: the digits (below: through the float, rounded)
+        BGE     .dig
         JSR     fp_from_i32
+        BRA     rt_print_flt
+.dig:   LINK    A6,#-12
+        LEA     -12(A6),A0
+        JSR     rt_fmt_int
+        LEA     -12(A6),A0
+        BSR     rt_print_str
+        UNLK    A6
+        RTS
 rt_print_flt:
         LINK    A6,#-32
         LEA     -32(A6),A0

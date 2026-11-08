@@ -12,6 +12,9 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 - Fehlerprozedur der Prüfprogramme schließt den Ausgabekanal und öffnet ihn neu, weil er nach einem
   abgefangenen Fehler im Original unbrauchbar ist.
 
+### Behoben
+- m68k-test: Programme über 32 KB (Sprung aus `plat_start` ans Ende außer Reichweite).
+
 ### Hinzugefügt
 - Meilenstein 0.6 (Optimierungen): Messprogramme `bench_*`, `tools/bench.py` mit Ausgangsmessung
   (`docs/performance.md`); die Testtreiber nennen T-States (Z80) und Größe (68000). `FOR` mit
@@ -20,7 +23,8 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
   über Flags (`zi_cmpf`), `BASIC_Z80_PROFILE` (Takte je Routine); `fp_mul` byteweise und Schieben
   ohne Schleifen, Tabelle der Viertelquadrate (Mandelbrot: Z80 −65 % Takte, bitgleich); 68000:
   `fp_round_pack` normalisiert in großen Schritten, `rt_arr_elem` ohne unnötige Multiplikationen,
-  `BASIC_M68K_PROFILE` (Befehle und Zugriffe je Routine).
+  `BASIC_M68K_PROFILE` (Befehle und Zugriffe je Routine); `STR$`/`PRINT` einer Ganzzahl schreiben
+  bei `DEFNUM` 13 die Ziffern direkt (`rt_fmt_int`, `rt_str_int`; Strings: Z80 −71 %).
 - MC68000, zweiter Teil: LIR mit Lowering (`--emit-lir`), 68000-Backend
   (`basicc --target m68k-test`), Runtime-Module für `PRINT`, Ganzzahlhilfen, `FOR`, Potenz; die
   Module sind in `basicc` eingebettet. Das erste Golden-Programm (`numbers`) läuft übersetzt im

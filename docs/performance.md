@@ -64,6 +64,11 @@ Auf einem CPC (rund 4 MHz) wären das für `bench_float` etwa 10 Minuten, für `
    Elementgröße als Verschiebung: `bench_sort` −34 % Befehle. `fp_mul` rechnet schon mit `MULU`
    (16 Teilprodukte 16 × 16 Bit); ohne Taktzählung im Emulator lässt sich dort nichts belegen.
 
+8. `STR$` einer Ganzzahl und `PRINT` einer Ganzzahl (auch auf dem 68000) schreiben bei
+   `DEFNUM` 13 die Ziffern direkt (`rt_fmt_int`, `rt_str_int`) statt über die Fließkomma-Formatierung
+   mit Großzahlen; bei kleinerem `DEFNUM` bleibt der Weg über Fließkomma (dort wird gerundet,
+   probe2 T33). Grenzfälle in `intfast`: `bench_string` Z80 −71 % T-States, 68000 −41 % Befehle.
+
 Werkzeug dafür: `BASIC_Z80_PROFILE=1 BASIC_Z80_PROGRAM=<datei> build/tests/test_z80_programs` zeigt
 die T-States je Routine (Marke im Quelltext; `modul__x` zählt zum Modul, Programmcode als
 `program`); `BASIC_Z80_PROFILE=2` zeigt jede Marke einzeln. Für den 68000 zeigt
