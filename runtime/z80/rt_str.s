@@ -1,6 +1,6 @@
 ;! module    rt_str
 ;! provides  rt_str_alloc rt_str_gc rt_str_newtemp rt_str_mark rt_str_release rt_str_assign rt_str_free rt_str_relink
-;! provides  rt_str_set_ret rt_str_take_ret rt_print_sdesc rt_str_ret rt_str_swap
+;! provides  rt_str_set_ret rt_str_take_ret rt_print_sdesc rt_str_ret rt_str_swap rt_str_relx
 ;! requires  rt_error rt_print_str plat_heap plat_heap_end
 ;! group     string
 ;! clobbers  AF BC DE HL
@@ -249,6 +249,19 @@ rt_str_mark:
         INC     HL
         LD      (HL),A
         RET
+
+; compiled code: the mark in the frame slot IX + d (d = the byte after the CALL)
+rt_str_relx:
+        POP     HL
+        LD      A,(HL)
+        INC     HL
+        PUSH    HL
+        PUSH    IX
+        POP     DE
+        ADD     A,E
+        LD      E,A
+        JR      C,rt_str_release
+        DEC     D
 
 ; DE -> mark: release all temporaries above it
 rt_str_release:

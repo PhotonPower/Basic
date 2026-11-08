@@ -56,7 +56,8 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
   `MKI$`/`MKL$`/`MKS$`/`MKD$` und `CVI`/`CVL`/`CVS`/`CVD` (bitgleich mit der Referenz), `HEX$`/`BIN$`/`OCT$`;
   `PRINT USING`, `MODE`, `STR$(x,y,z)`, `STR$(x,n)` (bitgleich mit der Referenz), `LSET`/`RSET`/`MID$()=`,
   `RESERVE`/`FRE`, `TIMER` auf z80-test; Matrizen (`MAT` ohne Dateien, bitgleich mit der Referenz);
-  kleinerer Code (Konstanten in geteilten Zellen statt im Rahmen, `rt_err_line`, direkte Argumente); Aufrufhilfe
+  kleinerer Code (Konstanten in geteilten Zellen statt im Rahmen, Plätze nach Lebensdauer geteilt,
+  `rt_ix*`, `rt_err_line`, `rt_str_relx`, direkte Argumente; etwa ein Drittel weniger); Aufrufhilfe
   `Z80Routines`, Konformanztest `conformance_z80`; Linker-Anordnung `PlainZ80`.
 - Maus und Joystick (D29): `MOUSEX`, `MOUSEY`, `MOUSEK`, `MOUSE`, `STICK()`, `STRIG()` statt Variablen
   und Feldern; auf dem Amiga aus der Window-Struktur und der Hardware. Testprogramm `mouse`.

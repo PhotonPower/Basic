@@ -605,9 +605,13 @@ kopieren.
   liefert wie auf dem 68000 höchstens 512 Zeichen.
 - Codegröße: Ein virtuelles Register, das nur einmal mit einer Konstanten belegt wird (Zahl, String,
   Adresse einer Variablen oder Routine), hat keinen Platz im Rahmen, sondern zeigt auf eine geteilte
-  8-Byte-Zelle im Datenteil (`k<n>`); die übrigen Plätze sind lückenlos nummeriert, die ersten 16 über
-  `(IX-d)` erreichbar. Mit `ON ERROR` schreibt `rt_err_line` (Sprungziele inline hinter dem `CALL`)
-  den Anweisungsdatensatz.
+  8-Byte-Zelle im Datenteil (`k<n>`). Die übrigen Register teilen sich Plätze nach ihrer Lebensdauer
+  (Lebendigkeit auf dem Kontrollfluss, als Intervalle über den Code; mit `ON ERROR` bleibt, was am
+  Anfang einer Anweisung lebt, bis zu ihrem Ende belegt, weil `RESUME` sie wiederholt; ein Ergebnis
+  liegt nie auf einem Operanden derselben Anweisung). Die ersten 16 Plätze sind über `(IX-d)`
+  erreichbar, ihre Adressen liefern `rt_ixhl`/`rt_ixde`/`rt_ixbc` mit `d` als Byte hinter dem `CALL`,
+  ohne die anderen Registerpaare zu ändern. Mit `ON ERROR` schreibt `rt_err_line` (Sprungziele inline
+  hinter dem `CALL`) den Anweisungsdatensatz; `rt_str_relx` gibt die Temporärwerte frei.
 - Matrizen: Sichten mit 16-Bit-Feldern (12 Byte), Arbeitsspeicher oberhalb der Felder (`rt_arr_work`,
   gültig bis zum nächsten `DIM`); zwei eindimensionale Faktoren bei `MAT MUL`: der erste als Spalte.
 - Der Linker meldet in Z80-Modulen Labels, die sich nur in Groß-/Kleinschreibung unterscheiden.
