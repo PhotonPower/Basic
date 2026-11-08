@@ -71,7 +71,7 @@ public:
         Diagnostics d;
         std::vector<link::Module> mods;
         for (link::Module& m : link::loadModules(std::string(BASIC_SOURCE_DIR) + "/runtime/z80", d))
-            if (m.name != "rt_err") mods.push_back(std::move(m));
+            if (m.name != "rt_err" && m.name != "rt_onerr" && m.name != "rt_resume") mods.push_back(std::move(m));
         std::vector<std::string> all;
         for (const link::Module& m : mods) all.insert(all.end(), m.provides.begin(), m.provides.end());
         for (link::Module& m : link::loadModules(std::string(BASIC_SOURCE_DIR) + "/platform/z80-test", d))

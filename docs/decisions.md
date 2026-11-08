@@ -585,5 +585,10 @@ kopieren.
   das BSS setzt, bis &BFFF).
 - Prozeduren und Funktionen: Argumente als 8-Byte-Werte auf dem Stapel (ab IX+4), `LOCAL`/Parameter
   wie auf dem 68000; `VAR`-Parameter über eine Zeigerzelle je Variable (`p<k>`).
+- `ON ERROR` wie auf dem 68000: Satz „laufende Anweisung“ mit 12 Bytes unter den Plätzen (+0 Satz
+  des Aufrufers, +2 Wiederholadresse, +4 Folgeadresse, +6 SP, +8 IX, +10 Routine), Sicherungskette
+  (+0 Beschreibung `vd<k>`, +2 nächster Eintrag, +4 Daten), `RESUME` setzt SP und IX zurück und
+  holt gesicherte Variablen zurück. `ERROR n` übergibt die Nummer in A. Die Fehlernummer -1
+  („RESUME“ außerhalb der Fehlerroutine) kommt als 255 bei `plat_error` an.
 - Der erzeugte Code ist noch groß (jeder Zugriff berechnet die Adresse des Stapelplatzes): `arrays.lst`
   braucht 24,7 KB mit Laufzeit. Für den CPC (rund 40 KB) muss das Backend später sparsamer werden.

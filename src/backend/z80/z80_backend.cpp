@@ -1,5 +1,6 @@
 #include "backend/z80/z80_backend.hpp"
 
+#include <algorithm>
 #include <cstdio>
 #include <map>
 #include <set>
@@ -41,6 +42,21 @@ public:
             }
         }
         out_.provides.push_back("main");
+        if (p_.onError) {  // descriptors of the saved variables for the undo of RESUME
+            for (int v : savedVars_) {
+                const bool str = varType(v) == hir::Type::Str;
+                out_.data += "vd" + std::to_string(v) + ":\n        DW      " + var(v) + "," + (indirect(v) ? "p" + std::to_string(v) : std::string("0")) +
+                             "," + (str ? "rt_str_free,rt_str_relink" : "0,0") + "\n";
+                if (str) {
+                    uses_.insert("rt_str_free");
+                    uses_.insert("rt_str_relink");
+                }
+            }
+        }
+        if (uses_.count("rt_resume") != 0) {  // RESUME label: per HIR label its address and routine
+            out_.bss += "prg_rlab:\n        DS      " + std::to_string(4 * std::max<std::size_t>(1, p_.hir->labels.size())) + "\n";
+            out_.provides.push_back("prg_rlab");
+        }
         out_.uses.assign(uses_.begin(), uses_.end());
         return out_;
     }
@@ -66,6 +82,15 @@ private:
     // HL = address of the storage of v (through the pointer of a VAR-bound variable)
     std::string varAddr(int v) const { return indirect(v) ? "LD      HL,(p" + std::to_string(v) + ")" : "LD      HL," + var(v); }
     int local_ = 0;
+    std::set<int> savedVars_;  // variables with a Save (ON ERROR: descriptors for the save log)
+    // ON ERROR: the record of the running statement (12 bytes below the slots)
+    bool hasRecord() const { return p_.onError && !f_->deffn; }
+    void recToHL() {
+        line("PUSH    IX");
+        line("POP     HL");
+        line("LD      BC," + std::to_string(-8 * f_->regs - 12));
+        line("ADD     HL,BC");
+    }
 
     // HL = address of the slot of r (IX - 8 * (id + 1)); uses BC
     void slotToHL(const Reg& r) {
@@ -135,10 +160,48 @@ private:
         line("PUSH    IX");
         line("LD      IX,0");
         line("ADD     IX,SP");
-        if (f.regs > 0) {
-            line("LD      HL," + std::to_string(-8 * f.regs));
+        const int frame = 8 * f.regs + (hasRecord() ? 12 : 0);
+        if (frame > 0) {
+            line("LD      HL," + std::to_string(-frame));
             line("ADD     HL,SP");
             line("LD      SP,HL");
+        }
+        if (hasRecord()) {  // own statement record; until the first statement a copy of the caller's
+            uses_.insert("rt_err_ctx");
+            recToHL();
+            line("EX      DE,HL");
+            line("LD      HL,(rt_err_ctx)");
+            line("EX      DE,HL");
+            line("LD      (HL),E");
+            line("INC     HL");
+            line("LD      (HL),D");
+            line("INC     HL");
+            line("LD      A,D");
+            line("OR      E");
+            const std::string l = "f" + std::to_string(fn_) + "_E";
+            line("JR      Z," + l);
+            line("EX      DE,HL");
+            line("INC     HL");
+            line("INC     HL");
+            line("LD      BC,8");
+            line("LDIR");
+            line("EX      DE,HL");
+            out_.code += l + ":\n";
+            recToHL();
+            line("LD      BC,10");
+            line("ADD     HL,BC");
+            line("LD      DE," + fname(f.routine));
+            line("LD      (HL),E");
+            line("INC     HL");
+            line("LD      (HL),D");
+            recToHL();
+            line("LD      (rt_err_ctx),HL");
+        }
+        for (const auto& [hirLabel, lirLabel] : f.resumeLabels) {  // addresses for RESUME label
+            line("LD      HL," + label(lirLabel));
+            line("LD      (prg_rlab+" + std::to_string(4 * hirLabel) + "),HL");
+            line("LD      HL," + fname(f.routine));
+            line("LD      (prg_rlab+" + std::to_string(4 * hirLabel + 2) + "),HL");
         }
         for (std::size_t k = 0; k < f.params.size(); ++k) {  // incoming arguments: 8 bytes each from IX+4
             line("PUSH    IX");
@@ -319,7 +382,16 @@ private:
                 call("zi_cmp", {i.a, i.b}, i.dst);
                 return;
             }
-            case Kind::RtCall: call(i.op, i.args, i.dst); return;
+            case Kind::RtCall:
+                if (i.op == "rt_error") {  // ERROR n: the runtime takes the number in A
+                    uses_.insert("rt_error");
+                    argToHL(i.args[0]);
+                    line("LD      A,(HL)");
+                    line("CALL    rt_error");
+                    return;
+                }
+                call(i.op, i.args, i.dst);
+                return;
             case Kind::Call: {
                 const std::size_t n = i.args.size();
                 if (n > 0) {  // the arguments as 8-byte values on the stack, the first one on top
@@ -369,6 +441,14 @@ private:
                 return;
             case Kind::Label: out_.code += label(i.label) + ":\n"; return;
             case Kind::Return:
+                if (hasRecord()) {  // the caller's record is current again
+                    recToHL();
+                    line("LD      A,(HL)");
+                    line("INC     HL");
+                    line("LD      H,(HL)");
+                    line("LD      L,A");
+                    line("LD      (rt_err_ctx),HL");
+                }
                 if (i.a.id >= 0) {
                     slotToHL(i.a);
                     line("LD      DE,prg_ret");
@@ -392,7 +472,29 @@ private:
             case Kind::Line:
                 line_ = i.imm;
                 line("; line " + std::to_string(i.imm));
-                if (i.label >= 0) unsupported("ON ERROR");
+                if (i.label >= 0 && hasRecord()) {  // the record: repeat, after, SP, IX
+                    line("LD      (prg_tmp),SP");
+                    recToHL();
+                    line("INC     HL");
+                    line("INC     HL");
+                    for (const std::string& v : {label(i.label), label(i.label2)}) {
+                        line("LD      DE," + v);
+                        line("LD      (HL),E");
+                        line("INC     HL");
+                        line("LD      (HL),D");
+                        line("INC     HL");
+                    }
+                    line("LD      DE,(prg_tmp)");
+                    line("LD      (HL),E");
+                    line("INC     HL");
+                    line("LD      (HL),D");
+                    line("INC     HL");
+                    line("PUSH    IX");
+                    line("POP     DE");
+                    line("LD      (HL),E");
+                    line("INC     HL");
+                    line("LD      (HL),D");
+                }
                 return;
             case Kind::Save: {  // the 8 bytes of the variable on the stack
                 const std::string v = var(i.var);
@@ -415,6 +517,17 @@ private:
                     line("LD      HL," + v);
                     line("LD      (" + pv + "),HL");
                 }
+                if (p_.onError) {  // save log entry: descriptor, next entry
+                    savedVars_.insert(i.var);
+                    uses_.insert("rt_err_log");
+                    line("LD      HL,(rt_err_log)");
+                    line("PUSH    HL");
+                    line("LD      HL,vd" + std::to_string(i.var));
+                    line("PUSH    HL");
+                    line("LD      HL,0");
+                    line("ADD     HL,SP");
+                    line("LD      (rt_err_log),HL");
+                }
                 return;
             }
             case Kind::Clear: {
@@ -426,6 +539,11 @@ private:
                 const std::string v = var(i.var);
                 const bool str = varType(i.var) == hir::Type::Str;
                 std::string done;
+                if (p_.onError) {  // the save log entry
+                    line("POP     HL");
+                    line("POP     HL");
+                    line("LD      (rt_err_log),HL");
+                }
                 if (indirect(i.var)) {  // flag, pointer; bound to its own storage: drop the saved value
                     const std::string keep = "f" + std::to_string(fn_) + "_R" + std::to_string(local_++);
                     done = "f" + std::to_string(fn_) + "_R" + std::to_string(local_++);
@@ -458,11 +576,12 @@ private:
                 if (!done.empty()) out_.code += done + ":\n";
                 return;
             }
-            case Kind::Bind: {  // after Save: flag at (SP), saved pointer at 2(SP)
+            case Kind::Bind: {  // after Save: flag at (SP), saved pointer at 2(SP) (4 more with the log)
                 const std::string l = "f" + std::to_string(fn_) + "_B" + std::to_string(local_++);
+                const int o = p_.onError ? 4 : 0;
                 argToHL(i.a);
                 line("LD      (prg_tmp),HL");
-                line("LD      HL,2");
+                line("LD      HL," + std::to_string(2 + o));
                 line("ADD     HL,SP");
                 line("LD      E,(HL)");
                 line("INC     HL");
@@ -471,7 +590,7 @@ private:
                 line("OR      A");
                 line("SBC     HL,DE");
                 line("JR      NZ," + l);
-                line("LD      HL,0");  // already this storage: keep its value at the end (no restore)
+                line("LD      HL," + std::to_string(o));  // already this storage: keep its value at the end (no restore)
                 line("ADD     HL,SP");
                 line("LD      (HL),1");
                 if (varType(i.var) == hir::Type::Str) {
@@ -484,7 +603,10 @@ private:
                 line("LD      (p" + std::to_string(i.var) + "),HL");
                 return;
             }
-            case Kind::RoutineAddr: unsupported("ON ERROR GOSUB");
+            case Kind::RoutineAddr:
+                line("LD      HL," + fname(i.routine));
+                storeHL(i.dst);
+                return;
             default: break;
         }
     }

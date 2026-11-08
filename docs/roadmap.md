@@ -101,7 +101,8 @@ bitgenau zur Referenz, ✔ `fp_sqrt` (Stelle für Stelle), `fp_trunc`/`int`/`fra
 Plattform, Bereinigung, Zwischenergebnisse; `rt_strfn`: Verkettung, Vergleich, `LEN`, `ASC`, `CHR$`,
 `LEFT$`/`RIGHT$`/`MID$`, `SPACE$`, `STRING$`, `INSTR`, `UPPER$`, `TRIM$`, `STR$`), ✔ Felder (`rt_arr`:
 `DIM`, Elemente mit Prüfung, `DIM?`, `ERASE`, `OPTION BASE`, `SWAP`; Feldbereich der Plattform),
-✔ Prozeduren und Funktionen mit Parametern, `LOCAL`, `VAR`-Parameter, String-Funktionen. Weiter: Prozeduren mit Parametern und `LOCAL`, `ON ERROR`, `DATA`, Eingabe.
+✔ Prozeduren und Funktionen mit Parametern, `LOCAL`, `VAR`-Parameter, String-Funktionen, ✔ `ON ERROR`,
+`RESUME`, `ERR`, `ERR$`, `ERROR`. Weiter: Prozeduren mit Parametern und `LOCAL`, `ON ERROR`, `DATA`, Eingabe.
 
 - LIR → Z80-Assembler, `runtime/z80`, `platform/cpc` (AMSDOS-Header, `.sna`) und `platform/z80-test`.
 - Konformanz- und Differenztests, Größenbudgets.

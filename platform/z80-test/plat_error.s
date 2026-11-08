@@ -7,6 +7,12 @@
 
 plat_error:
         LD      (plat_error__n),A
+        CP      255                     ; -1 (RESUME outside the error routine)
+        JR      NZ,plat_error__go
+        LD      HL,&FFFF
+        LD      (plat_error__n),HL
+        LD      (plat_error__n+2),HL
+plat_error__go:
         CALL    rt_print_nl
         LD      DE,plat_error__msg
         LD      BC,14
