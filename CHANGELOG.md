@@ -60,7 +60,9 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
   `rt_ix*`, `rt_err_line`, `rt_str_relx`, direkte Argumente; etwa ein Drittel weniger);
   Plattform `cpc`: `basicc --target cpc` schreibt eine Binärdatei mit AMSDOS-Header (Ladeadresse
   `&0100`), Ausgabe über `TXT OUTPUT`, Tastatur mit Echo über `KM WAIT CHAR`/`KM READ CHAR`, `TIMER`
-  über `KL TIME PLEASE`; alle Testprogramme laufen zusätzlich auf cpc; Aufrufhilfe
+  über `KL TIME PLEASE`; alle Testprogramme laufen zusätzlich auf cpc; Cursor und Bildschirm
+  (`CLS`, `LOCATE`, `PRINT AT`, `HTAB`/`VTAB`, `CRSCOL`/`CRSLIN`) über `plat_locate`/`plat_cls`,
+  Testprogramm `screen` (wie `console`, ohne Dateien); Aufrufhilfe
   `Z80Routines`, Konformanztest `conformance_z80`; Linker-Anordnung `PlainZ80`.
 - Maus und Joystick (D29): `MOUSEX`, `MOUSEY`, `MOUSEK`, `MOUSE`, `STICK()`, `STRIG()` statt Variablen
   und Feldern; auf dem Amiga aus der Window-Struktur und der Hardware. Testprogramm `mouse`.

@@ -55,7 +55,10 @@ außerhalb dieses Speichers lösen einen Fehler aus.
   Stapelzeiger zum Aufrufer zurück. Die 128 KB des 6128 (Bankumschaltung `&4000–&7FFF`) sind ein
   späterer Ausbau.
 - Bildschirm und Tastatur: Zeilenende CR LF; `INPUT` wiederholt die getippten Zeichen auf dem
-  Bildschirm (DEL löscht), Return beendet die Zeile.
+  Bildschirm (DEL löscht), Return beendet die Zeile. `LOCATE`, `PRINT AT`, `HTAB`/`VTAB` setzen den
+  Cursor über `TXT SET CURSOR` (`&BB75`, Werte über 255 werden 255), `CLS` löscht über
+  `TXT CLEAR WINDOW` (`&BB6C`) Text und Grafik. `CRSCOL`/`CRSLIN` zählt die Laufzeit wie auf dem
+  Amiga mit; den Zeilenumbruch nach 40/80 Zeichen und das Rollen am unteren Rand sieht sie nicht.
 - Plattformprimitive über die Firmware-Sprungleiste: `TXT OUTPUT` (`&BB5A`) für `plat_putc`,
   `KM WAIT KEY`/`KM READ KEY` für Eingaben, die `GRA`-Routinen für Grafik, `CAS`-Routinen (AMSDOS)
   für Dateien.
@@ -73,7 +76,8 @@ außerhalb dieses Speichers lösen einen Fehler aus.
 - Firmware 464 vs. 664/6128: Die Sprungleiste für Text, Tastatur, Grafik und Kassette/AMSDOS ist auf
   allen Modellen gleich. Die Mathe-Sprungleiste der Firmware (die sich unterscheidet) wird nicht
   benutzt. Welche Modelle unterstützt werden, ist noch offen ([roadmap.md](roadmap.md#offene-fragen)).
-- Tests: In der Harness werden Firmware-Aufrufe als Stubs emuliert (`TXT OUTPUT` → Konsole); ein
+- Tests: In der Harness werden Firmware-Aufrufe als Stubs emuliert (`TXT OUTPUT` → Konsole,
+  `TXT SET CURSOR`/`TXT CLEAR WINDOW` → dieselben ANSI-Folgen wie auf dem Amiga); ein
   nicht emulierter Aufruf bricht den Lauf mit Meldung ab. Das Schwesterprojekt kann außerdem die echte
   6128-Firmware booten und den Bildschirm rendern, was für Grafiktests genutzt werden kann.
 

@@ -20,6 +20,8 @@ constexpr std::uint16_t kTxtOutput = 0xBB5A;
 constexpr std::uint16_t kKmWaitChar = 0xBB06;
 constexpr std::uint16_t kKmReadChar = 0xBB09;
 constexpr std::uint16_t kKlTimePlease = 0xBD0D;
+constexpr std::uint16_t kTxtSetCursor = 0xBB75;
+constexpr std::uint16_t kTxtClearWindow = 0xBB6C;
 constexpr std::uint8_t kTestConsolePort = 0x01;
 
 std::string hex4(unsigned v) {
@@ -75,6 +77,10 @@ Z80Run runZ80Image(const std::vector<std::uint8_t>& image, Z80Platform platform,
                 const bool have = inputPos < options.input.size();
                 const z80::Byte a = have ? static_cast<z80::Byte>(options.input[inputPos++]) : regs.a();
                 regs.setAf(static_cast<z80::Word>(a << 8 | ((regs.f() & ~1) | (have ? 1 : 0))));
+            } else if (address == kTxtSetCursor) {  // written as the Amiga console does (ESC [ line ; column H)
+                result.console += "\x1b[" + std::to_string(regs.hl() & 0xFF) + ";" + std::to_string(regs.hl() >> 8) + "H";
+            } else if (address == kTxtClearWindow) {
+                result.console += "\x1b[H\x1b[J";
             } else if (address == kKlTimePlease) {  // a clock that advances by 3 (1/100 s) per call
                 time += 3;
                 regs.setDe(static_cast<z80::Word>(time >> 16));

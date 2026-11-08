@@ -201,6 +201,8 @@ private:
     }
     // registers set once by a constant (number, string, address of a variable or routine) and nowhere
     // else get a cell instead of a slot; the other registers are numbered without gaps
+    std::string lastRt_;  // the previous runtime call (CLS is rt_print_cls + rt_gfx_cmd)
+
     void planRegisters(const lir::Function& f) {
         const std::size_t n = static_cast<std::size_t>(f.regs);
         std::vector<int> defs(n, 0);
@@ -624,6 +626,11 @@ private:
                 return;
             }
             case Kind::RtCall:
+                if (i.op == "rt_gfx_cmd" && lastRt_ == "rt_print_cls") {  // CLS: text and graphics share
+                    lastRt_.clear();                                    // the screen (no graphics yet)
+                    return;
+                }
+                lastRt_ = i.op;
                 if (i.op == "rt_error") {  // ERROR n: the runtime takes the number in A
                     uses_.insert("rt_error");
                     argToHL(i.args[0]);

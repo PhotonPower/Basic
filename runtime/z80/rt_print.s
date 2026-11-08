@@ -1,10 +1,11 @@
 ;! module    rt_print
 ;! provides  rt_print_str rt_print_int rt_print_nl rt_print_comma rt_print_apos rt_print_tab rt_print_spc rt_print_begin rt_print_out rt_print_col rt_pos
 ;! provides  rt_print_flt rt_set_defnum rt_defnum
-;! requires  plat_putc rt_fmt_flt fp_from_i32
+;! provides  rt_print_at rt_print_locate rt_print_htab rt_print_vtab rt_print_cls rt_crscol rt_crslin
+;! requires  plat_putc plat_locate plat_cls rt_fmt_flt fp_from_i32
 ;! group     print
 ;! clobbers  AF BC DE HL
-;! doc       PRINT: strings, integers, separators; the column since the last line feed (POS) and the zone of ',' (as runtime/m68k).
+;! doc       PRINT: strings, integers, separators; the column since the last line feed (POS), the zone of ',' and the cursor (as runtime/m68k).
 
 ; rt_print_str: DE = text, BC = length. rt_print_int, rt_print_spc, rt_print_tab: DE -> 32-bit value.
 ; Every character goes to the routine in rt_print_out (plat_putc); A = character, it keeps all registers.
@@ -210,9 +211,10 @@ rt_print__dset:
         LD      (rt_defnum),A
         RET
 
-; -> HL -> POS: the column as 32 bits at (HL)
+; -> HL -> POS, CRSCOL, CRSLIN: the value as 32 bits at (HL)
 rt_pos:
         LD      DE,(rt_print_col)
+rt_print__w32:
         LD      (HL),E
         INC     HL
         LD      (HL),D
@@ -221,8 +223,94 @@ rt_pos:
         INC     HL
         LD      (HL),0
         RET
+rt_crscol:
+        LD      DE,(rt_print__ccol)
+        JR      rt_print__w32
+rt_crslin:
+        LD      DE,(rt_print__clin)
+        JR      rt_print__w32
 
-; A = character: counts the column and the zone, then to the output (all registers are kept)
+; DE -> 32-bit value -> HL = the value limited to 1..32767
+rt_print__clamp:
+        EX      DE,HL
+        LD      E,(HL)
+        INC     HL
+        LD      D,(HL)
+        INC     HL
+        LD      A,(HL)
+        INC     HL
+        LD      H,(HL)
+        BIT     7,H
+        JR      NZ,rt_print__c1
+        OR      H
+        JR      NZ,rt_print__cmx
+        BIT     7,D
+        JR      NZ,rt_print__cmx
+        LD      A,D
+        OR      E
+        JR      Z,rt_print__c1
+        EX      DE,HL
+        RET
+rt_print__cmx:
+        LD      HL,32767
+        RET
+rt_print__c1:
+        LD      HL,1
+        RET
+
+; DE -> column, BC -> line: LOCATE (POS stays); the platform moves the cursor (DE = column, HL = line)
+rt_print_locate:
+        PUSH    BC
+        CALL    rt_print__clamp
+        LD      (rt_print__ccol),HL
+        POP     DE
+        CALL    rt_print__clamp
+        LD      (rt_print__clin),HL
+rt_print__goto:
+        LD      DE,(rt_print__ccol)
+        LD      HL,(rt_print__clin)
+        JP      plat_locate
+
+; DE -> column, BC -> line: PRINT AT (POS 0)
+rt_print_at:
+        CALL    rt_print_locate
+        LD      HL,0
+        LD      (rt_print_col),HL
+        RET
+
+; DE -> column: HTAB
+rt_print_htab:
+        CALL    rt_print__clamp
+        LD      (rt_print__ccol),HL
+        JR      rt_print__goto
+
+; DE -> line: VTAB
+rt_print_vtab:
+        CALL    rt_print__clamp
+        LD      (rt_print__clin),HL
+        JR      rt_print__goto
+
+; CLS: the platform clears the screen and puts the cursor home, POS 0
+rt_print_cls:
+        LD      HL,1
+        LD      (rt_print__ccol),HL
+        LD      (rt_print__clin),HL
+        DEC     HL
+        LD      (rt_print_col),HL
+        JP      plat_cls
+
+; -> Z if the output goes to the screen (A is kept)
+rt_print__con:
+        PUSH    DE
+        LD      HL,(rt_print_out)
+        LD      DE,plat_putc
+        OR      A
+        SBC     HL,DE
+        POP     DE
+        RET
+
+; A = character: counts the column, the zone and on the screen the cursor, then to the output (all
+; registers are kept)
 rt_print__putc:
         PUSH    HL
         CP      10
@@ -235,11 +323,27 @@ rt_print__putc:
         LD      HL,(rt_print__zone)
         INC     HL
         LD      (rt_print__zone),HL
+        CALL    rt_print__con
+        JR      NZ,rt_print__out
+        LD      HL,(rt_print__ccol)
+        INC     HL
+        CP      13
+        JR      NZ,rt_print__cc
+        LD      HL,1
+rt_print__cc:
+        LD      (rt_print__ccol),HL
         JR      rt_print__out
 rt_print__lf:
         LD      HL,0
         LD      (rt_print_col),HL
         LD      (rt_print__zone),HL
+        CALL    rt_print__con
+        JR      NZ,rt_print__out
+        LD      HL,1
+        LD      (rt_print__ccol),HL
+        LD      HL,(rt_print__clin)
+        INC     HL
+        LD      (rt_print__clin),HL
         JR      rt_print__out
 rt_print__bs:
         LD      HL,(rt_print_col)
@@ -256,6 +360,15 @@ rt_print__b1:
         DEC     HL
         LD      (rt_print__zone),HL
 rt_print__b2:
+        CALL    rt_print__con
+        JR      NZ,rt_print__b3
+        LD      HL,(rt_print__ccol)
+        DEC     HL
+        LD      A,H
+        OR      L
+        JR      Z,rt_print__b3
+        LD      (rt_print__ccol),HL
+rt_print__b3:
         LD      A,8
 rt_print__out:
         LD      HL,(rt_print_out)       ; jump to the output routine (registers unchanged)
@@ -269,6 +382,10 @@ rt_print_col:
         DW      0
 rt_print__zone:
         DW      0
+rt_print__ccol:
+        DW      1
+rt_print__clin:
+        DW      1
 rt_defnum:
         DB      13
 

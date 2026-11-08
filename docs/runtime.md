@@ -113,6 +113,7 @@ Jede Plattform stellt mindestens bereit:
 | `plat_poll` | Taste abfragen ohne Warten (`INKEY$`; auf dem Z80 `plat_inkey`) |
 | `plat_echo` | Z80: ein Zeichen einer Eingabezeile auf dem Bildschirm (10 Zeilenende, 8 gelöscht; z80-test: nichts) |
 | `plat_timer` | Zeitbasis für `TIMER` |
+| `plat_locate`, `plat_cls` | Z80: Cursor setzen (DE = Spalte, HL = Zeile, 1–32767) und Bildschirm löschen; z80-test: ANSI-Folgen wie die Amiga-Konsole, cpc: `TXT SET CURSOR`/`TXT CLEAR WINDOW` |
 
 Optional, je nach Gruppen der Plattform: Dateien (`plat_fopen` …), Grafik (`plat_plot`,
 `plat_line` …), Fenster und Ereignisse (nur `amiga`). Die Zuordnung steht in

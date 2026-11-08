@@ -10,7 +10,7 @@ namespace basic::harness {
 
 enum class Z80Platform {
     Test,  ///< z80-test: a byte written with OUT (&01),A is console output; the program ends with HALT
-    Cpc,   ///< cpc: firmware calls are stubbed (TXT OUTPUT &BB5A prints A); the program ends with RET
+    Cpc,   ///< cpc: firmware calls are stubbed (TXT OUTPUT &BB5A prints A, the cursor calls print ANSI sequences); the program ends with RET
 };
 
 struct Z80Run {

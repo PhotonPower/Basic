@@ -618,6 +618,10 @@ kopieren.
   Speicher hälftig (`plat_heap EQU (prg_end+&A200)/2`); der Linker setzt `prg_bss` vor den BSS-Teil,
   `plat_start` löscht ihn, die Datei enthält ihn nicht. `KM WAIT CHAR` mit gelöschtem Carry gilt als
   Ende der Eingabe (das kommt nur im Testtreiber vor).
+- Cursor: `rt_print` zählt Spalte und Zeile wie runtime/m68k (nur bei Ausgabe auf den Bildschirm),
+  die Plattform setzt ihn (`plat_locate`, `plat_cls`). `CLS` ruft auf dem Z80 kein `rt_gfx_cmd` auf
+  (das Backend lässt den Aufruf hinter `rt_print_cls` weg): Auf dem CPC löscht `TXT CLEAR WINDOW`
+  den gemeinsamen Bildschirm, z80-test hat keine Grafik.
 - Der Linker meldet in Z80-Modulen Labels, die sich nur in Groß-/Kleinschreibung unterscheiden.
 - Der erzeugte Code ist noch groß (jeder Zugriff berechnet die Adresse des Stapelplatzes): `arrays.lst`
   braucht 24,7 KB mit Laufzeit. Für den CPC (rund 40 KB) muss das Backend später sparsamer werden.
