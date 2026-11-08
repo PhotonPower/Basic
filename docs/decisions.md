@@ -581,4 +581,9 @@ kopieren.
   Konstante darf nicht wie ein Label heißen.
 - Felder wie auf dem 68000 (Ausdehnungen vor den Elementen, die letzte Dimension zuerst), Elemente im
   Little-Endian-Format; ein Feld darf höchstens 64 KB groß sein. Der Feldbereich kommt von der
-  Plattform (`plat_arr`, `plat_arr_end`; z80-test &A000–&BFFF).
+  Plattform (`plat_arr`, `plat_arr_end`; z80-test vom Programmende `prg_end`, das der Linker hinter
+  das BSS setzt, bis &BFFF).
+- Prozeduren und Funktionen: Argumente als 8-Byte-Werte auf dem Stapel (ab IX+4), `LOCAL`/Parameter
+  wie auf dem 68000; `VAR`-Parameter über eine Zeigerzelle je Variable (`p<k>`).
+- Der erzeugte Code ist noch groß (jeder Zugriff berechnet die Adresse des Stapelplatzes): `arrays.lst`
+  braucht 24,7 KB mit Laufzeit. Für den CPC (rund 40 KB) muss das Backend später sparsamer werden.

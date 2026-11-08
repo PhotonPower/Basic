@@ -26,9 +26,12 @@ public:
     Z80Gen(const lir::Program& p, Diagnostics& d) : p_(p), diags_(d) {}
 
     link::Program run() {
-        for (std::size_t v = 0; v < p_.hir->vars.size(); ++v)
+        for (std::size_t v = 0; v < p_.hir->vars.size(); ++v) {
             out_.bss += "v" + std::to_string(v) + ":\n        DS      8                       ; " + p_.hir->vars[v].display() + "\n";
-        out_.bss += "prg_ret:\n        DS      8\n";
+            if (indirect(static_cast<int>(v)))  // VAR parameter: the pointer to the current storage
+                out_.data += "p" + std::to_string(v) + ":\n        DW      v" + std::to_string(v) + "\n";
+        }
+        out_.bss += "prg_ret:\n        DS      8\nprg_tmp:\n        DS      2\n";
         for (const lir::Function& f : p_.functions) {
             try {
                 function(f);
@@ -59,6 +62,10 @@ private:
     std::string fname(int routine) const { return routine < 0 ? std::string("main") : "r" + std::to_string(routine); }
     hir::Type varType(int v) const { return p_.hir->vars[static_cast<std::size_t>(v)].type; }
     static std::string var(int v) { return "v" + std::to_string(v); }
+    bool indirect(int v) const { return p_.indirect[static_cast<std::size_t>(v)]; }
+    // HL = address of the storage of v (through the pointer of a VAR-bound variable)
+    std::string varAddr(int v) const { return indirect(v) ? "LD      HL,(p" + std::to_string(v) + ")" : "LD      HL," + var(v); }
+    int local_ = 0;
 
     // HL = address of the slot of r (IX - 8 * (id + 1)); uses BC
     void slotToHL(const Reg& r) {
@@ -175,13 +182,13 @@ private:
             case Kind::Load: {
                 const hir::Type t = varType(i.var);
                 if (t == hir::Type::Str) {  // the descriptor of the variable
-                    line("LD      HL," + var(i.var));
+                    line(varAddr(i.var));
                     storeHL(i.dst);
                     return;
                 }
                 slotToHL(i.dst);
                 line("EX      DE,HL");
-                line("LD      HL," + var(i.var));
+                line(varAddr(i.var));
                 loadFromHL(t);
                 return;
             }
@@ -204,15 +211,21 @@ private:
                 return;
             }
             case Kind::Addr:
-                if (p_.indirect[static_cast<std::size_t>(i.var)]) unsupported("VAR parameters");
-                line("LD      HL," + var(i.var));
+                line(varAddr(i.var));
                 storeHL(i.dst);
                 return;
             case Kind::Store: {
                 const hir::Type t = varType(i.var);
                 if (t == hir::Type::Str) unsupported("string variables");
-                slotToHL(i.a);
-                line("LD      DE," + var(i.var));
+                if (indirect(i.var)) {
+                    line(varAddr(i.var));
+                    line("PUSH    HL");
+                    slotToHL(i.a);
+                    line("POP     DE");
+                } else {
+                    slotToHL(i.a);
+                    line("LD      DE," + var(i.var));
+                }
                 storeToDE(t);
                 return;
             }
@@ -382,7 +395,6 @@ private:
                 if (i.label >= 0) unsupported("ON ERROR");
                 return;
             case Kind::Save: {  // the 8 bytes of the variable on the stack
-                if (p_.indirect[static_cast<std::size_t>(i.var)]) unsupported("VAR parameters");
                 const std::string v = var(i.var);
                 for (int off = 6; off >= 0; off -= 2) {
                     line("LD      HL,(" + v + "+" + std::to_string(off) + ")");
@@ -394,6 +406,15 @@ private:
                     line("ADD     HL,SP");
                     line("CALL    rt_str_relink");
                 }
+                if (indirect(i.var)) {  // pointer and flag (set by Bind), then the own storage again
+                    const std::string pv = "p" + std::to_string(i.var);
+                    line("LD      HL,(" + pv + ")");
+                    line("PUSH    HL");
+                    line("LD      HL,0");
+                    line("PUSH    HL");
+                    line("LD      HL," + v);
+                    line("LD      (" + pv + "),HL");
+                }
                 return;
             }
             case Kind::Clear: {
@@ -404,6 +425,22 @@ private:
             case Kind::Restore: {
                 const std::string v = var(i.var);
                 const bool str = varType(i.var) == hir::Type::Str;
+                std::string done;
+                if (indirect(i.var)) {  // flag, pointer; bound to its own storage: drop the saved value
+                    const std::string keep = "f" + std::to_string(fn_) + "_R" + std::to_string(local_++);
+                    done = "f" + std::to_string(fn_) + "_R" + std::to_string(local_++);
+                    line("POP     DE");
+                    line("POP     HL");
+                    line("LD      (p" + std::to_string(i.var) + "),HL");
+                    line("LD      A,D");
+                    line("OR      E");
+                    line("JR      Z," + keep);
+                    line("LD      HL,8");
+                    line("ADD     HL,SP");
+                    line("LD      SP,HL");
+                    line("JP      " + done);
+                    out_.code += keep + ":\n";
+                }
                 if (str) {  // free the current string, take back the saved one
                     uses_.insert("rt_str_free");
                     line("LD      HL," + v);
@@ -418,9 +455,35 @@ private:
                     line("LD      HL," + v);
                     line("CALL    rt_str_relink");
                 }
+                if (!done.empty()) out_.code += done + ":\n";
                 return;
             }
-            case Kind::Bind: unsupported("VAR parameters");
+            case Kind::Bind: {  // after Save: flag at (SP), saved pointer at 2(SP)
+                const std::string l = "f" + std::to_string(fn_) + "_B" + std::to_string(local_++);
+                argToHL(i.a);
+                line("LD      (prg_tmp),HL");
+                line("LD      HL,2");
+                line("ADD     HL,SP");
+                line("LD      E,(HL)");
+                line("INC     HL");
+                line("LD      D,(HL)");
+                line("LD      HL,(prg_tmp)");
+                line("OR      A");
+                line("SBC     HL,DE");
+                line("JR      NZ," + l);
+                line("LD      HL,0");  // already this storage: keep its value at the end (no restore)
+                line("ADD     HL,SP");
+                line("LD      (HL),1");
+                if (varType(i.var) == hir::Type::Str) {
+                    uses_.insert("rt_str_relink");
+                    line("LD      HL,(prg_tmp)");
+                    line("CALL    rt_str_relink");
+                }
+                out_.code += l + ":\n";
+                line("LD      HL,(prg_tmp)");
+                line("LD      (p" + std::to_string(i.var) + "),HL");
+                return;
+            }
             case Kind::RoutineAddr: unsupported("ON ERROR GOSUB");
             default: break;
         }

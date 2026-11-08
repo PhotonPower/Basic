@@ -58,7 +58,7 @@ struct Program {
 
 enum class Layout {
     Plain,     // one ORG program (m68k-test): code, data, then BSS (each EVEN)
-    PlainZ80,  // the same for the Z80 (z80-test, cpc): no alignment
+    PlainZ80,  // the same for the Z80 (z80-test, cpc): no alignment; the label prg_end follows the BSS
     Sections,  // SECTION code/data/bss (amiga hunk program)
 };
 
