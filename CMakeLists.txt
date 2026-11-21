@@ -103,6 +103,16 @@ add_library(basiccore STATIC
   ${CMAKE_CURRENT_BINARY_DIR}/embedded_modules.cpp)
 target_include_directories(basiccore PUBLIC include src)
 target_link_libraries(basiccore PUBLIC basic_rt_pc)
+# runtime/ref reports errors through rt_error(), which lives in rt_pc.cpp. Programs that only use the
+# frontend (constant folding) reference nothing else from that archive member, so the linker would
+# not pull it in: force it.
+if(MSVC)
+  target_link_options(basiccore INTERFACE /INCLUDE:rt_error)
+elseif(APPLE)
+  target_link_options(basiccore INTERFACE -Wl,-u,_rt_error)
+else()
+  target_link_options(basiccore INTERFACE -Wl,-u,rt_error)
+endif()
 target_compile_features(basiccore PUBLIC cxx_std_20)
 basic_set_warnings(basiccore)
 

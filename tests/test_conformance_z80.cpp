@@ -504,8 +504,8 @@ int main() {
         };
         auto desc = [&](std::uint16_t d, std::uint16_t at, const std::string& t) {
             put(at, t);
-            rt.raw().write8(d, at & 0xFF);
-            rt.raw().write8(d + 1, at >> 8);
+            rt.raw().write8(d, static_cast<std::uint8_t>(at & 0xFF));
+            rt.raw().write8(d + 1, static_cast<std::uint8_t>(at >> 8));
             rt.raw().write8(d + 2, t.size() & 0xFF);
             rt.raw().write8(d + 3, static_cast<std::uint8_t>(t.size() >> 8));
         };

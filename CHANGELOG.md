@@ -6,6 +6,13 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 
 ## [Unreleased]
 
+### Behoben
+- Linken von `test_frontend` und allen Programmen, die nur das Frontend benutzen: `rt_error` liegt in
+  `rt_pc.cpp`, dessen Objekt der Linker aus dem Archiv nicht zog (`-u rt_error` bzw. `/INCLUDE`).
+- Windows/MSVC: `localtime_r` in `platform/pc/rt_pc.cpp` durch `localtime_s` ersetzt.
+- Tests mit `-Werror`: fehlendes `#include <algorithm>` (`m68k_runner.cpp`), Einengungen in
+  `test_conformance_z80.cpp`.
+
 ### Hinzugefügt
 - `gui/`: grafische Oberfläche „Basic IDE“ (Python 3 + tkinter, läuft unter Windows, macOS und Linux
   ohne weitere Pakete): Texteditor mit automatischer Einrückung der GFA-Blockbefehle, Farbhervorhebung,

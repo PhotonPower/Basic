@@ -1,5 +1,6 @@
 #include "m68k_runner.hpp"
 
+#include <algorithm>
 #include <cstdlib>
 
 #include "rt_gfx.hpp"

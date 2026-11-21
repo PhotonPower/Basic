@@ -401,7 +401,11 @@ std::int32_t rinstr(const std::string& a, const std::string& b) { return rinstr(
 std::int32_t timer() {
     const std::time_t t = std::time(nullptr);
     std::tm local{};
+#ifdef _WIN32
+    localtime_s(&local, &t);  // MSVC: reversed arguments, no localtime_r
+#else
     localtime_r(&t, &local);
+#endif
     const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count() % 1000;
     return static_cast<std::int32_t>((local.tm_hour * 3600 + local.tm_min * 60 + local.tm_sec) * 200 + ms / 5);
 }
