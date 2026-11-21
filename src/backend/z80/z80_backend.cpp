@@ -1,6 +1,7 @@
 #include "backend/z80/z80_backend.hpp"
 
 #include <algorithm>
+#include <bit>
 #include <cctype>
 #include <cstdio>
 #include <map>
@@ -348,7 +349,7 @@ private:
         for (std::size_t i = 0; i < m; ++i) {
             if (def[i] >= 0) occupy(static_cast<std::size_t>(def[i]), static_cast<long>(i));
             for (std::size_t w = 0; w < W; ++w)
-                for (std::uint64_t v = in[i * W + w]; v != 0; v &= v - 1) occupy(w * 64 + static_cast<std::size_t>(__builtin_ctzll(v)), static_cast<long>(i));
+                for (std::uint64_t v = in[i * W + w]; v != 0; v &= v - 1) occupy(w * 64 + static_cast<std::size_t>(std::countr_zero(v)), static_cast<long>(i));
         }
         if (hasRecord()) {  // a statement repeated by RESUME: what is live at its start, to its end
             std::size_t start = m;
@@ -357,7 +358,7 @@ private:
                 if (start < m)
                     for (std::size_t w = 0; w < W; ++w)
                         for (std::uint64_t v = in[start * W + w]; v != 0; v &= v - 1)
-                            occupy(w * 64 + static_cast<std::size_t>(__builtin_ctzll(v)), static_cast<long>(i) - 1);
+                            occupy(w * 64 + static_cast<std::size_t>(std::countr_zero(v)), static_cast<long>(i) - 1);
                 start = i;
             }
         }

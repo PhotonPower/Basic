@@ -10,6 +10,7 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 - Linken von `test_frontend` und allen Programmen, die nur das Frontend benutzen: `rt_error` liegt in
   `rt_pc.cpp`, dessen Objekt der Linker aus dem Archiv nicht zog (`-u rt_error` bzw. `/INCLUDE`).
 - Windows/MSVC: `localtime_r` in `platform/pc/rt_pc.cpp` durch `localtime_s` ersetzt.
+- Windows/MSVC: `__builtin_ctzll` im Z80-Backend durch `std::countr_zero` ersetzt.
 - Tests mit `-Werror`: fehlendes `#include <algorithm>` (`m68k_runner.cpp`), Einengungen in
   `test_conformance_z80.cpp`.
 
