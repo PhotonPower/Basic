@@ -104,4 +104,9 @@ find_package(Python3 COMPONENTS Interpreter QUIET)
 if(Python3_FOUND)
   add_test(NAME tools_gfa_run
            COMMAND ${Python3_EXECUTABLE} -m unittest discover -s ${CMAKE_CURRENT_SOURCE_DIR}/tools -p "test_*.py")
+  # The editor (gui/): indentation rules, syntax colouring, starting basicc. The window itself
+  # (tkinter) is not tested here; it needs a display.
+  add_test(NAME gui_logic
+           COMMAND ${Python3_EXECUTABLE} -m unittest discover -s ${CMAKE_CURRENT_SOURCE_DIR}/gui -p "test_*.py")
+  set_tests_properties(gui_logic PROPERTIES ENVIRONMENT "BASICC=$<TARGET_FILE:basicc>")
 endif()

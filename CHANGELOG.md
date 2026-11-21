@@ -6,6 +6,13 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 
 ## [Unreleased]
 
+### Hinzugefügt
+- `gui/`: grafische Oberfläche „Basic IDE“ (Python 3 + tkinter, läuft unter Windows, macOS und Linux
+  ohne weitere Pakete): Texteditor mit automatischer Einrückung der GFA-Blockbefehle, Farbhervorhebung,
+  Zeilennummern, Suchen/Ersetzen; Menü *Programm* startet den Interpreter (`basicc --run`, mit
+  Ein-/Ausgabe und Grafikfenster), übersetzt für alle Ziele und prüft die Syntax; Fehlermeldungen
+  springen zur Zeile. Siehe `docs/gui.md`. Tests: `tests/gui`, in ctest als `gui_logic`.
+
 ## [0.6.0] – 2026-11-08
 
 Zwischen-Release, das Projekt pausiert. `basicc` übersetzt für Amiga (MC68000), Amstrad CPC (Z80),

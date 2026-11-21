@@ -53,6 +53,8 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 
 ./build/basicc --targets        # Zielsysteme und ihre Befehlsgruppen
+
+python3 gui/basic_ide.py        # grafischer Editor (siehe docs/gui.md)
 ```
 
 Voraussetzungen: CMake ≥ 3.16, C++20-Compiler (GCC ≥ 11, Clang ≥ 14, MSVC 2022), Netzzugang beim
@@ -72,6 +74,7 @@ ersten Konfigurieren.
 | [docs/testing.md](docs/testing.md) | Emulator-Harness, Differenz- und Konformanztests, Größenbudgets |
 | [docs/gfa-original.md](docs/gfa-original.md) | Abgleich mit dem echten GFA-BASIC 3.5 im FS-UAE (`tools/gfa/gfa_run.py`) |
 | [docs/usage.md](docs/usage.md) | Kommandozeile (geplant) |
+| [docs/gui.md](docs/gui.md) | Grafische Oberfläche: Editor mit Einrückung, Interpreter und Compiler per Menü |
 | [docs/decisions.md](docs/decisions.md) | Entwurfsentscheidungen mit Begründung |
 | [docs/roadmap.md](docs/roadmap.md) | Meilensteine und offene Fragen |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Bauen, Regeln |
