@@ -121,14 +121,19 @@ class Job:
 
     def _pump(self, stream, kind: str) -> None:
         dec = codecs.getincrementaldecoder(self.encoding)(errors="replace")
+        held = ""  # a CR at the end of a chunk: LF may follow in the next one (Windows: CRLF)
         while True:
             chunk = os.read(stream.fileno(), 4096)  # returns as soon as something is there
             if not chunk:
                 break
-            text = dec.decode(chunk)
+            text = held + dec.decode(chunk)
+            held = "\r" if text.endswith("\r") else ""
+            if held:
+                text = text[:-1]
+            text = text.replace("\r\n", "\n")
             if text:
                 self.events.put((kind, text))
-        tail = dec.decode(b"", final=True)
+        tail = (held + dec.decode(b"", final=True)).replace("\r\n", "\n")
         if tail:
             self.events.put((kind, tail))
 

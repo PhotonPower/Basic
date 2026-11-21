@@ -29,9 +29,10 @@ class RunnerTest(unittest.TestCase):
 
     def test_output_paths(self):
         t = runner.target_by_key
-        self.assertEqual(runner.output_path("/a/p.lst", t("amiga")), "/a/p")
-        self.assertEqual(runner.output_path("/a/p.lst", t("cpc")), "/a/p.bin")
-        self.assertEqual(runner.output_path("/a/p.lst", t("pc")), "/a/p.cpp")
+        base = os.path.join(os.sep, "a", "p")  # separators differ between Windows and the rest
+        self.assertEqual(runner.output_path(base + ".lst", t("amiga")), base)
+        self.assertEqual(runner.output_path(base + ".lst", t("cpc")), base + ".bin")
+        self.assertEqual(runner.output_path(base + ".lst", t("pc")), base + ".cpp")
         argv = runner.compile_argv("bc", "/a/p.lst", t("cpc-sna"), "rom.bin")
         self.assertEqual(argv[-2:], ["--rom", "rom.bin"])
 
@@ -49,6 +50,14 @@ class RunnerTest(unittest.TestCase):
         job.send("hallo\n")
         out, code = collect(job)
         self.assertEqual((out["out"].strip(), code), ("hallo", 0))
+
+    def test_crlf_is_normalised(self):
+        code = "import sys; sys.stdout.buffer.write(b'a\\r\\nb\\r'); sys.stdout.flush(); " \
+               "import time; time.sleep(0.3); sys.stdout.buffer.write(b'\\nc\\r\\n')"
+        job = runner.Job([sys.executable, "-c", code])
+        job.start()
+        out, _ = collect(job)
+        self.assertEqual(out["out"], "a\nb\nc\n")
 
     def test_job_kill(self):
         job = runner.Job([sys.executable, "-c", "import time; time.sleep(60)"])
