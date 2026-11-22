@@ -1,6 +1,6 @@
 ;! module    plat_gui
 ;! provides  plat_gui
-;! requires  plat_gfx_window plat_exit_gui
+;! requires  plat_gfx_window plat_exit_gui plat_getc_pend
 ;! group     gui
 ;! clobbers  D0-D3/A0-A1
 ;! doc       amiga: requesters and menus (D26 stage 2b) with intuition.library on the screen of the current window.
@@ -806,8 +806,9 @@ plat_gui__menu:
         BMI     .out
         MOVE.L  plat_gui__win,plat_gui__mwin
         BSR     plat_gui__reset
-        MOVE.L  plat_gui__mwin,A0       ; the window reports MENUPICK
-        MOVE.L  #$100,D0
+        MOVE.L  plat_gui__mwin,A0       ; the window reports MENUPICK (besides VANILLAKEY of the
+        MOVE.L  82(A0),D0               ; keyboard, D31): Window->IDCMPFlags
+        OR.L    #$100,D0
         MOVE.L  plat_gui__ib,A6
         JSR     plat_gui__ModifyIDCMP(A6)
         MOVE.L  #plat_gui__close,plat_exit_gui
@@ -898,7 +899,11 @@ plat_gui__onmenu:
         MOVEQ   #0,D3
         MOVE.W  24(A1),D3               ; code
         JSR     plat_gui__ReplyMsg(A6)
-        CMP.L   #$100,D2                ; MENUPICK
+        CMP.L   #$200000,D2             ; VANILLAKEY: a key for INKEY$/INPUT (plat_getc, D31)
+        BNE     .nkey
+        MOVE.W  D3,plat_getc_pend
+        BRA     .out
+.nkey:  CMP.L   #$100,D2                ; MENUPICK
         BNE     .out
         CMP.W   #$FFFF,D3               ; MENUNULL
         BEQ     .out

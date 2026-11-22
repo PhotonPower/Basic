@@ -1,6 +1,6 @@
 ;! module    rt_kbd
 ;! provides  rt_kbd_begin rt_kbd_field rt_kbd_num rt_kbd_line rt_kbd_end rt_kbd_inkey rt_kbd_chars
-;! requires  plat_getc plat_alloc rt_print_str rt_print_col rt_str_newtemp rt_val rt_error
+;! requires  plat_getc plat_inkey plat_alloc rt_print_str rt_print_col rt_str_newtemp rt_val rt_error
 ;! group     input
 ;! clobbers  D0-D3/A0-A1
 ;! doc       Keyboard: INPUT, LINE INPUT, INKEY$, INPUT$(n) (semantics of brt::Keyboard, platform/pc).
@@ -182,7 +182,7 @@ rt_kbd_end:
 
 ; -> A0 = INKEY$: one character, or "" at the end of the input
 rt_kbd_inkey:
-        JSR     plat_getc
+        JSR     plat_inkey              ; without waiting where the platform can (amiga window, D31)
         TST.L   D0
         BMI     .none
         BSR     rt_kbd__cr

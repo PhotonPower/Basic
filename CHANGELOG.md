@@ -30,6 +30,10 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
   Ganzzahl ohne `DEFNUM` über `rt_str_dig`).
 
 ### Behoben
+- Amiga: Mit offenem Grafikfenster (`OPENS`/`OPENW`, erster Grafikbefehl) kamen bei `INPUT`,
+  `LINE INPUT` und `INKEY$` keine Tasten an, weil nur `Input()` der Shell gelesen wurde; `INKEY$`
+  wartete bis zur nächsten Zeile. Jetzt aus dem Fenster (`VANILLAKEY`), mit Echo und Backspace im
+  Fenster, `INKEY$` ohne Warten (D31).
 - `basicc --target cpc`: Ein Programm über 64 KB meldet `the program does not fit into the 64 KB of
   the Z80` statt eines internen Fehlers des Assemblers.
 - Windows/MSVC: Die eingebauten Laufzeitmodule werden als Byte-Felder statt als Zeichenketten

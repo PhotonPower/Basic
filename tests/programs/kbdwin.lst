@@ -1,0 +1,15 @@
+' test: groups core print input graphics
+' Tastatur bei offenem Grafikfenster (D31): Auf dem Amiga kommen die Tasten dann aus dem eigenen
+' Fenster (VANILLAKEY), nicht aus der Shell; LINE INPUT/INPUT mit Echo nur ins Fenster, INKEY$
+' wartet nicht. Hier mit kbdwin.in; in FS-UAE (build/tests/kbdwin aus basicc --target amiga):
+'   python3 tools/gfa/amiga_run.py kbdwin --after wait:3 --after type:abc --after key:return
+'     --after wait:1 --after type:x --after wait:1 --after type:12 --after key:return
+PLOT 1,1
+LINE INPUT "T1 ",a$
+PRINT "T1 ";a$;" ";LEN(a$)
+REPEAT
+  k$=INKEY$
+UNTIL k$<>""
+PRINT "T2 ";ASC(k$)
+INPUT "T3 ",n
+PRINT "T3 ";n*2
