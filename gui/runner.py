@@ -73,10 +73,14 @@ def output_path(source: str, t: Target) -> str:
     return stem + t.suffix if t.suffix else stem
 
 
-def compile_argv(basicc: str, source: str, t: Target, rom: str | None = None) -> list[str]:
+def compile_argv(basicc: str, source: str, t: Target, rom: str | None = None,
+                 org: str | None = None) -> list[str]:
+    """org: start address of a CPC program (basicc --org, e.g. "&4000"); empty = default &0100."""
     argv = [basicc, "--target", t.target, source, "-o", output_path(source, t)]
     if t.needs_rom and rom:
         argv += ["--rom", rom]
+    if t.target == "cpc" and org and org.strip():
+        argv += ["--org", org.strip()]
     return argv
 
 
@@ -184,7 +188,7 @@ def config_path() -> Path:
 
 
 DEFAULTS = {
-    "basicc": "", "rom": "", "font_size": 12, "indent": 2, "auto_indent": True, "dark": False,
+    "basicc": "", "rom": "", "cpc_org": "", "font_size": 12, "indent": 2, "auto_indent": True, "dark": False,
     "last_target": "amiga", "auto_case": True, "abbreviations": {}, "geometry": "980x720", "show_output": True,
 }
 

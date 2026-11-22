@@ -243,6 +243,7 @@ class App:
         m.add_cascade(label="Einstellungen", menu=s, underline=0)
         s.add_command(label="Pfad zu basicc …", command=self.choose_basicc)
         s.add_command(label="CPC-ROM für Snapshots …", command=self.choose_rom)
+        s.add_command(label="CPC-Startadresse …", command=self.choose_cpc_org)
         s.add_command(label="Einrückbreite …", command=self.choose_indent)
 
         h = tk.Menu(m, tearoff=False)
@@ -895,6 +896,16 @@ class App:
             self.set["rom"] = p
             runner.save_settings(self.set)
 
+    def choose_cpc_org(self) -> None:
+        text = simpledialog.askstring(
+            "CPC-Startadresse",
+            "Lade- und Startadresse für CPC-Programme (basicc --org),\n"
+            "z. B. &4000; erlaubt &0040 bis &A1FF. Leer = Standard &0100:",
+            parent=self.root, initialvalue=self.set.get("cpc_org", ""))
+        if text is not None:
+            self.set["cpc_org"] = text.strip()
+            runner.save_settings(self.set)
+
     def choose_indent(self) -> None:
         n = simpledialog.askinteger("Einrückbreite", "Leerzeichen je Ebene (1–8):", parent=self.root,
                                     initialvalue=int(self.set["indent"]), minvalue=1, maxvalue=8)
@@ -980,8 +991,9 @@ class App:
         self.set["last_target"] = key
         out = runner.output_path(src, t)
         self.clear_output()
-        self.append(f"⚙ Kompilieren für {t.label}\n", "info")
-        self.start_job(runner.compile_argv(exe, src, t, self.set.get("rom")), "compile",
+        org = self.set.get("cpc_org", "") if t.target == "cpc" else ""
+        self.append(f"⚙ Kompilieren für {t.label}" + (f", Startadresse {org}" if org else "") + "\n", "info")
+        self.start_job(runner.compile_argv(exe, src, t, self.set.get("rom"), org), "compile",
                        str(Path(src).parent), out=out)
 
     def check_syntax(self) -> None:

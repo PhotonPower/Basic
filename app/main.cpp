@@ -7,6 +7,7 @@
 #include <cctype>
 #include <fstream>
 #include <iostream>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -40,7 +41,8 @@ void usage(std::ostream& out) {
         << "                                                        AmigaDOS executable (-o x.s: assembler\n"
         << "                                                        source), m68k-test -> assembler source,\n"
         << "                                                        cpc -> binary with AMSDOS header (-o x.s:\n"
-        << "                                                        source; -o x.sna --rom <6128.rom>: snapshot),\n"
+        << "                                                        source; -o x.sna --rom <6128.rom>: snapshot;\n"
+        << "                                                        --org <addr>: start address, default &0100),\n"
         << "                                                        z80-test -> assembler source\n"
         << "  basicc --targets                                      list targets and their command groups\n"
         << "  basicc --emit-ast <program.lst>                       print the syntax tree\n"
@@ -172,14 +174,15 @@ int compileM68k(const std::string& path, std::string output, bool amiga) {
 }
 
 // Z80: lowering, backend, source-level linker. z80-test writes the assembler source (ORG &4000);
-// cpc writes a binary with AMSDOS header (load and entry &0100; without the BSS, which the program
-// clears at its start), or the source if the output name ends in ".s".
-int compileZ80(const std::string& path, std::string output, bool cpc, const std::string& rom) {
+// cpc writes a binary with AMSDOS header (load and entry at `origin`, default &0100; without the BSS,
+// which the program clears at its start), or the source if the output name ends in ".s".
+int compileZ80(const std::string& path, std::string output, bool cpc, const std::string& rom,
+               std::optional<std::uint16_t> origin) {
     basic::hir::Program h;
     if (!frontEnd(path, h)) return 1;
     basic::Diagnostics diags;
     const basic::Z80Target target = cpc ? basic::Z80Target::Cpc : basic::Z80Target::Test;
-    const std::string source = basic::buildZ80Program(h, target, diags);
+    const std::string source = basic::buildZ80Program(h, target, diags, origin);
     if (diags.empty()) {
         if (output.empty()) {
             output = path;
@@ -197,7 +200,7 @@ int compileZ80(const std::string& path, std::string output, bool cpc, const std:
         if (!asSource) {
 #ifdef BASIC_HAVE_Z80_ASSEMBLER
             z80::AssemblerOptions options;
-            options.origin = basic::z80Origin(target);
+            options.origin = origin.value_or(basic::z80Origin(target));
             const z80::AssemblyResult assembled = z80::Assembler(options).assemble(source);
             if (!assembled.ok()) {
                 std::cerr << "basicc: internal error, assembler:\n" << assembled.formatDiagnostics("<source>");
@@ -316,9 +319,10 @@ int main(int argc, char** argv) {
         }
         return run(args[1], seed, gfx);
     }
-    std::string target, input, output, rom;
+    std::string target, input, output, rom, org;
     for (std::size_t i = 0; i < args.size(); ++i) {
         if (args[i] == "--target" && i + 1 < args.size()) target = args[++i];
+        else if (args[i] == "--org" && i + 1 < args.size()) org = args[++i];
         else if (args[i] == "--rom" && i + 1 < args.size()) rom = args[++i];
         else if (args[i] == "-o" && i + 1 < args.size()) output = args[++i];
         else if (input.empty() && args[i].rfind("-", 0) != 0) input = args[i];
@@ -335,9 +339,22 @@ int main(int argc, char** argv) {
         std::cerr << "basicc: unknown target '" << target << "' (see basicc --targets)\n";
         return 2;
     }
+    std::optional<std::uint16_t> origin;
+    if (!org.empty()) {
+        if (target != "cpc") {
+            std::cerr << "basicc: --org is only supported for the target cpc\n";
+            return 2;
+        }
+        std::string error;
+        origin = basic::parseCpcOrigin(org, error);
+        if (!origin) {
+            std::cerr << "basicc: --org: " << error << "\n";
+            return 2;
+        }
+    }
     if (target == "pc") return compilePc(input, output);
     if (target == "m68k-test" || target == "amiga") return compileM68k(input, output, target == "amiga");
-    if (target == "z80-test" || target == "cpc") return compileZ80(input, output, target == "cpc", rom);
+    if (target == "z80-test" || target == "cpc") return compileZ80(input, output, target == "cpc", rom, origin);
     std::cerr << "basicc: target '" << target << "' is not implemented yet (see docs/roadmap.md)\n";
     return 2;
 }

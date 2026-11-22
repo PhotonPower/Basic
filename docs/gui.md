@@ -75,7 +75,8 @@ Unter Windows mit Visual Studio: `cmake --build build --config Release`; `basicc
 | Syntax prüfen | `F7` | übersetzt nur das Frontend |
 
 Der CPC-Snapshot braucht das 32-KiB-ROM der CPC 6128 (*Einstellungen → CPC-ROM*; wird nie
-eingecheckt). Fehlermeldungen (`datei:zeile:spalte: text`) stehen rot in der Ausgabe; ein Klick
+eingecheckt). *Einstellungen → CPC-Startadresse* legt die Lade- und Startadresse aller CPC-Ziele fest
+(`basicc --org`, z. B. `&4000`; leer = `&0100`, Schlüssel `"cpc_org"`). Fehlermeldungen (`datei:zeile:spalte: text`) stehen rot in der Ausgabe; ein Klick
 darauf, beim ersten Fehler automatisch, setzt den Cursor in die Zeile. Ein unbenannter Text wird für
 `F5` und `F7` in einer temporären Datei ausgeführt, zum Kompilieren muss er gespeichert sein.
 

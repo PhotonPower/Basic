@@ -35,6 +35,12 @@ class RunnerTest(unittest.TestCase):
         self.assertEqual(runner.output_path(base + ".lst", t("pc")), base + ".cpp")
         argv = runner.compile_argv("bc", "/a/p.lst", t("cpc-sna"), "rom.bin")
         self.assertEqual(argv[-2:], ["--rom", "rom.bin"])
+        argv = runner.compile_argv("bc", "/a/p.lst", t("cpc-sna"), "rom.bin", org="&4000")
+        self.assertEqual(argv[-4:], ["--rom", "rom.bin", "--org", "&4000"])
+        argv = runner.compile_argv("bc", "/a/p.lst", t("cpc"), org=" &4000 ")
+        self.assertEqual(argv[-2:], ["--org", "&4000"])
+        self.assertNotIn("--org", runner.compile_argv("bc", "/a/p.lst", t("cpc"), org=""))
+        self.assertNotIn("--org", runner.compile_argv("bc", "/a/p.lst", t("amiga"), org="&4000"))
 
     def test_settings_roundtrip(self):
         with tempfile.TemporaryDirectory() as d:
@@ -92,6 +98,21 @@ class RunnerTest(unittest.TestCase):
             _, code = collect(job)
             self.assertEqual(code, 0)
             self.assertTrue((Path(d) / "t.cpp").is_file())
+            job = runner.Job(runner.compile_argv(exe, str(src), runner.target_by_key("cpc-s"), org="&4000"))
+            job.start()
+            _, code = collect(job)
+            self.assertEqual(code, 0)
+            self.assertIn("ORG     16384", (Path(d) / "t.s").read_text(encoding="latin-1"))
+            job = runner.Job(runner.compile_argv(exe, str(src), runner.target_by_key("cpc-s"), org="&A200"))
+            job.start()
+            out, code = collect(job)
+            self.assertEqual(code, 2)
+            self.assertIn("--org", out["err"])
+            job = runner.Job([exe, "--target", "pc", str(src), "--org", "&4000"])  # only cpc has --org
+            job.start()
+            out, code = collect(job)
+            self.assertEqual(code, 2)
+            self.assertIn("--org", out["err"])
 
 
     def test_normalised_programs_mean_the_same(self):

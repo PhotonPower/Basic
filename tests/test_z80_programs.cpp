@@ -12,7 +12,10 @@
 #include <fstream>
 #include <iostream>
 #include <sstream>
+#include <optional>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "backend/z80/z80_backend.hpp"
 #include "frontend/parser.hpp"
@@ -131,6 +134,44 @@ int main() {
             h[0x43] != (sum & 0xFF) || h[0x44] != (sum >> 8)) {
             ++g_failures;
             std::cerr << "amsdosHeader: wrong fields (name " << name << ")\n";
+        }
+    }
+    {  // --org: the start address of a CPC program (Basic, hex in all notations, range)
+        std::string error;
+        for (const auto& [text, want] : std::vector<std::pair<std::string, int>>{
+                 {"&4000", 0x4000}, {"&h4000", 0x4000}, {"$4000", 0x4000}, {"0x4000", 0x4000}, {"16384", 0x4000},
+                 {"&40", 0x40}, {"&A1FF", 0xA1FF}, {"&3F", -1}, {"&A200", -1}, {"&10000", -1}, {"", -1},
+                 {"&", -1}, {"4k", -1}, {"&G0", -1}}) {
+            const std::optional<std::uint16_t> got = parseCpcOrigin(text, error);
+            ++g_checks;
+            if ((want < 0) != !got.has_value() || (got && *got != want) || (!got && error.empty())) {
+                ++g_failures;
+                std::cerr << "parseCpcOrigin(\"" << text << "\"): wrong result\n";
+            }
+        }
+    }
+    {  // a CPC program linked at another address runs there
+        const fs::path lst = dir / "numbers.lst";
+        Diagnostics d;
+        const hir::Program h = analyze(parseProgram(read(lst), d), d);
+        const std::string source = buildZ80Program(h, Z80Target::Cpc, d, std::uint16_t{0x4000});
+        harness::Z80Options opt;
+        opt.maxInstructions = 500'000'000;
+        opt.origin = 0x4000;
+        opt.fill = 0xE5;
+        opt.withoutBss = true;
+        const harness::Z80Run run = harness::runZ80Source(source, harness::Z80Platform::Cpc, opt);
+        const fs::path cpcOut = fs::path(lst).replace_extension(".cpc.out");
+        const fs::path z80Out = fs::path(lst).replace_extension(".z80.out");
+        const std::string expected = read(fs::exists(cpcOut) ? cpcOut : fs::exists(z80Out) ? z80Out : fs::path(lst).replace_extension(".out"));
+        ++g_checks;
+        if (!d.empty() || source.find("ORG     16384") == std::string::npos || !run.error.empty() ||
+            withoutCr(run.console) != withoutCr(expected)) {
+            ++g_failures;
+            std::cerr << "numbers (cpc, ORG &4000): " << (d.empty() ? run.error : d[0].message) << "\n--- actual\n"
+                      << withoutCr(run.console) << "\n";
+        } else {
+            std::cout << "numbers (cpc, ORG &4000): ok\n";
         }
     }
     std::cout << ran << " programs run, " << skipped << " skipped (not yet supported by the backend)\n";

@@ -48,6 +48,10 @@ außerhalb dieses Speichers lösen einen Fehler aus.
 - Ausgabe: `basicc --target cpc prog.lst` schreibt `prog.bin` mit AMSDOS-Header (Typ 2, Laden und
   Start bei `&0100`, ohne den BSS-Teil, den das Programm beim Start löscht); Start mit `RUN"prog.bin"`
   oder `MEMORY &FF: LOAD"prog.bin": CALL &100`. `-o prog.s` liefert den Assembler-Quelltext.
+  `--org <adresse>` verlegt Laden und Start (Binärdatei, Snapshot und Quelltext), z. B. `--org &4000`
+  → `MEMORY &3FFF: LOAD"prog.bin": CALL &4000`. Erlaubt ist `&0040`–`&A1FF`: darunter liegen die
+  Restart-Vektoren der Firmware, darüber Stapel und Lader. Felder und Strings beginnen hinter dem
+  Programm, eine höhere Startadresse lässt ihnen also weniger Platz.
   `-o prog.sna --rom cpc6128.rom` schreibt einen Snapshot (Version 1, 64 KiB): Die echte Firmware
   wird im Emulator des Schwesterprojekts bis zum BASIC-Prompt gebootet, das Programm geladen, und der
   Snapshot startet einen kleinen Lader bei `&A600`. Er sichert die Register, schaltet das untere ROM

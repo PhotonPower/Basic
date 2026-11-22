@@ -11,6 +11,9 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
   erweiterbar in der Einstellungsdatei); Befehle werden als `Print`, `For`, `Endif` geschrieben
   (beim Tippen und für das ganze Programm über *Bearbeiten*); Prozeduren und Funktionen lassen sich
   einklappen. Siehe `docs/gui.md`.
+- `basicc --target cpc --org <adresse>`: Lade- und Startadresse eines CPC-Programms (Standard `&0100`,
+  erlaubt `&0040`–`&A1FF`), für Binärdatei, Snapshot und Quelltext; in der GUI unter
+  *Einstellungen → CPC-Startadresse*. Siehe `docs/targets.md`.
 
 ### Behoben
 - Windows/MSVC: Die eingebauten Laufzeitmodule werden als Byte-Felder statt als Zeichenketten
