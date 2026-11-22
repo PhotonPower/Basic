@@ -97,6 +97,19 @@ if(BASIC_WITH_EMULATORS)
   target_compile_definitions(test_z80_firmware PRIVATE BASIC_SOURCE_DIR="${PROJECT_SOURCE_DIR}")
   basic_set_warnings(test_z80_firmware)
   add_test(NAME z80_firmware COMMAND test_z80_firmware)  # needs CPC_ROM, else it reports "skipped"
+
+  # A program larger than the 64 KB of the Z80 (7000 different DATA items): a message about the size, not an
+  # internal error of the assembler.
+  set(too_large "")
+  foreach(i RANGE 1 700)
+    string(APPEND too_large "DATA ${i}01.5,${i}02.5,${i}03.5,${i}04.5,${i}05.5,${i}06.5,${i}07.5,${i}08.5,${i}09.5,${i}10.5\n")
+  endforeach()
+  file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/too_large.lst "${too_large}READ a\nPRINT a\n")
+  add_test(NAME cpc_too_large
+           COMMAND basicc --target cpc ${CMAKE_CURRENT_BINARY_DIR}/too_large.lst -o ${CMAKE_CURRENT_BINARY_DIR}/too_large.bin)
+  set_tests_properties(cpc_too_large PROPERTIES
+                       PASS_REGULAR_EXPRESSION "too_large.lst: the program does not fit into the 64 KB of the Z80"
+                       FAIL_REGULAR_EXPRESSION "internal error")
 endif()
 
 # Tools written in Python (standard library only); skipped without Python 3.

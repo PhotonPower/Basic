@@ -15,7 +15,19 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
   erlaubt `&0040`–`&A1FF`), für Binärdatei, Snapshot und Quelltext; in der GUI unter
   *Einstellungen → CPC-Startadresse*. Siehe `docs/targets.md`.
 
+- Befehlsgruppen (D7): Benutzt ein Programm etwas, für das die Laufzeit des Ziels keine Routine hat,
+  meldet der Compiler Zeile, Befehl und Gruppe (`prog.lst:2: FORM INPUT is not available on the target
+  cpc (group gui)`) statt am Ende `runtime symbol … is not provided by any module` ohne Zeile.
+
+### Geändert
+- Z80: kleinerer Code für den CPC (`docs/performance.md`, Schritt 11): `LOCAL` und Parameter über
+  `rt_lsave`/`rt_lrest`/`rt_zero8`, Laden und Speichern von Variablen über `rt_ld8`/`rt_st8`,
+  Laufzeitaufrufe mit Operanden in Stapelplätzen über die Sprungbretter `zc3`/`zc2`/`zc2d`. Ein
+  Programm mit gut 500 Zeilen hat 16 % weniger Programmcode; die Benchmarks laufen bis zu 6 % länger.
+
 ### Behoben
+- `basicc --target cpc`: Ein Programm über 64 KB meldet `the program does not fit into the 64 KB of
+  the Z80` statt eines internen Fehlers des Assemblers.
 - Windows/MSVC: Die eingebauten Laufzeitmodule werden als Byte-Felder statt als Zeichenketten
   eingebettet; MSVC lehnte Literale über etwa 16 KB ab (Fehler C2026, z. B. `rt_mat.s`).
 

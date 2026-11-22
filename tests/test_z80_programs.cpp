@@ -47,7 +47,8 @@ std::string compile(const std::string& src, Z80Target target, bool& unsupported,
     const std::string source = buildZ80Program(h, target, d);
     if (!d.empty()) {
         message = d[0].message;
-        unsupported = message.find("not supported") != std::string::npos || message.find("not provided by any module") != std::string::npos;
+        unsupported = message.find("not supported") != std::string::npos || message.find("not provided by any module") != std::string::npos ||
+                      message.find("is not available on the target") != std::string::npos;
     }
     return source;
 }
@@ -147,6 +148,29 @@ int main() {
             if ((want < 0) != !got.has_value() || (got && *got != want) || (!got && error.empty())) {
                 ++g_failures;
                 std::cerr << "parseCpcOrigin(\"" << text << "\"): wrong result\n";
+            }
+        }
+    }
+    {  // D7: a command whose runtime the target lacks is reported with its line and group, not by the linker
+        struct Case {
+            const char* src;
+            Z80Target target;
+            const char* message;
+            int line;
+        };
+        for (const Case& c : {Case{"a$=\"x\"\nFORM INPUT 5 AS a$\n", Z80Target::Cpc,
+                                   "FORM INPUT is not available on the target cpc (group gui)", 2},
+                              Case{"PRINT 1\nx=3+RND\nPRINT x\n", Z80Target::Cpc, "RND is not available on the target cpc (group float)", 2},
+                              Case{"PLOT 1,1\n", Z80Target::Test, "PLOT is not available on the target z80-test (group graphics)", 1}}) {
+            Diagnostics d;
+            const hir::Program h = analyze(parseProgram(c.src, d), d);
+            if (d.empty()) (void)buildZ80Program(h, c.target, d);
+            ++g_checks;
+            if (d.size() != 1 || d[0].message != c.message || d[0].line != c.line) {
+                ++g_failures;
+                std::cerr << "availability: want line " << c.line << " '" << c.message << "', got";
+                for (const Diagnostic& x : d) std::cerr << " [" << x.line << ": " << x.message << "]";
+                std::cerr << "\n";
             }
         }
     }

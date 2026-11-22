@@ -8,6 +8,7 @@
 #include <set>
 
 #include "ir/lower.hpp"
+#include "link/availability.hpp"
 #include "link/embedded.hpp"
 
 namespace basic {
@@ -421,6 +422,23 @@ private:
             line("DB      " + std::to_string(256 + offset(args[0])));
             return;
         }
+        // numbers in near slots: one CALL of a trampoline with the slot offsets after it (rt_zc)
+        const auto slotOnly = [&](const Reg& r) { return r.type != VT::Str && r.type != VT::Addr && near(r); };
+        if (allNear && sym.rfind("zi_", 0) != 0 && !args.empty() && args.size() <= 2 &&
+            std::all_of(args.begin(), args.end(), slotOnly) &&
+            (!numeric || slotOnly(dst)) && (args.size() == 2 || numeric)) {
+            const char* tramp = args.size() == 2 ? (numeric ? "zc3" : "zc2") : "zc2d";
+            uses_.insert(tramp);
+            uses_.insert(sym);
+            std::string ops;
+            for (const Reg& r : args) ops += (ops.empty() ? "" : ",") + std::to_string(256 + offset(r));
+            if (numeric) ops += "," + std::to_string(256 + offset(dst));
+            line(std::string("CALL    ") + tramp);
+            line("DB      " + ops);
+            line("DW      " + sym);
+            if (dst.id >= 0 && !numeric) storeHL(dst);
+            return;
+        }
         if (allNear) {
             if (args.size() >= 2) argTo("BC", args[1]);
             if (!args.empty()) argTo("DE", args[0]);
@@ -576,6 +594,14 @@ private:
                     storeHL(i.dst);
                     return;
                 }
+                if ((t == hir::Type::Float || t == hir::Type::Int) && !indirect(i.var) && near(i.dst)) {
+                    const std::string r = t == hir::Type::Float ? "rt_ld8" : "rt_ld4";  // DB d, DW v
+                    uses_.insert(r);
+                    line("CALL    " + r);
+                    line("DB      " + std::to_string(256 + offset(i.dst)));
+                    line("DW      " + var(i.var));
+                    return;
+                }
                 if (!addrTo("DE", i.dst)) {
                     slotToHL(i.dst);
                     line("EX      DE,HL");
@@ -614,6 +640,13 @@ private:
                     line("PUSH    HL");
                     slotToHL(i.a);
                     line("POP     DE");
+                } else if ((t == hir::Type::Float || t == hir::Type::Int) && near(i.a)) {
+                    const std::string r = t == hir::Type::Float ? "rt_st8" : "rt_st4";  // DB d, DW v
+                    uses_.insert(r);
+                    line("CALL    " + r);
+                    line("DB      " + std::to_string(256 + offset(i.a)));
+                    line("DW      " + var(i.var));
+                    return;
                 } else {
                     slotToHL(i.a);
                     line("LD      DE," + var(i.var));
@@ -843,10 +876,9 @@ private:
                 return;
             case Kind::Save: {  // the 8 bytes of the variable on the stack
                 const std::string v = var(i.var);
-                for (int off = 6; off >= 0; off -= 2) {
-                    line("LD      HL,(" + v + "+" + std::to_string(off) + ")");
-                    line("PUSH    HL");
-                }
+                uses_.insert("rt_lsave");  // the words v+6 ... v+0 pushed (v+0 on top)
+                line("CALL    rt_lsave");
+                line("DW      " + v);
                 if (varType(i.var) == hir::Type::Str) {  // the saved copy owns the block now
                     uses_.insert("rt_str_relink");
                     line("LD      HL,0");
@@ -876,8 +908,9 @@ private:
                 return;
             }
             case Kind::Clear: {
+                uses_.insert("rt_zero8");
                 line("LD      HL," + var(i.var));
-                bytesAt({0, 0, 0, 0, 0, 0, 0, 0});
+                line("CALL    rt_zero8");
                 return;
             }
             case Kind::Restore: {
@@ -909,10 +942,9 @@ private:
                     line("LD      HL," + v);
                     line("CALL    rt_str_free");
                 }
-                for (int off = 0; off <= 6; off += 2) {
-                    line("POP     HL");
-                    line("LD      (" + v + "+" + std::to_string(off) + "),HL");
-                }
+                uses_.insert("rt_lrest");  // the words saved by rt_lsave
+                line("CALL    rt_lrest");
+                line("DW      " + v);
                 if (str) {
                     uses_.insert("rt_str_relink");
                     line("LD      HL," + v);
@@ -1032,6 +1064,9 @@ std::string buildZ80Program(const hir::Program& program, Z80Target target, Diagn
     std::vector<link::Module> mods =
         link::embeddedModulesOf({"runtime/z80", target == Z80Target::Cpc ? "platform/cpc" : "platform/z80-test"}, diags);
     const link::Library lib = link::makeLibrary(std::move(mods), diags);
+    const link::Library reference = link::makeLibrary(link::embeddedModulesOf({"runtime/m68k", "platform/amiga"}, diags), diags);
+    link::checkAvailability(l, prog, lib, reference, target == Z80Target::Cpc ? "cpc" : "z80-test", diags);
+    if (!diags.empty()) return "";
     const link::Result r = link::link(lib, prog, {"plat_start"}, link::Layout::PlainZ80,
                                       std::string("; generated by basicc (target ") + (target == Z80Target::Cpc ? "cpc" : "z80-test") +
                                           ")\n        ORG     " + std::to_string(origin.value_or(z80Origin(target))) + "\n",

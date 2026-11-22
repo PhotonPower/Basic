@@ -203,6 +203,14 @@ int compileZ80(const std::string& path, std::string output, bool cpc, const std:
             options.origin = origin.value_or(basic::z80Origin(target));
             const z80::AssemblyResult assembled = z80::Assembler(options).assemble(source);
             if (!assembled.ok()) {
+                // past &FFFF the assembler stops (and PRG_END is not known): a program too large
+                for (const z80::Diagnostic& d : assembled.diagnostics)
+                    if (d.message.find("exceeds address space") != std::string::npos) {
+                        std::cerr << "basicc: " << path << ": the program does not fit into the 64 KB of the Z80"
+                                  << (cpc ? " (the CPC has " + std::to_string(0xA200 - options.origin) + " bytes)" : std::string())
+                                  << "\n";
+                        return 1;
+                    }
                 std::cerr << "basicc: internal error, assembler:\n" << assembled.formatDiagnostics("<source>");
                 return 1;
             }

@@ -65,6 +65,7 @@ private:
     lir::Function* f_ = nullptr;
     const hir::Routine* routine_ = nullptr;
     int line_ = 0;
+    std::string feature_;           // BASIC command or function being lowered (RtCall::text, D7 check)
     std::vector<int> exitLabels_;   // EXIT IF targets
     std::vector<int> saved_;        // variables saved in this routine (restore in reverse order)
     int exitLabel_ = -1;            // end of the routine
@@ -116,6 +117,7 @@ private:
         Instr i;
         i.kind = Kind::RtCall;
         i.op = sym;
+        i.text = feature_;
         i.args = std::move(args);
         if (hasResult) i.dst = reg(result);
         f_->code.push_back(i);
@@ -505,8 +507,25 @@ private:
         return rtcall("fp_cmp", {v, constF(0)}, VT::I32);  // non-zero = true
     }
 
+    // the BASIC keyword of a statement, for messages about missing runtime routines (D7)
+    static std::string keyword(const hir::Stmt& s) {
+        switch (s.kind) {
+            case SKind::Cmd: return s.name;
+            case SKind::Print: return s.usingFmt ? "PRINT USING" : s.channel ? "PRINT #" : "PRINT";
+            case SKind::For: return "FOR";
+            case SKind::Select: return "SELECT";
+            case SKind::Read: return "READ";
+            case SKind::Restore: return "RESTORE";
+            case SKind::OnError: return "ON ERROR";
+            case SKind::Resume: return "RESUME";
+            case SKind::Local: return "LOCAL";
+            default: return "";
+        }
+    }
+
     void statement(const hir::Stmt& s) {
         line_ = s.line;
+        feature_ = keyword(s);
         if (!onError_) {
             emit(Kind::Line).imm = s.line;
             releaseTemps();
@@ -1544,6 +1563,14 @@ private:
     Reg arg(const hir::Expr& e, std::size_t k) { return expr(*e.args[k]); }
 
     Reg builtin(const hir::Expr& e) {
+        const std::string outer = feature_;  // the arguments may be builtins themselves
+        feature_ = e.sval;
+        Reg r = builtinCall(e);
+        feature_ = outer;
+        return r;
+    }
+
+    Reg builtinCall(const hir::Expr& e) {
         const std::string& n = e.sval;
         static const std::map<std::string, std::string> f2f = {
             {"INT", "fp_int"}, {"TRUNC", "fp_trunc"}, {"FIX", "fp_trunc"}, {"FRAC", "fp_frac"}, {"SQR", "fp_sqrt"}, {"ABS", "fp_abs"}};

@@ -76,6 +76,24 @@ Auf einem CPC (rund 4 MHz) wären das für `bench_float` etwa 10 Minuten, für `
    Anweisungsgrenze fortsetzt.
 10. Z80, `zi_add`/`zi_sub` ohne Schleife, `zi_mulv` nur über die signifikanten Bytes des kleineren
     Faktors (für `*2` 8 statt 32 Schritte); im Konformanztest gegen C.
+11. Z80, Codegröße für den CPC (ein Sternkartenprogramm mit gut 500 Zeilen brauchte 65 KB):
+    - `LOCAL` und Parameter: `CALL rt_lsave / DW v` und `CALL rt_lrest / DW v` statt vier
+      `LD HL,(v+n)` / `PUSH` bzw. `POP` / `LD (v+n),HL` (5 statt 16–17 Byte), Nullsetzen mit
+      `CALL rt_zero8` (6 statt 26 Byte).
+    - Laden und Speichern einer Fließkomma- oder Ganzzahlvariablen in einen nahen Stapelplatz:
+      `CALL rt_ld8 / DB d / DW v` (bzw. `rt_ld4`, `rt_st8`, `rt_st4`), 6 statt 12 Byte.
+    - Aufruf einer Laufzeitroutine mit Zahlenoperanden in nahen Stapelplätzen über ein Sprungbrett:
+      `CALL zc3 / DB a,b,d / DW routine` statt dreimal `rt_ix*` und `CALL` (8 statt 15 Byte; `zc2`,
+      `zc2d` für zwei Operanden ohne bzw. einen mit Ergebnis). Die Routine bekommt dieselben Register
+      wie beim direkten Aufruf und kehrt direkt zurück. Ausgenommen sind die Ganzzahlroutinen `zi_*`:
+      Sie stehen in den engen Schleifen, und über das Sprungbrett lief `bench_sieve` 12 % länger.
+
+    Das Sternkartenprogramm: Programmcode 30 935 → 26 095 Byte (−16 %), es passt damit unter 64 KB.
+    Die 40 Testprogramme, die auf `cpc` laufen: zusammen 457 524 → 454 835 Byte (−0,6 %; sie benutzen
+    kaum `LOCAL`). Preis: Die
+    Benchmarks brauchen auf dem Z80 bis zu 6 % mehr T-States (`bench_calls` +6,3 %, `bench_sieve`
+    +6,1 %, `bench_sort` +2,7 %, `bench_float` und `bench_string` unter 1 %); ihre Größe ändert sich
+    kaum, weil die neuen Module die Ersparnis bei so kleinen Programmen aufwiegen.
 
 Werkzeug dafür: `BASIC_Z80_PROFILE=1 BASIC_Z80_PROGRAM=<datei> build/tests/test_z80_programs` zeigt
 die T-States je Routine (Marke im Quelltext; `modul__x` zählt zum Modul, Programmcode als

@@ -53,6 +53,24 @@ Sonst taugt das C++-Ziel nicht als Testreferenz.
 Jede Plattform deklariert ihre Gruppen; der Compiler lehnt Programme ab, die eine fehlende Gruppe
 benutzen, statt Stubs zu erzeugen, die zur Laufzeit nichts tun. → [language.md](language.md)
 
+Nachtrag (Prüfung über die Laufzeit): Umgesetzt ist die Prüfung nicht als Tabelle je Befehl, sondern
+gegen die Laufzeitbibliothek des Ziels (`src/link/availability.cpp`). Eine Tabelle müsste mit jeder
+Plattform von Hand nachgezogen werden und lag schon daneben (`FORM INPUT` stand unter `input`, braucht
+aber die Requester von `rt_gui`; auf dem Z80 fehlen auch `RND`, `PAUSE` und die Verzeichnisbefehle).
+Die Laufzeit weiß es genau:
+
+- Beim Übersetzen merkt sich jeder Aufruf einer Laufzeitroutine (`RtCall`) den BASIC-Befehl oder die
+  Funktion, für die er entsteht (`ALERT`, `RND`, `PRINT USING` …).
+- Vor dem Linken wird jede Routine, die der erzeugte Code aufruft, samt allem, was ihr Modul verlangt
+  (`;! requires`), in der Bibliothek des Ziels gesucht; Symbole des Programms selbst zählen als
+  vorhanden. Fehlt etwas, meldet der Compiler die Zeile:
+  `prog.lst:2: FORM INPUT is not available on the target cpc (group gui)`. Die Gruppe ist die aus dem
+  Kopf (`;! group`) des Moduls, das die Routine auf dem Ziel oder sonst auf dem Amiga liefert.
+- Die Gruppen in `target.cpp` bleiben der geplante Umfang für `--targets` und die Doku.
+
+Damit kommen Programme, die etwas Fehlendes benutzen, nicht mehr bis zum Linker
+(`runtime symbol … is not provided by any module` ohne Zeile).
+
 <a id="d8"></a>
 ## D8 – Zielsysteme Amiga und Amstrad CPC
 
