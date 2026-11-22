@@ -12,6 +12,10 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
   (beim Tippen und für das ganze Programm über *Bearbeiten*); Prozeduren und Funktionen lassen sich
   einklappen. Siehe `docs/gui.md`.
 
+### Behoben
+- Windows/MSVC: Die eingebauten Laufzeitmodule werden als Byte-Felder statt als Zeichenketten
+  eingebettet; MSVC lehnte Literale über etwa 16 KB ab (Fehler C2026, z. B. `rt_mat.s`).
+
 ## [0.6.1] – 2026-11-22
 
 Bugfix- und Werkzeug-Release: grafische Oberfläche, CI auf allen Systemen grün (Linux, macOS, Windows,
