@@ -14,6 +14,7 @@
 
 #include "link/linker.hpp"
 #include "rt_ref.h"
+#include "rt_gfx.hpp"
 #include "test_util.hpp"
 #include "z80_routines.hpp"
 
@@ -220,7 +221,63 @@ void checkUnary(Runtime& rt, const std::string& name, Un ref, int cases, std::ve
 
 }  // namespace
 
+// SETCOLOR on the Z80 (rt_gfx with a recording platform stub): both forms reach plat_gfx_ink with the
+// pen in A and the colour 0RGB in HL (the four-value form lost r and g: rt_gfx__a changed HL)
+void testSetcolor() {
+    Diagnostics d;
+    std::vector<link::Module> mods;
+    for (link::Module& m : link::loadModules(std::string(BASIC_SOURCE_DIR) + "/runtime/z80", d))
+        if (m.name == "rt_gfx" || m.name == "zi") mods.push_back(std::move(m));
+    for (link::Module& m : link::loadModules(std::string(BASIC_SOURCE_DIR) + "/tests/conformance/z80gfx", d)) mods.push_back(std::move(m));
+    for (const link::Module& m : mods) link::checkLabels(m, d);
+    const link::Library lib = link::makeLibrary(std::move(mods), d);
+    const link::Result r = link::link(lib, link::Program{}, {"rt_gfx_arg", "rt_gfx_cmd", "stub_ink_pen", "stub_ink_rgb"},
+                                      link::Layout::PlainZ80, "        ORG &4000\n", d);
+    for (const Diagnostic& x : d) std::cerr << "setcolor link: " << x.message << "\n";
+    ++g_checks;
+    if (!d.empty()) {
+        ++g_failures;
+        return;
+    }
+    Z80Routines rt(r.source);
+    ++g_checks;
+    if (!rt.error().empty()) {
+        ++g_failures;
+        std::cerr << "setcolor assembler:\n" << rt.error();
+        return;
+    }
+    const std::uint16_t cell = 0x9000;  // 32-bit argument, then the command code and the mode
+    struct Case {
+        std::vector<std::int32_t> args;
+        int pen, rgb;
+    };
+    for (const Case& c : {Case{{2, 5, 7, 11}, 2, 0x57B}, Case{{3, 15, 12, 4}, 3, 0xFC4}, Case{{0, 0, 0, 3}, 0, 0x003},
+                          Case{{1, 0xF80}, 1, 0xF80}}) {
+        Z80Regs in;
+        in.ix = 0x1357;
+        for (const std::int32_t v : c.args) {
+            for (int k = 0; k < 4; ++k) rt.write8(static_cast<std::uint16_t>(cell + k), static_cast<std::uint8_t>(v >> (8 * k)));
+            in.de = cell;
+            (void)rt.call("rt_gfx_arg", in);
+        }
+        rt.write8(cell, static_cast<std::uint8_t>(brt::gfxCommandCode("SETCOLOR")));
+        rt.write8(cell + 1, 0);
+        in.de = cell;
+        in.bc = cell + 1;
+        const auto res = rt.call("rt_gfx_cmd", in);
+        const int pen = rt.read8(rt.symbol("stub_ink_pen"));
+        const int rgb = rt.read8(rt.symbol("stub_ink_rgb")) | (rt.read8(static_cast<std::uint16_t>(rt.symbol("stub_ink_rgb") + 1)) << 8);
+        ++g_checks;
+        if (!res.ok || pen != c.pen || rgb != c.rgb) {
+            ++g_failures;
+            std::cerr << "SETCOLOR with " << c.args.size() << " values: pen " << pen << " rgb $" << std::hex << rgb << std::dec
+                      << ", want " << c.pen << " $" << std::hex << c.rgb << std::dec << (res.ok ? "" : " (" + res.error + ")") << "\n";
+        }
+    }
+}
+
 int main() {
+    testSetcolor();
     int cases = 2000;
     if (const char* c = std::getenv("BASIC_CONFORMANCE_CASES")) cases = std::atoi(c);
     Runtime rt;

@@ -33,6 +33,9 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
   über Fließkomma (`docs/performance.md`, Schritt 13): `bench_string` auf dem Z80 −70 % Laufzeit.
 
 ### Behoben
+- Z80/CPC: `SETCOLOR reg,r,g,b` (vier Werte) setzte eine falsche Farbe, weil das Holen der
+  Argumente (`rt_gfx__a`) HL überschrieb, in dem Rot und Grün gesammelt wurden; die Form
+  `SETCOLOR reg,rgb` war richtig. Test in `conformance_z80` mit einer Plattform-Attrappe.
 - Amiga: Mit offenem Grafikfenster (`OPENS`/`OPENW`, erster Grafikbefehl) kamen bei `INPUT`,
   `LINE INPUT` und `INKEY$` keine Tasten an, weil nur `Input()` der Shell gelesen wurde; `INKEY$`
   wartete bis zur nächsten Zeile. Jetzt aus dem Fenster (`VANILLAKEY`), mit Echo und Backspace im

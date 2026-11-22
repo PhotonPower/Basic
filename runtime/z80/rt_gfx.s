@@ -200,27 +200,32 @@ rt_gfx__setcolor:
         CALL    rt_gfx__a
         EX      DE,HL                   ; HL = rgb
         JR      rt_gfx__sc
-rt_gfx__sc4:
+rt_gfx__sc4:                            ; (rt_gfx__a changes HL: the parts collect in C and B)
         LD      A,1                     ; r
         CALL    rt_gfx__a
         LD      A,E
         AND     15
-        LD      H,A
+        LD      B,A
         LD      A,2                     ; g
+        PUSH    BC
         CALL    rt_gfx__a
+        POP     BC
         LD      A,E
         AND     15
         RLCA
         RLCA
         RLCA
         RLCA
-        LD      L,A
+        LD      C,A
         LD      A,3                     ; b
+        PUSH    BC
         CALL    rt_gfx__a
+        POP     BC
         LD      A,E
         AND     15
-        OR      L
+        OR      C
         LD      L,A
+        LD      H,B
 rt_gfx__sc:
         PUSH    HL
         XOR     A
