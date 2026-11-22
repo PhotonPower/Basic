@@ -119,6 +119,7 @@ behält seine Leerzeichen;
 Anführungszeichen haben keine Bedeutung. `INKEY$` liefert das nächste Zeichen oder "" am Ende
 (auf einer zeilengepufferten Konsole erst nach Return), ein Zeilenvorschub zählt als Return (13).
 Das Ende der Eingabe während `INPUT` ist Fehler 26.
+Auf dem Amiga mit offenem Grafikfenster lesen die Befehle aus diesem Fenster ([D31](#d31)).
 
 <a id="d19"></a>
 ## D19 – Fehler in Kopfzeilen; Abweichungen der Fehlerbehandlung vom Original
@@ -675,3 +676,31 @@ kopieren.
 - Der Linker meldet in Z80-Modulen Labels, die sich nur in Groß-/Kleinschreibung unterscheiden.
 - Der erzeugte Code ist noch groß (jeder Zugriff berechnet die Adresse des Stapelplatzes): `arrays.lst`
   braucht 24,7 KB mit Laufzeit. Für den CPC (rund 40 KB) muss das Backend später sparsamer werden.
+
+<a id="d31"></a>
+## D31 – Amiga: Tastatur aus dem eigenen Fenster
+
+Nach D20 lasen `INPUT`, `LINE INPUT`, `INKEY$` und `INPUT$` auf dem Amiga nur aus `Input()` der
+Shell. Ein Programm, das mit `OPENS`/`OPENW` (oder dem ersten Grafikbefehl) ein eigenes Fenster
+öffnet, bekam dann keine Tasten mehr: Sie gehen an das aktive Fenster des Programms, und dort las
+niemand; `INKEY$` wartete außerdem bis zur nächsten Zeile. Im Original lesen diese Befehle aus dem
+GFA-Fenster. Jetzt:
+
+- Sobald `plat_gfx` Grafik geöffnet hat, setzt es `plat_getc_gfx` auf eine Routine, die das aktuelle
+  Fenster liefert (ohne etwas zu öffnen; Programme ohne Grafik linken nichts davon). `plat_getc`
+  schaltet bei Bedarf `VANILLAKEY` ein (`ModifyIDCMP`, die übrigen Flags bleiben) und liest aus den
+  Nachrichten des Fensters.
+- `INPUT`/`LINE INPUT`: `plat_getc` liest eine ganze Zeile wie eine Konsole im Zeilenmodus, schreibt
+  die Zeichen nur ins Fenster (nicht nach `Output()`, das eine Datei sein kann), Backspace und Delete
+  nehmen eines zurück, Return beendet die Zeile; danach gibt es sie Zeichen für Zeichen mit LF ab.
+  `rt_kbd` bleibt unverändert.
+- `INKEY$` ruft auf dem 68000 `plat_inkey`: im Fenster eine Taste ohne Warten und ohne Echo, sonst ""
+  (auf `m68k-test` und ohne Grafik wie bisher `plat_getc`).
+- Nachrichten anderer Klassen, die beim Warten auf eine Taste kommen, werden beantwortet und
+  verworfen. Umgekehrt gibt `ON MENU` eine Taste an `plat_getc_pend` weiter; `MENU` setzt `MENUPICK`
+  zusätzlich zu den vorhandenen Flags (vorher überschrieb es sie).
+- Ist kein Fenster mehr offen, liest `plat_getc` wieder aus `Input()`.
+
+Test: `tests/programs/kbdwin.lst` (Interpreter, C++, `m68k-test` mit `kbdwin.in`). Die OS-Emulation des
+Schwesterprojekts kennt `intuition.library` nicht; auf dem Amiga in FS-UAE mit
+`tools/gfa/amiga_run.py` und den Tastenschritten aus dem Kopf des Programms.

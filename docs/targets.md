@@ -39,6 +39,8 @@ außerhalb dieses Speichers lösen einen Fehler aus.
   bitgleich zu den anderen Zielen sind.
 - Grundbefehlssatz: dokumentierter MC68000. Erweiterungen (z. B. `MULS.L`/`DIVS.L` des 68020) nur
   über Feature-Flags.
+- Tastatur: aus `Input()` der Shell; sobald Grafik offen ist, aus dem aktuellen Fenster
+  (`VANILLAKEY`, Echo ins Fenster, `INKEY$` ohne Warten, [D31](decisions.md#d31)).
 - Tests: textbasierte Programme laufen in der OS-Emulation des Schwesterprojekts
   (`dos.library` `Output`/`Write` → Konsole); Grafik und Fenster sind dort nicht emuliert und müssen
   in einem vollständigen Emulator (z. B. FS-UAE) oder auf echter Hardware geprüft werden.

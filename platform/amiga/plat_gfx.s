@@ -1,6 +1,6 @@
 ;! module    plat_gfx
 ;! provides  plat_gfx plat_gfx_point plat_gfx_window plat_gfx_putc plat_gfx_win plat_gfx_scr plat_gfx_current
-;! requires  plat_exit_gfx plat_putc_gfx
+;! requires  plat_exit_gfx plat_putc_gfx plat_getc_gfx
 ;! group     graphics
 ;! clobbers  D0-D3/A0-A1
 ;! doc       amiga: graphics (D25 stage 2) with intuition.library and graphics.library, as the original.
@@ -376,6 +376,7 @@ plat_gfx__init:
 .out:   RTS
 .first: MOVE.L  #plat_gfx__close,plat_exit_gfx
         MOVE.L  #plat_gfx_putc,plat_putc_gfx
+        MOVE.L  #plat_gfx__kwin,plat_getc_gfx   ; the keys from now on from the window (D31)
         MOVE.L  4,A6
         LEA     plat_gfx__intname,A1
         MOVEQ   #0,D0
@@ -542,9 +543,22 @@ plat_gfx__state:
         MOVE.L  plat_gfx__mode,D0
         JMP     plat_gfx__SetDrMd(A6)
 
+; for plat_getc (keyboard, D31): D0 = the current window or 0, D1 = intuition.library; opens nothing
+plat_gfx__kwin:
+        MOVEQ   #0,D0
+        TST.L   plat_gfx__gb
+        BEQ     .out
+        MOVE.L  plat_gfx__cur,D0
+        LSL.L   #2,D0
+        LEA     plat_gfx__win,A0
+        MOVE.L  0(A0,D0.L),D0
+        MOVE.L  plat_gfx__ib,D1
+.out:   RTS
+
 ; at the end of the program: everything back
 plat_gfx__close:
         CLR.L   plat_putc_gfx
+        CLR.L   plat_getc_gfx
         MOVEM.L D2/A2/A6,-(SP)
         MOVE.L  plat_gfx__ib,D0
         BEQ     .libs
