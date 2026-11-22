@@ -703,4 +703,6 @@ GFA-Fenster. Jetzt:
 
 Test: `tests/programs/kbdwin.lst` (Interpreter, C++, `m68k-test` mit `kbdwin.in`). Die OS-Emulation des
 Schwesterprojekts kennt `intuition.library` nicht; auf dem Amiga in FS-UAE mit
-`tools/gfa/amiga_run.py` und den Tastenschritten aus dem Kopf des Programms.
+`tools/gfa/amiga_run.py` und den Tastenschritten aus dem Kopf des Programms. Am 22.11.2026 im Emulator
+von Hand geprüft: Echo im Grafikfenster, Backspace, `INKEY$` ohne Warten und ohne Echo, Ausgabe gleich
+`kbdwin.out`; ebenso ein größeres Grafikprogramm mit `OPENS`/`OPENW`, `LINE INPUT` und `INKEY$`.
