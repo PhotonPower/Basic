@@ -1,6 +1,7 @@
 ;! module    rt_kbd
-;! provides  rt_kbd_begin rt_kbd_field rt_kbd_num rt_kbd_line rt_kbd_end rt_kbd_inkey rt_kbd_chars
-;! requires  plat_getc plat_inkey plat_echo rt_print_str rt_print_col rt_str_newtemp rt_val rt_val_used rt_error
+;! provides  rt_kbd_begin rt_kbd_field rt_kbd_line rt_kbd_end rt_kbd_inkey rt_kbd_chars
+;! provides  rt_kbd_next rt_kbd_read rt_kbd_prompt rt_kbd_plen
+;! requires  plat_getc plat_inkey plat_echo rt_print_str rt_print_col rt_str_newtemp rt_error
 ;! group     input
 ;! clobbers  AF BC DE HL
 ;! doc       Keyboard: INPUT, LINE INPUT, INKEY$, INPUT$(n) (semantics of brt::Keyboard; lines up to 255 characters).
@@ -18,7 +19,7 @@ rt_kbd__MAX EQU 255
 rt_kbd_begin:
         LD      A,(BC)
         LD      (rt_kbd__mode),A
-        LD      HL,rt_kbd__prompt       ; the prompt into its own buffer (for a repetition)
+        LD      HL,rt_kbd_prompt       ; the prompt into its own buffer (for a repetition)
         LD      (rt_kbd__pp),HL
         OR      A
         JP      Z,rt_kbd__q
@@ -39,7 +40,7 @@ rt_kbd_begin:
 rt_kbd__cut:
         LD      BC,250
 rt_kbd__lk:
-        LD      HL,rt_kbd__prompt
+        LD      HL,rt_kbd_prompt
         EX      DE,HL
         LD      A,B
         OR      C
@@ -59,17 +60,17 @@ rt_kbd__q:
         LD      (rt_kbd__pp),HL
 rt_kbd__pd:
         LD      HL,(rt_kbd__pp)
-        LD      DE,rt_kbd__prompt
+        LD      DE,rt_kbd_prompt
         OR      A
         SBC     HL,DE
-        LD      (rt_kbd__plen),HL
-        LD      DE,rt_kbd__prompt
+        LD      (rt_kbd_plen),HL
+        LD      DE,rt_kbd_prompt
         LD      B,H
         LD      C,L
-        JP      rt_kbd__read
+        JP      rt_kbd_read
 
 ; DE = prompt, BC = length: print it, read a line into the buffer (error 26 at the end)
-rt_kbd__read:
+rt_kbd_read:
         CALL    rt_print_str
         LD      B,0                     ; B = length
 rt_kbd__rl:
@@ -137,13 +138,13 @@ rt_kbd__set:
         RET
 
 ; -> HL = start, B = length of the next field (a new line with "? " if none is left)
-rt_kbd__next:
+rt_kbd_next:
         LD      A,(rt_kbd__have)
         OR      A
         JP      NZ,rt_kbd__go
         LD      DE,rt_kbd__qm
         LD      BC,2
-        CALL    rt_kbd__read
+        CALL    rt_kbd_read
 rt_kbd__go:
         XOR     A
         LD      (rt_kbd__whole),A
@@ -200,56 +201,8 @@ rt_kbd__t9:
 
 ; -> HL = the next value as a string (INPUT into a string variable)
 rt_kbd_field:
-        CALL    rt_kbd__next
+        CALL    rt_kbd_next
         JP      rt_kbd__temp
-
-; HL = result: the next value as a number; not a number: the prompt and the input again
-rt_kbd_num:
-        LD      (rt_kbd__dst),HL
-rt_kbd__again:
-        CALL    rt_kbd__next
-rt_kbd__tl:                             ; spaces at the end and at the front away
-        LD      A,B
-        OR      A
-        JP      Z,rt_kbd__bad
-        PUSH    HL
-        LD      E,B
-        LD      D,0
-        ADD     HL,DE
-        DEC     HL
-        LD      A,(HL)
-        POP     HL
-        CP      ' '
-        JP      NZ,rt_kbd__ld
-        DEC     B
-        JP      rt_kbd__tl
-rt_kbd__ld:
-        LD      A,(HL)
-        CP      ' '
-        JP      NZ,rt_kbd__val
-        INC     HL
-        DEC     B
-        JP      rt_kbd__ld
-rt_kbd__val:
-        LD      A,B
-        LD      (rt_kbd__vl),A
-        EX      DE,HL
-        LD      C,B
-        LD      B,0
-        LD      HL,(rt_kbd__dst)
-        CALL    rt_val
-        LD      HL,(rt_val_used)        ; all characters must belong to the number
-        LD      A,(rt_kbd__vl)
-        CP      L
-        JP      NZ,rt_kbd__bad
-        LD      A,H
-        OR      A
-        RET     Z
-rt_kbd__bad:
-        LD      DE,rt_kbd__prompt
-        LD      BC,(rt_kbd__plen)
-        CALL    rt_kbd__read
-        JP      rt_kbd__again
 
 ; -> HL = the whole line (LINE INPUT; for further variables a new line with "? ")
 rt_kbd_line:
@@ -258,7 +211,7 @@ rt_kbd_line:
         JP      NZ,rt_kbd__take
         LD      DE,rt_kbd__qm
         LD      BC,2
-        CALL    rt_kbd__read
+        CALL    rt_kbd_read
 rt_kbd__take:
         XOR     A
         LD      (rt_kbd__whole),A
@@ -351,7 +304,7 @@ rt_kbd__mode:
         DS      1
 rt_kbd__pp:
         DS      2
-rt_kbd__plen:
+rt_kbd_plen:
         DS      2
 rt_kbd__len:
         DS      1
@@ -363,11 +316,7 @@ rt_kbd__ch:
         DS      1
 rt_kbd__cnt:
         DS      1
-rt_kbd__vl:
-        DS      1
-rt_kbd__dst:
-        DS      2
-rt_kbd__prompt:
+rt_kbd_prompt:
         DS      254
 rt_kbd__buf:
         DS      256

@@ -1,8 +1,8 @@
 ;! module    rt_print
 ;! provides  rt_print_str rt_print_int rt_print_nl rt_print_comma rt_print_apos rt_print_tab rt_print_spc rt_print_begin rt_print_out rt_print_col rt_pos
-;! provides  rt_print_flt rt_set_defnum rt_defnum
+;! provides  rt_defnum rt_print_low
 ;! provides  rt_print_at rt_print_locate rt_print_htab rt_print_vtab rt_print_cls rt_crscol rt_crslin
-;! requires  plat_putc plat_locate plat_cls rt_fmt_flt fp_from_i32 rt_fmt_int
+;! requires  plat_putc plat_locate plat_cls rt_fmt_int
 ;! group     print
 ;! clobbers  AF BC DE HL
 ;! doc       PRINT: strings, integers, separators; the column since the last line feed (POS), the zone of ',' and the cursor (as runtime/m68k).
@@ -92,59 +92,19 @@ rt_print__tp:
         JR      rt_print__tp
 
 ; DE -> 32-bit integer: as PRINT writes a number (with DEFNUM below 13 digits: through the float
-; form, 123456 with DEFNUM 4 is 123500); else its decimal digits, "-" in front of a negative value
+; form, 123456 with DEFNUM 4 is 123500, in rt_print_flt, which DEFNUM links in and sets
+; rt_print_low to); else its decimal digits, "-" in front of a negative value
 rt_print_int:
         LD      A,(rt_defnum)
         CP      13
         JR      NC,rt_print__idig
-        LD      HL,rt_print__fv
-        CALL    fp_from_i32
-        LD      DE,rt_print__fv
-        JP      rt_print_flt
+        LD      HL,(rt_print_low)
+        JP      (HL)
 rt_print__idig:                         ; its digits
         LD      HL,rt_print__fbuf
         CALL    rt_fmt_int
         LD      DE,rt_print__fbuf
         JP      rt_print_str
-
-; DE -> binary64: as PRINT writes it (rt_defnum digits)
-rt_print_flt:
-        LD      HL,rt_print__fbuf
-        LD      A,(rt_defnum)
-        CALL    rt_fmt_flt
-        LD      DE,rt_print__fbuf
-        JP      rt_print_str
-
-; DE -> n: DEFNUM n (2..13)
-rt_set_defnum:
-        EX      DE,HL
-        LD      A,(HL)
-        INC     HL
-        LD      C,(HL)
-        INC     HL
-        LD      B,(HL)
-        INC     HL
-        LD      D,(HL)
-        BIT     7,D                     ; negative: 2
-        JR      NZ,rt_print__dlo
-        LD      E,A
-        LD      A,C
-        OR      B
-        OR      D
-        LD      A,13
-        JR      NZ,rt_print__dset       ; large: 13
-        LD      A,E
-        CP      2
-        JR      C,rt_print__dlo
-        CP      14
-        JR      C,rt_print__dset
-        LD      A,13
-        JR      rt_print__dset
-rt_print__dlo:
-        LD      A,2
-rt_print__dset:
-        LD      (rt_defnum),A
-        RET
 
 ; -> HL -> POS, CRSCOL, CRSLIN: the value as 32 bits at (HL)
 rt_pos:
@@ -323,9 +283,9 @@ rt_print__clin:
         DW      1
 rt_defnum:
         DB      13
+rt_print_low:                           ; rt_print_int with DEFNUM below 13 (set by rt_set_defnum)
+        DW      rt_print__idig
 
 ;! section bss
-rt_print__fv:
-        DS      8
 rt_print__fbuf:
         DS      32

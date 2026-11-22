@@ -21,19 +21,21 @@ einer Meldung ab (statt Stubs zu erzeugen, die zur Laufzeit stillschweigend nich
 | `float` | Fließkomma-Arithmetik und -Funktionen, `RND`, `FACT`/`VARIAT`/`COMBIN` (Kap. 4, 14) |
 | `string` | String-Variablen und -Funktionen, `MKx$`/`CVx` (Kap. 2, 4) |
 | `print` | `PRINT`, `PRINT USING`, `WRITE`, `TAB`, `POS`, `DEFNUM`, `MODE`, `LOCATE`, `PRINT AT` (Kap. 5) |
-| `input` | `INPUT`, `LINE INPUT`, `FORM INPUT`, `INKEY$` (Kap. 5) |
+| `input` | `INPUT`, `LINE INPUT`, `INKEY$` (Kap. 5) |
 | `file-seq` | `OPEN` (sequentiell), `PRINT #`, `INPUT #`, `LINE INPUT #`, `WRITE #`, `CLOSE`, `EOF`, Dateiverwaltung (Kap. 6) |
 | `file-random` | wahlfreier Zugriff: `FIELD`, `GET`, `PUT`, `SEEK`, `LOF`, mehrere Kanäle gleichzeitig (Kap. 6) |
 | `memory` | `PEEK`/`POKE`, `VARPTR`/`V:`, `*x`, `BYTE{}` …, `ABSOLUTE`, `MALLOC`/`MFREE`, `BMOVE` (Kap. 2) |
 | `graphics` | Grafikbefehle aus Kap. 8 |
-| `gui` | Screens, Fenster, Menüs, Requester, Ereignisse (Kap. 9) |
+| `gui` | Screens, Fenster, Menüs, Requester (`ALERT`, `FILESELECT`, `FORM INPUT`), Ereignisse (Kap. 9) |
 | `sprites` | Sprites, BOBs, Joystick, Maus (Kap. 5, 10) |
 | `sound` | `SOUND`, `WAVE`, Sprachausgabe (Kap. 5, 10) |
 | `matrix` | Vektoren und Matrizen (Kap. 13, nur 3.5) |
 | `amiga-os` | direkte Aufrufe der AmigaOS-Bibliotheken (Kap. 11), `GURU` |
 
-Die Gruppen sind in `include/basic/target.hpp` definiert. Die genaue Zuordnung jedes einzelnen
-Befehls entsteht mit dem Frontend als Tabelle in `src/frontend`.
+Die Gruppen sind in `include/basic/target.hpp` definiert. Geprüft wird gegen die Laufzeit des Ziels
+([D7](decisions.md#d7), Nachtrag): Braucht ein Befehl eine Routine, die das Ziel nicht hat, meldet der
+Compiler Zeile, Befehl und Gruppe, z. B. `prog.lst:2: FORM INPUT is not available on the target cpc
+(group gui)`.
 
 ## Unterstützung je Zielsystem
 
@@ -50,7 +52,7 @@ Geplanter Umfang (✓ geplant, – nicht vorgesehen, (✓) mit Einschränkung):
 | file-random | ✓ | ✓ | – | – | – |
 | memory | (✓) emulierter Speicher | ✓ | (✓) Little-Endian, 16-Bit-Adressen | ✓ | ✓ |
 | graphics | später | ✓ | (✓) Firmware-Grafik | – | – |
-| gui | – | ✓ | – | – | – |
+| gui | (✓) Requester als Textdialog (D26) | ✓ | – | – | (✓) Requester als Textdialog (D26) |
 | sprites | – | ✓ | – | – | – |
 | sound | – | ✓ | – | – | – |
 | matrix | ✓ | ✓ | ✓ | ✓ | ✓ |

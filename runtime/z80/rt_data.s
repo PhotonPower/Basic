@@ -1,6 +1,6 @@
 ;! module    rt_data
-;! provides  rt_data_str rt_data_num rt_data_restore
-;! requires  rt_error rt_val rt_val_used prg_data prg_data_count
+;! provides  rt_data_str rt_data_restore rt_data_item rt_data_pos
+;! requires  rt_error prg_data prg_data_count
 ;! group     core
 ;! clobbers  AF BC DE HL
 ;! doc       DATA, READ, RESTORE: items in the program's table prg_data.
@@ -10,59 +10,11 @@
 
 ; -> HL = descriptor of the next item (for a string variable)
 rt_data_str:
-        CALL    rt_data__item
+        CALL    rt_data_item
         RET     C
-        LD      DE,(rt_data__pos)
+        LD      DE,(rt_data_pos)
         INC     DE
-        LD      (rt_data__pos),DE
-        RET
-
-; HL = result: the value of the next item
-rt_data_num:
-        LD      (rt_data__dst),HL
-        CALL    rt_data__item
-        JR      C,rt_data__zero
-        LD      (rt_data__it),HL
-        LD      E,(HL)                  ; DE = characters, BC = length
-        INC     HL
-        LD      D,(HL)
-        INC     HL
-        LD      C,(HL)
-        INC     HL
-        LD      B,(HL)
-        INC     HL
-        LD      A,(HL)                  ; quoted or empty: not numeric
-        OR      A
-        JR      NZ,rt_data__nn
-        LD      A,B
-        OR      C
-        JR      Z,rt_data__nn
-        LD      HL,(rt_data__dst)
-        CALL    rt_val
-        LD      HL,(rt_data__it)        ; all characters must belong to the number
-        INC     HL
-        INC     HL
-        LD      E,(HL)
-        INC     HL
-        LD      D,(HL)
-        LD      HL,(rt_val_used)
-        OR      A
-        SBC     HL,DE
-        JR      NZ,rt_data__nn
-        LD      DE,(rt_data__pos)
-        INC     DE
-        LD      (rt_data__pos),DE
-        RET
-rt_data__nn:
-        LD      A,35                    ; data not numeric
-        CALL    rt_error
-rt_data__zero:
-        LD      HL,(rt_data__dst)
-        LD      B,8
-rt_data__z:
-        LD      (HL),0
-        INC     HL
-        DJNZ    rt_data__z
+        LD      (rt_data_pos),DE
         RET
 
 ; DE -> index of the next item
@@ -71,12 +23,13 @@ rt_data_restore:
         LD      E,(HL)
         INC     HL
         LD      D,(HL)
-        LD      (rt_data__pos),DE
+        LD      (rt_data_pos),DE
         RET
 
-; -> HL = the item at the read position; CF set (after error 34) if there is none
-rt_data__item:
-        LD      HL,(rt_data__pos)
+; -> HL = the item at the read position; CF set (after error 34) if there is none (also for
+; rt_data_num, the next one is rt_data_pos + 1)
+rt_data_item:
+        LD      HL,(rt_data_pos)
         LD      DE,(prg_data_count)
         OR      A
         SBC     HL,DE
@@ -87,7 +40,7 @@ rt_data__item:
         SCF
         RET
 rt_data__ok:
-        LD      HL,(rt_data__pos)
+        LD      HL,(rt_data_pos)
         LD      D,H
         LD      E,L
         ADD     HL,HL
@@ -99,13 +52,8 @@ rt_data__ok:
         RET
 
 ;! section data
-rt_data__pos:
+rt_data_pos:
         DW      0
 rt_data__empty:
         DB      0,0,0,0,0,0
 
-;! section bss
-rt_data__dst:
-        DS      2
-rt_data__it:
-        DS      2

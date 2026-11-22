@@ -76,6 +76,41 @@ Auf einem CPC (rund 4 MHz) wären das für `bench_float` etwa 10 Minuten, für `
    Anweisungsgrenze fortsetzt.
 10. Z80, `zi_add`/`zi_sub` ohne Schleife, `zi_mulv` nur über die signifikanten Bytes des kleineren
     Faktors (für `*2` 8 statt 32 Schritte); im Konformanztest gegen C.
+11. Z80, Codegröße für den CPC (ein Sternkartenprogramm mit gut 500 Zeilen brauchte 65 KB):
+    - `LOCAL` und Parameter: `CALL rt_lsave / DW v` und `CALL rt_lrest / DW v` statt vier
+      `LD HL,(v+n)` / `PUSH` bzw. `POP` / `LD (v+n),HL` (5 statt 16–17 Byte), Nullsetzen mit
+      `CALL rt_zero8` (6 statt 26 Byte).
+    - Laden und Speichern einer Fließkomma- oder Ganzzahlvariablen in einen nahen Stapelplatz:
+      `CALL rt_ld8 / DB d / DW v` (bzw. `rt_ld4`, `rt_st8`, `rt_st4`), 6 statt 12 Byte.
+    - Aufruf einer Laufzeitroutine mit Zahlenoperanden in nahen Stapelplätzen über ein Sprungbrett:
+      `CALL zc3 / DB a,b,d / DW routine` statt dreimal `rt_ix*` und `CALL` (8 statt 15 Byte; `zc2`,
+      `zc2d` für zwei Operanden ohne bzw. einen mit Ergebnis). Die Routine bekommt dieselben Register
+      wie beim direkten Aufruf und kehrt direkt zurück. Ausgenommen sind die Ganzzahlroutinen `zi_*`:
+      Sie stehen in den engen Schleifen, und über das Sprungbrett lief `bench_sieve` 12 % länger.
+
+    Das Sternkartenprogramm: Programmcode 30 935 → 26 095 Byte (−16 %), es passt damit unter 64 KB.
+    Die 40 Testprogramme, die auf `cpc` laufen: zusammen 457 524 → 454 835 Byte (−0,6 %; sie benutzen
+    kaum `LOCAL`). Preis: Die
+    Benchmarks brauchen auf dem Z80 bis zu 6 % mehr T-States (`bench_calls` +6,3 %, `bench_sieve`
+    +6,1 %, `bench_sort` +2,7 %, `bench_float` und `bench_string` unter 1 %); ihre Größe ändert sich
+    kaum, weil die neuen Module die Ersparnis bei so kleinen Programmen aufwiegen.
+12. Z80, Laufzeit feiner geschnitten: Ein Programm, das Zahlen nie als Text liest oder schreibt (nur
+    Strings und Ganzzahlen ausgibt, Strings liest), bekam trotzdem die Umwandlung Text ↔ Fließkomma
+    (`rt_val`, `rt_flt_dec`, `rt_fmt_flt`, `ix_bn`, zusammen 3,7 KB), weil `rt_print`, `rt_data`,
+    `rt_kbd` und `rt_strfn` sie pauschal verlangten. Jetzt in eigenen Modulen: `rt_print_flt`
+    (`PRINT` einer Fließkommazahl, `DEFNUM`), `rt_data_num` (`READ` in eine Zahl), `rt_kbd_num`
+    (`INPUT` in eine Zahl), `rt_str_str` (`STR$` einer Fließkommazahl). Zwei Fälle brauchten mehr:
+    - `PRINT` einer Ganzzahl geht bei `DEFNUM` unter 13 über die Fließkommaform (probe2 T33);
+      `rt_print_int` springt dafür über den Zeiger `rt_print_low`, den erst `rt_set_defnum` (in
+      `rt_print_flt`) umstellt. `rt_print_int` bleibt so im Grundmodul (`plat_error` braucht es).
+    - `STR$` einer Ganzzahl: Hat das Programm kein `DEFNUM`, ist der Wert immer 13, und das Lowering
+      ruft `rt_str_dig` (nur Ziffern) statt `rt_str_int`. Ebenso werden `PRINT 7` und `STR$(7)` mit
+      einer ganzzahligen Konstanten im 32-Bit-Bereich über den Ganzzahlweg ausgegeben (dieselben
+      Ziffern; −0 ausgenommen).
+
+    Ein kleines Grafikprogramm mit `LINE INPUT`, `INKEY$`, `READ` in Strings und `STR$` von
+    Ganzzahlen: Laufzeit 18 461 → 14 698 Byte (−20 %). Die 40 Testprogramme auf `cpc`: 454 835 →
+    437 778 Byte (−3,7 %).
 
 Werkzeug dafür: `BASIC_Z80_PROFILE=1 BASIC_Z80_PROGRAM=<datei> build/tests/test_z80_programs` zeigt
 die T-States je Routine (Marke im Quelltext; `modul__x` zählt zum Modul, Programmcode als

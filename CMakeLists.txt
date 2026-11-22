@@ -96,6 +96,7 @@ add_library(basiccore STATIC
   src/ir/interp.cpp
   src/backend/cpp/cpp_backend.cpp
   src/link/linker.cpp
+  src/link/availability.cpp
   src/ir/lir.cpp
   src/ir/lower.cpp
   src/backend/m68k/m68k_backend.cpp

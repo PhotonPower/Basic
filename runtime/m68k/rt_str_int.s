@@ -1,5 +1,5 @@
 ;! module    rt_str_int
-;! provides  rt_str_int
+;! provides  rt_str_int rt_str_dig
 ;! requires  rt_fmt_int rt_defnum rt_str_str rt_str_newtemp fp_from_i32
 ;! group     string
 ;! clobbers  D0-D3/A0-A1
@@ -7,6 +7,7 @@
 
 ; D0 = integer -> A0 = temporary string
 rt_str_int:
+rt_str_dig:                             ; the same routine (without DEFNUM the compiler calls this name)
         CMP.W   #13,rt_defnum
         BGE     .dig
         JSR     fp_from_i32

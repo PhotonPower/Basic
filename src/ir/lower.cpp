@@ -8,6 +8,7 @@
 #include <cstring>
 #include <functional>
 #include <map>
+#include <optional>
 #include <set>
 #include <string>
 
@@ -65,12 +66,14 @@ private:
     lir::Function* f_ = nullptr;
     const hir::Routine* routine_ = nullptr;
     int line_ = 0;
+    std::string feature_;           // BASIC command or function being lowered (RtCall::text, D7 check)
     std::vector<int> exitLabels_;   // EXIT IF targets
     std::vector<int> saved_;        // variables saved in this routine (restore in reverse order)
     int exitLabel_ = -1;            // end of the routine
     Reg result_;                    // function result (numbers; strings go through rt_str_set_ret)
     bool strings_ = false;          // the program uses string values: release temporaries (D18)
     bool onError_ = false;          // the program uses ON ERROR: statement records (docs/runtime.md)
+    bool defnum_ = false;           // the program has DEFNUM: STR$ of an integer may need the float form
     std::vector<bool> resumeTarget_;  // per HIR label: target of a RESUME label
     std::set<int> menuProcs_;       // the procedures of ON MENU GOSUB
     std::vector<std::pair<int, int>> stmtLabels_;  // (start, after) of the enclosing statements
@@ -116,6 +119,7 @@ private:
         Instr i;
         i.kind = Kind::RtCall;
         i.op = sym;
+        i.text = feature_;
         i.args = std::move(args);
         if (hasResult) i.dst = reg(result);
         f_->code.push_back(i);
@@ -337,6 +341,7 @@ private:
                 if (st->kind == SKind::OnError) onError_ = true;
                 if (st->kind == SKind::Resume && st->mode == 2) resumeTarget_[static_cast<std::size_t>(st->label)] = true;
                 if (st->kind == SKind::Cmd && st->name == "ON MENU GOSUB") menuProcs_.insert(st->vars[0]);
+                if (st->kind == SKind::Cmd && st->name == "DEFNUM") defnum_ = true;
                 for (const auto& br : st->branches) blk(br.body);
                 for (const auto& c : st->cases) blk(c.body);
                 blk(st->body);
@@ -365,6 +370,16 @@ private:
         i.imm = line_;
         i.label = stmtLabels_.back().first;
         i.label2 = stmtLabels_.back().second;
+    }
+
+    // A float constant with an integral value in the 32-bit range (not -0): STR$ and PRINT of it give
+    // the digits of the integer, so they need no float formatting.
+    static std::optional<std::int32_t> integralConst(const hir::Expr& e) {
+        if (e.op != Op::ConstFloat) return std::nullopt;
+        double d;
+        std::memcpy(&d, &e.fval, sizeof d);
+        if (!(d >= -2147483648.0 && d <= 2147483647.0) || d != std::floor(d) || (d == 0 && std::signbit(d))) return std::nullopt;
+        return static_cast<std::int32_t>(d);
     }
 
     // Does the program compute with strings (beyond constants printed directly)?
@@ -505,8 +520,25 @@ private:
         return rtcall("fp_cmp", {v, constF(0)}, VT::I32);  // non-zero = true
     }
 
+    // the BASIC keyword of a statement, for messages about missing runtime routines (D7)
+    static std::string keyword(const hir::Stmt& s) {
+        switch (s.kind) {
+            case SKind::Cmd: return s.name;
+            case SKind::Print: return s.usingFmt ? "PRINT USING" : s.channel ? "PRINT #" : "PRINT";
+            case SKind::For: return "FOR";
+            case SKind::Select: return "SELECT";
+            case SKind::Read: return "READ";
+            case SKind::Restore: return "RESTORE";
+            case SKind::OnError: return "ON ERROR";
+            case SKind::Resume: return "RESUME";
+            case SKind::Local: return "LOCAL";
+            default: return "";
+        }
+    }
+
     void statement(const hir::Stmt& s) {
         line_ = s.line;
+        feature_ = keyword(s);
         if (!onError_) {
             emit(Kind::Line).imm = s.line;
             releaseTemps();
@@ -705,8 +737,12 @@ private:
                     Reg c = toI(expr(*it.expr));
                     rtcallVoid("rt_print_at", {c, toI(expr(*it.expr2))});
                 } else if (it.kind == hir::PrintItem::Value) {
-                    Reg v = expr(*it.expr);
-                    rtcallVoid(v.type == VT::F64 ? "rt_print_flt" : v.type == VT::Str ? "rt_print_sdesc" : "rt_print_int", {v});
+                    if (const auto k = integralConst(*it.expr)) {  // PRINT 7: the integer path (same digits)
+                        rtcallVoid("rt_print_int", {constI(*k)});
+                    } else {
+                        Reg v = expr(*it.expr);
+                        rtcallVoid(v.type == VT::F64 ? "rt_print_flt" : v.type == VT::Str ? "rt_print_sdesc" : "rt_print_int", {v});
+                    }
                 } else {
                     Reg n = rtcall("fp_to_i32", {expr(*it.expr)}, VT::I32);
                     rtcallVoid(it.kind == hir::PrintItem::Tab ? "rt_print_tab" : "rt_print_spc", {n});
@@ -1544,6 +1580,14 @@ private:
     Reg arg(const hir::Expr& e, std::size_t k) { return expr(*e.args[k]); }
 
     Reg builtin(const hir::Expr& e) {
+        const std::string outer = feature_;  // the arguments may be builtins themselves
+        feature_ = e.sval;
+        Reg r = builtinCall(e);
+        feature_ = outer;
+        return r;
+    }
+
+    Reg builtinCall(const hir::Expr& e) {
         const std::string& n = e.sval;
         static const std::map<std::string, std::string> f2f = {
             {"INT", "fp_int"}, {"TRUNC", "fp_trunc"}, {"FIX", "fp_trunc"}, {"FRAC", "fp_frac"}, {"SQR", "fp_sqrt"}, {"ABS", "fp_abs"}};
@@ -1786,7 +1830,9 @@ private:
         if (n == "TRIM$") return rtcall("rt_str_trim", {arg(e, 0)}, VT::Str);
         if (n == "STR$" && argc == 1) {  // an integer: its digits (DEFNUM 13), without the float formatting
             const hir::Expr& x = *e.args[0];
-            if (x.op == Op::Conv && hir::isInteger(x.args[0]->type)) return rtcall("rt_str_int", {expr(*x.args[0])}, VT::Str);
+            if (x.op == Op::Conv && hir::isInteger(x.args[0]->type))  // without DEFNUM always 13: the digits only
+                return rtcall(defnum_ ? "rt_str_int" : "rt_str_dig", {expr(*x.args[0])}, VT::Str);
+            if (const auto k = integralConst(x)) return rtcall(defnum_ ? "rt_str_int" : "rt_str_dig", {constI(*k)}, VT::Str);
             return rtcall("rt_str_str", {arg(e, 0)}, VT::Str);
         }
         if (n == "STR$" && argc == 2) {
