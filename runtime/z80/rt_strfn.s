@@ -1,7 +1,7 @@
 ;! module    rt_strfn
 ;! provides  rt_str_concat rt_str_cmp rt_str_len rt_str_asc rt_str_chr rt_str_left rt_str_right rt_str_mid rt_str_space
-;! provides  rt_str_string rt_str_instr rt_str_upper rt_str_trim rt_str_str
-;! requires  rt_str_newtemp rt_error rt_fmt_flt rt_defnum rt_argp
+;! provides  rt_str_string rt_str_instr rt_str_upper rt_str_trim
+;! requires  rt_str_newtemp rt_error rt_argp
 ;! group     string
 ;! clobbers  AF BC DE HL
 ;! doc       String functions (as runtime/m68k): strings as descriptor addresses, numbers as pointers (D30).
@@ -580,23 +580,6 @@ rt_strfn__t3:
         LD      C,L
         JP      rt_strfn__sub
 
-; DE -> binary64: STR$ with DEFNUM digits
-rt_str_str:
-        LD      HL,rt_strfn__buf
-        LD      A,(rt_defnum)
-        CALL    rt_fmt_flt              ; BC = length
-        PUSH    BC
-        CALL    rt_str_newtemp
-        POP     BC
-        LD      A,B
-        OR      C
-        RET     Z
-        PUSH    HL
-        LD      HL,rt_strfn__buf
-        LDIR
-        POP     HL
-        RET
-
 ;! section bss
 rt_strfn__src:
         DS      2
@@ -618,5 +601,3 @@ rt_strfn__fa:
         DS      1
 rt_strfn__ch:
         DS      1
-rt_strfn__buf:
-        DS      32

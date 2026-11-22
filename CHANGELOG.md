@@ -24,6 +24,10 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
   `rt_lsave`/`rt_lrest`/`rt_zero8`, Laden und Speichern von Variablen über `rt_ld8`/`rt_st8`,
   Laufzeitaufrufe mit Operanden in Stapelplätzen über die Sprungbretter `zc3`/`zc2`/`zc2d`. Ein
   Programm mit gut 500 Zeilen hat 16 % weniger Programmcode; die Benchmarks laufen bis zu 6 % länger.
+- Z80-Laufzeit feiner geschnitten (Schritt 12): Die Umwandlung Text ↔ Fließkomma (3,7 KB) wird nur
+  noch gelinkt, wenn das Programm Fließkommazahlen ausgibt, als Text formatiert oder einliest
+  (`rt_print_flt`, `rt_data_num`, `rt_kbd_num`, `rt_str_str` in eigenen Modulen; `STR$` einer
+  Ganzzahl ohne `DEFNUM` über `rt_str_dig`).
 
 ### Behoben
 - `basicc --target cpc`: Ein Programm über 64 KB meldet `the program does not fit into the 64 KB of

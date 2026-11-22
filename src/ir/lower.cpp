@@ -8,6 +8,7 @@
 #include <cstring>
 #include <functional>
 #include <map>
+#include <optional>
 #include <set>
 #include <string>
 
@@ -72,6 +73,7 @@ private:
     Reg result_;                    // function result (numbers; strings go through rt_str_set_ret)
     bool strings_ = false;          // the program uses string values: release temporaries (D18)
     bool onError_ = false;          // the program uses ON ERROR: statement records (docs/runtime.md)
+    bool defnum_ = false;           // the program has DEFNUM: STR$ of an integer may need the float form
     std::vector<bool> resumeTarget_;  // per HIR label: target of a RESUME label
     std::set<int> menuProcs_;       // the procedures of ON MENU GOSUB
     std::vector<std::pair<int, int>> stmtLabels_;  // (start, after) of the enclosing statements
@@ -339,6 +341,7 @@ private:
                 if (st->kind == SKind::OnError) onError_ = true;
                 if (st->kind == SKind::Resume && st->mode == 2) resumeTarget_[static_cast<std::size_t>(st->label)] = true;
                 if (st->kind == SKind::Cmd && st->name == "ON MENU GOSUB") menuProcs_.insert(st->vars[0]);
+                if (st->kind == SKind::Cmd && st->name == "DEFNUM") defnum_ = true;
                 for (const auto& br : st->branches) blk(br.body);
                 for (const auto& c : st->cases) blk(c.body);
                 blk(st->body);
@@ -367,6 +370,16 @@ private:
         i.imm = line_;
         i.label = stmtLabels_.back().first;
         i.label2 = stmtLabels_.back().second;
+    }
+
+    // A float constant with an integral value in the 32-bit range (not -0): STR$ and PRINT of it give
+    // the digits of the integer, so they need no float formatting.
+    static std::optional<std::int32_t> integralConst(const hir::Expr& e) {
+        if (e.op != Op::ConstFloat) return std::nullopt;
+        double d;
+        std::memcpy(&d, &e.fval, sizeof d);
+        if (!(d >= -2147483648.0 && d <= 2147483647.0) || d != std::floor(d) || (d == 0 && std::signbit(d))) return std::nullopt;
+        return static_cast<std::int32_t>(d);
     }
 
     // Does the program compute with strings (beyond constants printed directly)?
@@ -724,8 +737,12 @@ private:
                     Reg c = toI(expr(*it.expr));
                     rtcallVoid("rt_print_at", {c, toI(expr(*it.expr2))});
                 } else if (it.kind == hir::PrintItem::Value) {
-                    Reg v = expr(*it.expr);
-                    rtcallVoid(v.type == VT::F64 ? "rt_print_flt" : v.type == VT::Str ? "rt_print_sdesc" : "rt_print_int", {v});
+                    if (const auto k = integralConst(*it.expr)) {  // PRINT 7: the integer path (same digits)
+                        rtcallVoid("rt_print_int", {constI(*k)});
+                    } else {
+                        Reg v = expr(*it.expr);
+                        rtcallVoid(v.type == VT::F64 ? "rt_print_flt" : v.type == VT::Str ? "rt_print_sdesc" : "rt_print_int", {v});
+                    }
                 } else {
                     Reg n = rtcall("fp_to_i32", {expr(*it.expr)}, VT::I32);
                     rtcallVoid(it.kind == hir::PrintItem::Tab ? "rt_print_tab" : "rt_print_spc", {n});
@@ -1813,7 +1830,9 @@ private:
         if (n == "TRIM$") return rtcall("rt_str_trim", {arg(e, 0)}, VT::Str);
         if (n == "STR$" && argc == 1) {  // an integer: its digits (DEFNUM 13), without the float formatting
             const hir::Expr& x = *e.args[0];
-            if (x.op == Op::Conv && hir::isInteger(x.args[0]->type)) return rtcall("rt_str_int", {expr(*x.args[0])}, VT::Str);
+            if (x.op == Op::Conv && hir::isInteger(x.args[0]->type))  // without DEFNUM always 13: the digits only
+                return rtcall(defnum_ ? "rt_str_int" : "rt_str_dig", {expr(*x.args[0])}, VT::Str);
+            if (const auto k = integralConst(x)) return rtcall(defnum_ ? "rt_str_int" : "rt_str_dig", {constI(*k)}, VT::Str);
             return rtcall("rt_str_str", {arg(e, 0)}, VT::Str);
         }
         if (n == "STR$" && argc == 2) {
