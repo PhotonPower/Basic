@@ -6,6 +6,11 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 
 ## [Unreleased]
 
+## [0.6.1] – 2026-11-22
+
+Bugfix- und Werkzeug-Release: grafische Oberfläche, CI auf allen Systemen grün (Linux, macOS, Windows,
+Sanitizer).
+
 ### Behoben
 - Linken von `test_frontend` und allen Programmen, die nur das Frontend benutzen: `rt_error` liegt in
   `rt_pc.cpp`, dessen Objekt der Linker aus dem Archiv nicht zog (`-u rt_error` bzw. `/INCLUDE`).

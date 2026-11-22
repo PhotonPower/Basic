@@ -14,7 +14,7 @@ Arten von Zielsystemen übersetzt:
 
 dazu nackte Z80- und MC68000-Testplattformen, die auch als Vorlage für **FPGA-Implementierungen** dienen.
 
-> **Status: Version 0.6.0 – Zwischenstand, das Projekt pausiert.** `basicc` übersetzt GFA-BASIC-3.5-
+> **Status: Version 0.6.1 – Zwischenstand, das Projekt pausiert.** `basicc` übersetzt GFA-BASIC-3.5-
 > Programme für alle Ziele: AmigaDOS-Programme für den Amiga (MC68000), Binärdateien mit AMSDOS-Header
 > und `.sna`-Snapshots für den Amstrad CPC (Z80), C++-Quelltext für den PC sowie Assembler für die
 > nackten Testplattformen; dazu ein Referenz-Interpreter (`basicc --run`). Alle Testprogramme laufen
