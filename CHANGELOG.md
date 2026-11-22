@@ -12,6 +12,9 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 - Windows/MSVC: `localtime_r` in `platform/pc/rt_pc.cpp` durch `localtime_s` ersetzt.
 - Windows/MSVC: `__builtin_ctzll` im Z80-Backend durch `std::countr_zero` ersetzt.
 - GUI/Windows: Zeilenenden `\r\n` der Programmausgabe werden zu `\n` normalisiert; Pfadtest ohne feste `/`.
+- `conformance_m68k` (GCC): Fehlercode von `rt_mat_dot`/`rt_mat_triple` wurde vor dem Aufruf gelesen
+  (Auswertungsreihenfolge der Argumente); Testfehler, kein Fehler im Port. Unter Clang trat er nicht auf.
+- Windows: Checkout wandelte die erwarteten `.gfx`-Dateien in CRLF um (`.gitattributes`, `-text`).
 - Tests mit `-Werror`: fehlendes `#include <algorithm>` (`m68k_runner.cpp`), Einengungen in
   `test_conformance_z80.cpp`.
 

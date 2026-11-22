@@ -881,13 +881,15 @@ void matTest(Runtime& rt, int cases) {
             g_error = -1;
             f64 want = rt_mat_dot(&hu, &hv);
             int we = g_error;
-            scalar("dot", call("rt_mat_dot", 0, 0, 0, &err), err, want, we);
+            const f64 got_dot = call("rt_mat_dot", 0, 0, 0, &err);  // err is set by the call: not an argument of scalar()
+            scalar("dot", got_dot, err, want, we);
             view(1, w);
             view(2, z, 1);
             g_error = -1;
             want = rt_mat_triple(&hu, &hw, &hz);
             we = g_error;
-            scalar("triple", call("rt_mat_triple", 0, 0, 0, &err), err, want, we);
+            const f64 got_triple = call("rt_mat_triple", 0, 0, 0, &err);  // err is set by the call: not an argument of scalar()
+            scalar("triple", got_triple, err, want, we);
         }
         // NORM by rows and columns (sometimes with a zero line), TRANS, ADD/SUB, scalar operations
         for (int byCol = 0; byCol < 2; ++byCol) {
