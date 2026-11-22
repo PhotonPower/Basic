@@ -410,7 +410,9 @@ void testVal() {
     // the halfway case with more than 800 digits: the sticky tail decides
     std::string longer = "1.00000000000000011102230246251565404236316680908203125";
     longer += std::string(900, '0') + "1";
-    CHECK_EQ(val(longer.c_str()), bits(std::strtod(longer.c_str(), nullptr)));
+    // Just above the halfway point of 1 and 1+2^-52 rounds up. The expected value is written out
+    // instead of asking strtod: MSVC's strtod looks at about 768 digits only and rounds down.
+    CHECK_EQ(val(longer.c_str()), std::uint64_t{0x3FF0000000000001});
 
     // random decimal strings against strtod
     Rng r;

@@ -15,6 +15,8 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 - `conformance_m68k` (GCC): Fehlercode von `rt_mat_dot`/`rt_mat_triple` wurde vor dem Aufruf gelesen
   (Auswertungsreihenfolge der Argumente); Testfehler, kein Fehler im Port. Unter Clang trat er nicht auf.
 - Windows: Checkout wandelte die erwarteten `.gfx`-Dateien in CRLF um (`.gitattributes`, `-text`).
+- Windows: erwartete Eingaben (`.in`, `.err`) ohne CRLF-Umwandlung; `runtime_ref` vergleicht den
+  Fall mit 900 Nachkommastellen mit dem bekannten Wert statt mit der `strtod` von MSVC (die rundet dort ab).
 - Tests mit `-Werror`: fehlendes `#include <algorithm>` (`m68k_runner.cpp`), Einengungen in
   `test_conformance_z80.cpp`.
 

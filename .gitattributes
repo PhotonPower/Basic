@@ -11,3 +11,5 @@
 tests/programs/*.out -text
 tests/probes/results/*.txt -text
 tests/programs/*.gfx -text
+tests/programs/*.in -text
+tests/programs/*.err -text
