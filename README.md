@@ -60,6 +60,18 @@ python3 gui/basic_ide.py        # grafischer Editor (siehe docs/gui.md)
 Voraussetzungen: CMake ≥ 3.16, C++20-Compiler (GCC ≥ 11, Clang ≥ 14, MSVC 2022), Netzzugang beim
 ersten Konfigurieren.
 
+**Windows (PowerShell, Visual Studio):** Das Werkzeug heißt `basicc.exe` und liegt im Ordner der
+Konfiguration, die man gebaut hat. Ohne `--config Release` entsteht nur `Debug`.
+
+```powershell
+cmake -S . -B build
+cmake --build build --config Release
+ctest --test-dir build -C Release --output-on-failure
+
+.\build\Release\basicc.exe --targets
+py gui\basic_ide.py            # findet build\Release\basicc.exe selbst
+```
+
 ## Dokumentation
 
 | Dokument | Inhalt |

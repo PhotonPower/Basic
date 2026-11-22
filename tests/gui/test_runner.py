@@ -94,5 +94,26 @@ class RunnerTest(unittest.TestCase):
             self.assertTrue((Path(d) / "t.cpp").is_file())
 
 
+    def test_normalised_programs_mean_the_same(self):
+        """Capitalising commands and replacing '?' must not change what the compiler sees."""
+        import subprocess
+        from gfa_case import normalize_text
+        exe = runner.find_basicc()
+        if not exe:
+            self.skipTest("basicc not built")
+        base = Path(__file__).resolve().parents[2] / "tests" / "programs"
+        checked = 0
+        with tempfile.TemporaryDirectory() as d:
+            for src in sorted(base.glob("*.lst")):
+                raw = src.read_bytes().decode("latin-1")
+                norm = Path(d) / "n.lst"
+                norm.write_bytes(normalize_text(raw).encode("latin-1"))
+                a = subprocess.run([exe, "--emit-hir", str(src)], capture_output=True)
+                b = subprocess.run([exe, "--emit-hir", str(norm)], capture_output=True)
+                self.assertEqual((a.returncode, a.stdout), (b.returncode, b.stdout), src.name)
+                checked += 1
+        self.assertGreater(checked, 30)
+
+
 if __name__ == "__main__":
     unittest.main()

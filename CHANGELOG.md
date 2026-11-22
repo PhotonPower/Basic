@@ -6,6 +6,12 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 
 ## [Unreleased]
 
+### Hinzugefügt
+- GUI: `?` wird zu `Print`; Zwei-Buchstaben-Abkürzungen aus einer festen Tabelle (`Pr` → `Print`,
+  erweiterbar in der Einstellungsdatei); Befehle werden als `Print`, `For`, `Endif` geschrieben
+  (beim Tippen und für das ganze Programm über *Bearbeiten*); Prozeduren und Funktionen lassen sich
+  einklappen. Siehe `docs/gui.md`.
+
 ## [0.6.1] – 2026-11-22
 
 Bugfix- und Werkzeug-Release: grafische Oberfläche, CI auf allen Systemen grün (Linux, macOS, Windows,

@@ -190,3 +190,21 @@ def electric_edit(before: list[str], line: str, indent: str = INDENT) -> str | N
         return None
     new = reindent_line(line, line_level(before, line), indent)
     return None if new == line else new
+
+
+def foldable_blocks(lines: list[str]) -> list[tuple[int, int]]:
+    """(first, last) line numbers (1-based) of every PROCEDURE/SUB/FUNCTION that is closed, for
+    folding in the editor. Blocks that are not closed are not foldable."""
+    ind = Indenter()
+    blocks: list[tuple[int, int]] = []
+    start = None
+    for n, ln in enumerate(lines, 1):
+        before = list(ind.stack)
+        ind.level_for(ln.strip().lstrip(">"))
+        after = ind.stack
+        if not before and after and after[0] in ("PROC", "FUNC"):
+            start = n
+        elif before and before[0] in ("PROC", "FUNC") and not after and start is not None:
+            blocks.append((start, n))
+            start = None
+    return blocks

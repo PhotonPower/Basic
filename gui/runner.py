@@ -185,7 +185,7 @@ def config_path() -> Path:
 
 DEFAULTS = {
     "basicc": "", "rom": "", "font_size": 12, "indent": 2, "auto_indent": True, "dark": False,
-    "last_target": "amiga", "geometry": "980x720", "show_output": True,
+    "last_target": "amiga", "auto_case": True, "abbreviations": {}, "geometry": "980x720", "show_output": True,
 }
 
 

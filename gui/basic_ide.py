@@ -19,6 +19,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import runner  # noqa: E402
 from gfa_indent import (Indenter, electric_edit, indent_text, newline_edit, reindent_line,  # noqa: E402
                         stack_before)
+from gfa_case import TRIGGERS, autocorrect, expand_question, normalize_text  # noqa: E402
+from gfa_indent import foldable_blocks  # noqa: E402
 from gfa_syntax import tokenize_line  # noqa: E402
 
 APP = "Basic IDE"
@@ -58,6 +60,9 @@ class App:
         self.tmpdir = tempfile.TemporaryDirectory(prefix="basic-ide-")
         self.highlight_after: str | None = None
         self.find_win: tk.Toplevel | None = None
+        self.text_version = 0                 # counts edits; invalidates the cache of the fold blocks
+        self.blocks_cache: tuple[int, dict[int, int]] = (-1, {})
+        self.in_autocorrect = False
 
         root.geometry(self.set.get("geometry", "980x720"))
         root.protocol("WM_DELETE_WINDOW", self.quit)
@@ -117,6 +122,8 @@ class App:
             self.paned.add(self.out_frame, weight=1)
 
         self.install_edit_proxy()
+        self.text.tag_configure("fold", elide=True)
+        self.gutter.bind("<Button-1>", self.on_gutter_click)
         t = self.text
         t.bind("<Return>", self.on_return)
         t.bind("<KP_Enter>", self.on_return)
@@ -147,6 +154,7 @@ class App:
             self.text.tag_configure(tag, foreground=th[tag])
         self.bold_font = tkfont.Font(family=fam, size=size, weight="bold")  # keep a reference
         self.text.tag_configure("structure", font=self.bold_font)
+        self.text.tag_configure("foldhead", background="#e6eefb" if not self.set["dark"] else "#2f3644")
         self.text.tag_configure("errline", background="#ffd6d6" if not self.set["dark"] else "#5a2a2a")
         self.out.tag_configure("err", foreground=th["err"])
         self.out.tag_configure("info", foreground=th["info"])
@@ -197,6 +205,7 @@ class App:
         e.add_command(label="Weitersuchen", accelerator="F3", command=lambda: self.find_next())
         e.add_command(label="Gehe zu Zeile …", accelerator=acc("G"), command=self.goto_line)
         e.add_separator()
+        e.add_command(label="Befehle schreiben wie „Print“ (? ersetzen)", command=self.normalize_all)
         e.add_command(label="Alles neu einrücken", accelerator=acc("Umschalt+I"), command=self.reindent_all)
         e.add_command(label="Auswahl neu einrücken", accelerator=acc("I"), command=self.reindent_selection)
 
@@ -217,9 +226,15 @@ class App:
         self.var_dark = tk.BooleanVar(value=bool(self.set["dark"]))
         self.var_auto = tk.BooleanVar(value=bool(self.set["auto_indent"]))
         self.var_out = tk.BooleanVar(value=bool(self.set["show_output"]))
+        self.var_case = tk.BooleanVar(value=bool(self.set["auto_case"]))
         v.add_checkbutton(label="Dunkles Farbschema", variable=self.var_dark, command=self.toggle_dark)
         v.add_checkbutton(label="Automatisch einrücken", variable=self.var_auto, command=self.toggle_auto)
+        v.add_checkbutton(label="Befehle automatisch korrigieren (?, Pr, PRINT)", variable=self.var_case,
+                          command=self.toggle_case)
         v.add_checkbutton(label="Ausgabefenster", variable=self.var_out, command=self.toggle_output)
+        v.add_separator()
+        v.add_command(label="Alle Prozeduren und Funktionen einklappen", command=lambda: self.fold_all(True))
+        v.add_command(label="Alle ausklappen", command=lambda: self.fold_all(False))
         v.add_separator()
         v.add_command(label="Schrift größer", accelerator=acc("+"), command=lambda: self.zoom(1))
         v.add_command(label="Schrift kleiner", accelerator=acc("-"), command=lambda: self.zoom(-1))
@@ -283,6 +298,16 @@ class App:
         if not self.var_auto.get():
             return None
         n, col = (int(x) for x in t.index("insert").split("."))
+        if self.var_case.get():  # a word at the end of the line is finished by Return
+            old = self.line_text(n)
+            r = autocorrect(old[:col], col, False, self.abbreviations())
+            if r is not None:
+                self.in_autocorrect = True
+                try:
+                    self.replace_in_line(n, old, r[0] + old[col:])
+                finally:
+                    self.in_autocorrect = False
+                col = r[1]
         cur, nxt, caret = newline_edit(self.lines_before(n), self.line_text(n), col, self.unit)
         t.edit_separator()
         t.delete(f"{n}.0", f"{n}.end")
@@ -302,6 +327,8 @@ class App:
                 self.text.delete(f"{n}.0", f"{n}.end")
                 self.text.insert(f"{n}.0", new)
                 self.text.mark_set("insert", f"{n}.{max(0, col + len(new) - len(s))}")
+        if "fold" in self.text.tag_names("insert"):  # the caret never sits in hidden text
+            self.reveal(int(self.text.index("insert").split(".")[0]))
         self.update_status()
         self.highlight_current_line()
 
@@ -347,8 +374,26 @@ class App:
         self.text.tag_add("sel", f"{a}.0", f"{b}.end")
         self.text.edit_separator()
 
+    def normalize_all(self) -> None:
+        t = self.text
+        old = t.get("1.0", "end-1c")
+        new = normalize_text(old)
+        if new == old:
+            self.set_status("Alle Befehle sind bereits in der Form „Print“")
+            return
+        self.fold_all(False)
+        pos, yv = t.index("insert"), t.yview()[0]
+        t.edit_separator()
+        t.delete("1.0", "end")
+        t.insert("1.0", new)
+        t.edit_separator()
+        t.mark_set("insert", pos)
+        t.yview_moveto(yv)
+        self.set_status("Befehle umgeschrieben")
+
     def reindent_all(self) -> None:
         t = self.text
+        self.fold_all(False)
         old = t.get("1.0", "end-1c")
         new = indent_text(old, self.unit)
         if new == old:
@@ -414,15 +459,59 @@ class App:
         self.edit_pending = False
 
         def proxy(*args):
+            where = None
+            single = (args and args[0] == "insert" and len(args) == 3 and len(str(args[2])) == 1
+                      and not self.in_autocorrect and self.var_case.get())
+            if single:  # one typed character: remember where it goes
+                where = str(t.tk.call(orig, "index", args[1]))
             result = t.tk.call((orig,) + args)
             if args and (args[0] in ("insert", "delete", "replace")
                          or (args[0] == "edit" and len(args) > 1 and args[1] in ("undo", "redo"))):
+                self.text_version += 1
                 if not self.edit_pending:
                     self.edit_pending = True
                     self.root.after_idle(self.edit_done)
+            if where is not None and (str(args[2]) in TRIGGERS or args[2] == "?"):
+                line, col = (int(x) for x in where.split("."))
+                self.in_autocorrect = True
+                try:
+                    self.autocorrect_at(line, col + 1, str(args[2]))
+                finally:
+                    self.in_autocorrect = False
             return result
 
         t.tk.createcommand(t._w, proxy)
+
+    def abbreviations(self) -> dict:
+        ab = self.set.get("abbreviations")
+        return ab if isinstance(ab, dict) else {}
+
+    def replace_in_line(self, n: int, old: str, new: str) -> None:
+        """Change line n from ``old`` to ``new`` touching only the part that differs."""
+        pre = 0
+        while pre < min(len(old), len(new)) and old[pre] == new[pre]:
+            pre += 1
+        suf = 0
+        while suf < min(len(old), len(new)) - pre and old[len(old) - 1 - suf] == new[len(new) - 1 - suf]:
+            suf += 1
+        t = self.text
+        t.edit_separator()
+        t.delete(f"{n}.{pre}", f"{n}.{len(old) - suf}")
+        t.insert(f"{n}.{pre}", new[pre:len(new) - suf])
+        t.edit_separator()
+
+    def autocorrect_at(self, n: int, col: int, ch: str) -> None:
+        """A character ``ch`` was typed in line n (the caret column after it is ``col``)."""
+        old = self.line_text(n)
+        r = expand_question(old, col) if ch == "?" else autocorrect(old, col, True, self.abbreviations())
+        if r is None:
+            return
+        new, newcol = r
+        caret = self.text.index("insert")
+        at_end = caret == f"{n}.{col}"
+        self.replace_in_line(n, old, new)
+        if at_end:
+            self.text.mark_set("insert", f"{n}.{newcol}")
 
     def edit_done(self) -> None:
         self.edit_pending = False
@@ -462,20 +551,83 @@ class App:
             t.tag_add("curline", f"{n}.0", f"{int(n) + 1}.0")
         t.tag_lower("curline")
 
+    # ---- folding of procedures and functions ------------------------------------------------
+
+    def fold_blocks(self) -> dict[int, int]:
+        """first line -> last line of every closed PROCEDURE/FUNCTION (cached per edit)."""
+        if self.blocks_cache[0] != self.text_version:
+            lines = self.text.get("1.0", "end-1c").split("\n")
+            self.blocks_cache = (self.text_version, dict(foldable_blocks(lines)))
+        return self.blocks_cache[1]
+
+    def is_folded(self, first: int) -> bool:
+        return "fold" in self.text.tag_names(f"{first + 1}.0")
+
+    def set_fold(self, first: int, last: int, fold: bool) -> None:
+        a, b = f"{first + 1}.0", f"{last + 1}.0"
+        if fold:
+            caret = int(self.text.index("insert").split(".")[0])
+            if first < caret <= last:
+                self.text.mark_set("insert", f"{first}.end")
+            self.text.tag_add("fold", a, b)
+        else:
+            self.text.tag_remove("fold", a, b)
+
+    def fold_all(self, fold: bool) -> None:
+        for first, last in self.fold_blocks().items():
+            self.set_fold(first, last, fold)
+        self.redraw_gutter()
+
+    def reveal(self, line: int) -> None:
+        """Unfold the block that hides ``line`` (search hit, error, caret)."""
+        for first, last in self.fold_blocks().items():
+            if first < line <= last and self.is_folded(first):
+                self.set_fold(first, last, False)
+        self.redraw_gutter()
+
+    def validate_folds(self, blocks: dict[int, int]) -> None:
+        """Drop hidden ranges whose block no longer exists (header or RETURN was edited)."""
+        r = [str(x) for x in self.text.tag_ranges("fold")]
+        for a, b in zip(r[0::2], r[1::2]):
+            first, last = int(a.split(".")[0]) - 1, int(b.split(".")[0]) - 1
+            if blocks.get(first) != last:
+                self.text.tag_remove("fold", a, b)
+
+    def on_gutter_click(self, event) -> None:
+        n = int(self.text.index(f"@0,{event.y}").split(".")[0])
+        last = self.fold_blocks().get(n)
+        if last is not None:
+            self.set_fold(n, last, not self.is_folded(n))
+            self.redraw_gutter()
+
     def redraw_gutter(self) -> None:
-        g = self.gutter
+        g, t = self.gutter, self.text
         g.delete("all")
-        i = self.text.index("@0,0")
-        while True:
-            d = self.text.dlineinfo(i)
-            if d is None:
-                break
-            g.create_text(42, d[1], anchor="ne", text=i.split(".")[0], fill=self.gutterfg, font=self.font)
-            i = self.text.index(f"{i}+1line")
-        total = int(self.text.index("end-1c").split(".")[0])
-        w = max(48, self.font.measure(str(total)) + 16)
+        blocks = self.fold_blocks()
+        self.validate_folds(blocks)
+        total = int(t.index("end-1c").split(".")[0])
+        w = max(48, self.font.measure(str(total)) + 16) + 14
         if int(g.cget("width")) != w:
             g.configure(width=w)
+        t.tag_remove("foldhead", "1.0", "end")  # folded headers get a tinted background
+        for n in blocks:
+            if self.is_folded(n):
+                t.tag_add("foldhead", f"{n}.0", f"{n}.end")
+        t.tag_lower("foldhead")
+        first = int(t.index("@0,0").split(".")[0])
+        last = int(t.index(f"@0,{t.winfo_height()}").split(".")[0])
+        for n in range(first, last + 1):
+            d = t.dlineinfo(f"{n}.0")
+            if not d:  # hidden by a fold (or below the text)
+                continue
+            g.create_text(w - 6, d[1], anchor="ne", text=str(n), fill=self.gutterfg, font=self.font)
+            if n in blocks:
+                cy = d[1] + d[3] / 2
+                if self.is_folded(n):   # points right: closed
+                    pts = (4, cy - 5, 4, cy + 5, 10, cy)
+                else:                   # points down: open
+                    pts = (2, cy - 3, 12, cy - 3, 7, cy + 4)
+                g.create_polygon(*pts, fill=self.gutterfg, outline="")
 
     def update_status(self) -> None:
         line, col = self.text.index("insert").split(".")
@@ -648,6 +800,7 @@ class App:
             self.set_status(f"„{pat}“ nicht gefunden")
             return False
         end = f"{pos}+{len(pat)}c"
+        self.reveal(int(pos.split(".")[0]))
         t.tag_remove("sel", "1.0", "end")
         t.tag_add("sel", pos, end)
         t.mark_set("insert", end)
@@ -693,6 +846,7 @@ class App:
 
     def jump_to(self, line: int, col: int | None = None) -> None:
         t = self.text
+        self.reveal(line)
         t.tag_remove("errline", "1.0", "end")
         t.mark_set("insert", f"{line}.{max(0, (col or 1) - 1)}")
         t.tag_add("errline", f"{line}.0", f"{line + 1}.0")
@@ -705,6 +859,9 @@ class App:
     def toggle_dark(self) -> None:
         self.set["dark"] = self.var_dark.get()
         self.apply_theme()
+
+    def toggle_case(self) -> None:
+        self.set["auto_case"] = self.var_case.get()
 
     def toggle_auto(self) -> None:
         self.set["auto_indent"] = self.var_auto.get()
