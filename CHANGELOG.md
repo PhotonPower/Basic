@@ -29,6 +29,9 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
   (`rt_print_flt`, `rt_data_num`, `rt_kbd_num`, `rt_str_str` in eigenen Modulen; `STR$` einer
   Ganzzahl ohne `DEFNUM` über `rt_str_dig`).
 
+- Ganzzahlige Operanden (Feldindex, `MID$`-Position, Grafikkoordinate, `ADD`/`MUL` …) ohne Umweg
+  über Fließkomma (`docs/performance.md`, Schritt 13): `bench_string` auf dem Z80 −70 % Laufzeit.
+
 ### Behoben
 - Amiga: Mit offenem Grafikfenster (`OPENS`/`OPENW`, erster Grafikbefehl) kamen bei `INPUT`,
   `LINE INPUT` und `INKEY$` keine Tasten an, weil nur `Input()` der Shell gelesen wurde; `INKEY$`

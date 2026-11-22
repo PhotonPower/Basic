@@ -206,14 +206,14 @@ private:
     Reg elemAddr(const hir::Expr& e) {
         if (e.args.size() > 3) unsupported("arrays with more than 3 dimensions");
         std::vector<Reg> ix;
-        for (const auto& a : e.args) ix.push_back(toI(expr(*a)));
+        for (const auto& a : e.args) ix.push_back(toI(*a));
         std::vector<Reg> args{addrOf(e.var), constI(static_cast<std::int32_t>(ix.size()))};
         args.insert(args.end(), ix.begin(), ix.end());
         return rtcall("rt_arr_elem", args, VT::Addr);
     }
 
     // ---- requesters and menus (D26): arguments one by one, then the command (rt_gui) -------------
-    void guiNum(const hir::Expr& e) { rtcallVoid("rt_gui_num", {toI(expr(e))}); }
+    void guiNum(const hir::Expr& e) { rtcallVoid("rt_gui_num", {toI(e)}); }
     void guiStr(const hir::Expr& e) { rtcallVoid("rt_gui_str", {expr(e)}); }
     Reg guiCmd(const char* name, VT result) {
         return rtcall(result == VT::Str ? "rt_gui_cmds" : "rt_gui_cmd", {constI(brt::guiCommandCode(name))}, result);
@@ -713,7 +713,7 @@ private:
 
     void print(const hir::Stmt& s) {
         if (s.channel) {  // PRINT #n: the output goes to the file for this statement (rt_file)
-            rtcallVoid("rt_file_select", {toI(expr(*s.channel))});
+            rtcallVoid("rt_file_select", {toI(*s.channel)});
             printItems(s);
             rtcallVoid("rt_file_deselect", {});
             return;
@@ -734,8 +734,8 @@ private:
                 if (it.kind == hir::PrintItem::Value && it.expr->op == Op::ConstStr) {
                     emit(Kind::PrintStr).text = it.expr->sval;
                 } else if (it.kind == hir::PrintItem::At) {
-                    Reg c = toI(expr(*it.expr));
-                    rtcallVoid("rt_print_at", {c, toI(expr(*it.expr2))});
+                    Reg c = toI(*it.expr);
+                    rtcallVoid("rt_print_at", {c, toI(*it.expr2)});
                 } else if (it.kind == hir::PrintItem::Value) {
                     if (const auto k = integralConst(*it.expr)) {  // PRINT 7: the integer path (same digits)
                         rtcallVoid("rt_print_int", {constI(*k)});
@@ -949,8 +949,8 @@ private:
     // offsets a(i[,j]) of view k: DET/RANG (cpy false) or CPY/XCPY rules
     void matAt(const hir::Expr& t, int k, bool cpy, bool transpose) {
         if (t.args.empty()) return;
-        Reg i = toI(expr(*t.args[0]));
-        Reg j = t.args.size() > 1 ? toI(expr(*t.args[1])) : constI(0);
+        Reg i = toI(*t.args[0]);
+        Reg j = t.args.size() > 1 ? toI(*t.args[1]) : constI(0);
         const int flags = k | static_cast<int>(t.args.size()) << 8 | (cpy ? 1 << 10 : 0) | (transpose ? 1 << 11 : 0);
         rtcallVoid("rt_mat_at", {constI(flags), i, j});
     }
@@ -970,11 +970,11 @@ private:
             matView(*T[0], 0);
             rtcallVoid(w == "ONE" ? "rt_mat_one" : "rt_mat_read", {});
         } else if (w == "INPUT") {
-            Reg ch = toI(expr(*s.channel));
+            Reg ch = toI(*s.channel);
             matView(*T[0], 0);
             rtcallVoid("rt_mat_input", {ch});
         } else if (w == "PRINT") {
-            if (s.channel) rtcallVoid("rt_file_select", {toI(expr(*s.channel))});
+            if (s.channel) rtcallVoid("rt_file_select", {toI(*s.channel)});
             matView(*T[0], 0);
             if (s.args.size() == 2) {
                 Reg g = toI(arg(0));
@@ -1065,7 +1065,7 @@ private:
             for (const auto& t : s.targets) {
                 if (t->args.size() > 3) unsupported("arrays with more than 3 dimensions");
                 std::vector<Reg> dims;
-                for (const auto& d : t->args) dims.push_back(toI(expr(*d)));
+                for (const auto& d : t->args) dims.push_back(toI(*d));
                 const int code = elemSize(var(t->var).type) << 8 | static_cast<int>(dims.size());
                 std::vector<Reg> args{addrOf(t->var), constI(code)};
                 args.insert(args.end(), dims.begin(), dims.end());
@@ -1092,7 +1092,7 @@ private:
             return;
         }
         if (n == "CLEAR" || n == "RESERVE") {  // RESERVE clears the variables too (probe25 T2)
-            if (n == "RESERVE" && !s.args.empty()) rtcallVoid("rt_reserve", {toI(expr(*s.args[0]))});
+            if (n == "RESERVE" && !s.args.empty()) rtcallVoid("rt_reserve", {toI(*s.args[0])});
             clearAll();
             return;
         }
@@ -1109,14 +1109,14 @@ private:
         }
         if (guiCommand(s)) return;
         if (n == "OPTION BASE") {
-            rtcallVoid("rt_arr_set_base", {toI(expr(*s.args[0]))});
+            rtcallVoid("rt_arr_set_base", {toI(*s.args[0])});
             return;
         }
         if (n == "SWAP" && s.mode == 1) {  // SWAP *p,a(): check the type of what p points to, exchange the slots
             const hir::Expr& t = *s.targets[0];
             static const std::map<Type, int> codes = {{Type::Float, 4}, {Type::Str, 5}, {Type::Int, 6},
                                                        {Type::Bool, 7}, {Type::Word, 12}, {Type::Byte, 13}};
-            Reg p = toI(expr(*s.args[0]));
+            Reg p = toI(*s.args[0]);
             Reg slotAddr = addrOf(t.var);
             rtcallVoid("rt_swapptr", {p, constI(codes.at(var(t.var).type)), slotAddr});
             return;
@@ -1152,8 +1152,8 @@ private:
         if (n == "MID$=") {
             const hir::Expr& t = *s.targets[0];
             Reg target = t.op == Op::Load ? load(t.var) : strAt(elemAddr(t));
-            Reg from = toI(expr(*s.args[0]));
-            Reg len = s.args.size() > 1 ? toI(expr(*s.args[1])) : constI(32767);
+            Reg from = toI(*s.args[0]);
+            Reg len = s.args.size() > 1 ? toI(*s.args[1]) : constI(32767);
             Reg b = expr(*s.value);
             rtcallVoid("rt_str_midset", {target, b, from, len});
             return;
@@ -1167,15 +1167,15 @@ private:
         }
         if (n == "OPEN") {
             Reg mode = expr(*s.args[0]);
-            Reg ch = toI(expr(*s.args[1]));
+            Reg ch = toI(*s.args[1]);
             Reg name = expr(*s.args[2]);
-            Reg len = s.args.size() > 3 ? toI(expr(*s.args[3])) : constI(0);
+            Reg len = s.args.size() > 3 ? toI(*s.args[3]) : constI(0);
             rtcallVoid("rt_file_open", {mode, ch, name, len});
             return;
         }
         if (n == "CLOSE") {
             if (s.args.empty()) rtcallVoid("rt_file_close_all", {});
-            else rtcallVoid("rt_file_close", {toI(expr(*s.args[0]))});
+            else rtcallVoid("rt_file_close", {toI(*s.args[0])});
             return;
         }
         if (n == "KILL") {
@@ -1208,30 +1208,30 @@ private:
             return;
         }
         if (n == "FIELD") {  // binds the descriptors of the string variables to the record (probe16)
-            rtcallVoid("rt_file_field_begin", {toI(expr(*s.args[0]))});
+            rtcallVoid("rt_file_field_begin", {toI(*s.args[0])});
             for (std::size_t k = 0; k < s.targets.size(); ++k) {
-                Reg len = toI(expr(*s.args[k + 1]));
+                Reg len = toI(*s.args[k + 1]);
                 rtcallVoid("rt_file_field_add", {load(s.targets[k]->var), len});
             }
             rtcallVoid("rt_file_field_end", {});
             return;
         }
         if (n == "GET#" || n == "PUT#") {
-            Reg ch = toI(expr(*s.args[0]));
+            Reg ch = toI(*s.args[0]);
             const bool numbered = s.args.size() > 1;
-            Reg rec = numbered ? toI(expr(*s.args[1])) : constI(0);
+            Reg rec = numbered ? toI(*s.args[1]) : constI(0);
             rtcallVoid(n == "GET#" ? "rt_file_get" : "rt_file_put", {ch, rec, constI(numbered ? 1 : 0)});
             return;
         }
         if (n == "RECORD" || n == "SEEK" || n == "RELSEEK") {
-            Reg ch = toI(expr(*s.args[0]));
-            Reg v = toI(expr(*s.args[1]));
+            Reg ch = toI(*s.args[0]);
+            Reg v = toI(*s.args[1]);
             rtcallVoid(n == "RECORD" ? "rt_file_record" : n == "SEEK" ? "rt_file_seek" : "rt_file_relseek", {ch, v});
             return;
         }
         if (n == "POKE" || n == "DPOKE" || n == "LPOKE") {
-            Reg a = toI(expr(*s.args[0]));
-            rtcallVoid(n == "POKE" ? "rt_poke" : n == "DPOKE" ? "rt_dpoke" : "rt_lpoke", {a, toI(expr(*s.args[1]))});
+            Reg a = toI(*s.args[0]);
+            rtcallVoid(n == "POKE" ? "rt_poke" : n == "DPOKE" ? "rt_dpoke" : "rt_lpoke", {a, toI(*s.args[1])});
             return;
         }
         if (n.size() > 2 && n.substr(n.size() - 2) == "{}") {
@@ -1239,21 +1239,21 @@ private:
                 {"BYTE{}", "rt_poke"},        {"CARD{}", "rt_dpoke"},         {"INT{}", "rt_dpoke"},
                 {"LONG{}", "rt_lpoke"},       {"FLOAT{}", "rt_float_set"},    {"SINGLE{}", "rt_single_set"},
                 {"DOUBLE{}", "rt_double_set"}, {"CHAR{}", "rt_char_set"}};
-            Reg a = toI(expr(*s.args[0]));
+            Reg a = toI(*s.args[0]);
             Reg v = expr(*s.args[1]);
             if (n != "CHAR{}" && n != "FLOAT{}" && n != "SINGLE{}" && n != "DOUBLE{}") v = toI(v);
             rtcallVoid(set.at(n), {a, v});
             return;
         }
         if (n == "BMOVE") {
-            Reg from = toI(expr(*s.args[0]));
-            Reg to = toI(expr(*s.args[1]));
-            rtcallVoid("rt_bmove", {from, to, toI(expr(*s.args[2]))});
+            Reg from = toI(*s.args[0]);
+            Reg to = toI(*s.args[1]);
+            rtcallVoid("rt_bmove", {from, to, toI(*s.args[2])});
             return;
         }
         if (n == "OUT") {
-            Reg ch = toI(expr(*s.args[0]));
-            for (std::size_t k = 1; k < s.args.size(); ++k) rtcallVoid("rt_file_out", {ch, toI(expr(*s.args[k]))});
+            Reg ch = toI(*s.args[0]);
+            for (std::size_t k = 1; k < s.args.size(); ++k) rtcallVoid("rt_file_out", {ch, toI(*s.args[k])});
             return;
         }
         if (n == "INPUT" || n == "LINE INPUT") {  // from the keyboard (rt_kbd)
@@ -1268,7 +1268,7 @@ private:
             return;
         }
         if (n == "INPUT#" || n == "LINE INPUT#") {
-            Reg ch = toI(expr(*s.args[0]));
+            Reg ch = toI(*s.args[0]);
             for (const auto& t : s.targets) {
                 const Type ty = var(t->var).type;
                 if (n == "LINE INPUT#") storeTarget(*t, rtcall("rt_file_line", {ch}, VT::Str));
@@ -1279,7 +1279,7 @@ private:
         }
         if (n == "WRITE" || n == "WRITE#") {  // values separated by commas, strings in quotes
             const bool file = n == "WRITE#";
-            if (file) rtcallVoid("rt_file_select", {toI(expr(*s.args[0]))});
+            if (file) rtcallVoid("rt_file_select", {toI(*s.args[0])});
             for (std::size_t k = file ? 1 : 0; k < s.args.size(); ++k) {
                 if (k != (file ? 1u : 0u)) emit(Kind::PrintStr).text = ",";
                 Reg v = expr(*s.args[k]);
@@ -1290,7 +1290,7 @@ private:
             return;
         }
         if (n == "MODE") {
-            rtcallVoid("rt_set_mode", {toI(expr(*s.args[0]))});
+            rtcallVoid("rt_set_mode", {toI(*s.args[0])});
             return;
         }
         if (n == "DEFNUM") {
@@ -1316,23 +1316,23 @@ private:
             return;
         }
         if (n == "GFX ARG") {
-            rtcallVoid("rt_gfx_arg", {toI(expr(*s.args[0]))});
+            rtcallVoid("rt_gfx_arg", {toI(*s.args[0])});
             return;
         }
         if (brt::Gfx::isCommand(n)) {  // D25: the arguments first, then pass them on in order
             std::vector<Reg> vals;
-            for (const auto& a : s.args) vals.push_back(a->type == Type::Str ? expr(*a) : toI(expr(*a)));
+            for (const auto& a : s.args) vals.push_back(a->type == Type::Str ? expr(*a) : toI(*a));
             for (const Reg& v : vals) rtcallVoid(v.type == VT::Str ? "rt_gfx_str" : "rt_gfx_arg", {v});
             rtcallVoid("rt_gfx_cmd", {constI(brt::gfxCommandCode(n)), constI(s.mode)});
             return;
         }
         if (n == "LOCATE") {
-            Reg c = toI(expr(*s.args[0]));
-            rtcallVoid("rt_print_locate", {c, toI(expr(*s.args[1]))});
+            Reg c = toI(*s.args[0]);
+            rtcallVoid("rt_print_locate", {c, toI(*s.args[1])});
             return;
         }
         if (n == "HTAB" || n == "VTAB") {
-            rtcallVoid(n == "HTAB" ? "rt_print_htab" : "rt_print_vtab", {toI(expr(*s.args[0]))});
+            rtcallVoid(n == "HTAB" ? "rt_print_htab" : "rt_print_vtab", {toI(*s.args[0])});
             return;
         }
         if (n == "PAUSE" || n == "DELAY") {  // ticks of 1/50 s: PAUSE n, DELAY x seconds
@@ -1635,7 +1635,7 @@ private:
     // integer and bit functions: arguments as 32-bit integers (error 2 out of range)
     bool intBuiltin(const hir::Expr& e, Reg& out) {
         const std::string& n = e.sval;
-        auto ia = [&](std::size_t k) { return toI(arg(e, k)); };
+        auto ia = [&](std::size_t k) { return toI(*e.args[k]); };
         static const std::map<std::string, std::string> two = {
             {"MUL", "rt_imul"}, {"DIV", "rt_idiv"}, {"MOD", "rt_imod"},   {"BTST", "rt_btst"},
             {"BCLR", "rt_bclr"}, {"BSET", "rt_bset"}, {"BCHG", "rt_bchg"}};
@@ -1670,6 +1670,15 @@ private:
     }
 
     Reg toI(Reg v) { return v.type == VT::F64 ? rtcall("fp_to_i32", {v}, VT::I32) : v; }
+    // an integer operand (index, position, coordinate): the same as fp_to_i32 of its float value, but
+    // an integer, an integral constant or a chain of + - * over integers without the way through
+    // float (as Op::ToInt)
+    Reg toI(const hir::Expr& x) {
+        if (intArith(x)) return intArithCall(x, 2);
+        if (intChain(x)) return intChainConv(x, Type::Int);
+        if (isIntLeaf(x)) return intLeaf(x);
+        return toI(expr(x));
+    }
 
     // MIN/MAX: the first value, replaced by every later one that is smaller/greater
     Reg minMax(const hir::Expr& e, bool isMax) {
@@ -1692,10 +1701,10 @@ private:
         const std::size_t argc = e.args.size();
         if (n == "MIN" || n == "MAX") return minMax(e, n == "MAX");
         if (n == "ERR") return rtcall("rt_err_get", {}, VT::I32);
-        if (n == "EOF") return rtcall("rt_file_eof", {toI(arg(e, 0))}, VT::I32);
-        if (n == "LOF") return rtcall("rt_file_lof", {toI(arg(e, 0))}, VT::I32);
+        if (n == "EOF") return rtcall("rt_file_eof", {toI(*e.args[0])}, VT::I32);
+        if (n == "LOF") return rtcall("rt_file_lof", {toI(*e.args[0])}, VT::I32);
         if (n == "EXIST") return rtcall("rt_file_exist", {arg(e, 0)}, VT::I32);
-        if (n == "LOC") return rtcall("rt_file_loc", {toI(arg(e, 0))}, VT::I32);
+        if (n == "LOC") return rtcall("rt_file_loc", {toI(*e.args[0])}, VT::I32);
         if (n == "ARRPTR") {  // numbers as VARPTR; strings and arrays: the descriptor (the slot itself)
             const hir::Expr& t = *e.args[0];
             Reg a = t.op == Op::Load ? addrOf(t.var) : elemAddr(t);
@@ -1703,7 +1712,7 @@ private:
             copyTo(r, a);
             return r;
         }
-        if (n == "TYPE") return rtcall("rt_type", {toI(arg(e, 0))}, VT::I32);
+        if (n == "TYPE") return rtcall("rt_type", {toI(*e.args[0])}, VT::I32);
         if (n == "VARPTR") {  // the address of the storage; strings: of their characters
             const hir::Expr& t = *e.args[0];
             Reg a = t.op == Op::Load ? addrOf(t.var) : elemAddr(t);
@@ -1719,51 +1728,51 @@ private:
                 {"FLOAT{}", {"rt_float_get", VT::F64}},   {"SINGLE{}", {"rt_single_get", VT::F64}},
                 {"DOUBLE{}", {"rt_double_get", VT::F64}}, {"CHAR{}", {"rt_char_get", VT::Str}}};
             const auto& g = get.at(n);
-            return rtcall(g.first, {toI(arg(e, 0))}, g.second);
+            return rtcall(g.first, {toI(*e.args[0])}, g.second);
         }
         if (n == "PEEK" || n == "DPEEK" || n == "LPEEK")
-            return rtcall(n == "PEEK" ? "rt_peek" : n == "DPEEK" ? "rt_dpeek" : "rt_lpeek", {toI(arg(e, 0))}, VT::I32);
+            return rtcall(n == "PEEK" ? "rt_peek" : n == "DPEEK" ? "rt_dpeek" : "rt_lpeek", {toI(*e.args[0])}, VT::I32);
         if (n == "MALLOC") {
-            Reg size = toI(arg(e, 0));
-            return rtcall("rt_malloc", {size, e.args.size() > 1 ? toI(arg(e, 1)) : constI(0)}, VT::I32);
+            Reg size = toI(*e.args[0]);
+            return rtcall("rt_malloc", {size, e.args.size() > 1 ? toI(*e.args[1]) : constI(0)}, VT::I32);
         }
         if (n == "MFREE") {
-            Reg a = toI(arg(e, 0));
-            return rtcall("rt_mfree", {a, toI(arg(e, 1))}, VT::I32);
+            Reg a = toI(*e.args[0]);
+            return rtcall("rt_mfree", {a, toI(*e.args[1])}, VT::I32);
         }
-        if (n == "MKI$" || n == "MKL$") return rtcall(n == "MKI$" ? "rt_mki" : "rt_mkl", {toI(arg(e, 0))}, VT::Str);
+        if (n == "MKI$" || n == "MKL$") return rtcall(n == "MKI$" ? "rt_mki" : "rt_mkl", {toI(*e.args[0])}, VT::Str);
         if (n == "MKS$" || n == "MKD$") return rtcall(n == "MKS$" ? "rt_mks" : "rt_mkd", {arg(e, 0)}, VT::Str);
         if (n == "CVI" || n == "CVL") return rtcall(n == "CVI" ? "rt_cvi" : "rt_cvl", {arg(e, 0)}, VT::I32);
         if (n == "CVS" || n == "CVD") return rtcall(n == "CVS" ? "rt_cvs" : "rt_cvd", {arg(e, 0)}, VT::F64);
-        if (n == "INP") return rtcall("rt_file_inp", {toI(arg(e, 0))}, VT::I32);
+        if (n == "INP") return rtcall("rt_file_inp", {toI(*e.args[0])}, VT::I32);
         if (n == "INKEY$") return rtcall("rt_kbd_inkey", {}, VT::Str);
-        if (n == "INPUT$" && e.args.size() == 1) return rtcall("rt_kbd_chars", {toI(arg(e, 0))}, VT::Str);
+        if (n == "INPUT$" && e.args.size() == 1) return rtcall("rt_kbd_chars", {toI(*e.args[0])}, VT::Str);
         if (n == "INPUT$") {
-            Reg cnt = toI(arg(e, 0));
-            return rtcall("rt_file_chars", {cnt, toI(arg(e, 1))}, VT::Str);
+            Reg cnt = toI(*e.args[0]);
+            return rtcall("rt_file_chars", {cnt, toI(*e.args[1])}, VT::Str);
         }
-        if (n == "ERR$") return rtcall("rt_err_text", {toI(arg(e, 0))}, VT::Str);
+        if (n == "ERR$") return rtcall("rt_err_text", {toI(*e.args[0])}, VT::Str);
         if (n == "VAL") return rtcall("rt_str_val", {arg(e, 0)}, VT::F64);
         if (n == "VAL?") return rtcall("rt_str_valq", {arg(e, 0)}, VT::I32);
         if (n == "DIM?") return rtcall("rt_arr_count", {addrOf(e.args[0]->var)}, VT::I32);
         if (n == "LEN") return rtcall("rt_str_len", {arg(e, 0)}, VT::I32);
         if (n == "ASC") return rtcall("rt_str_asc", {arg(e, 0)}, VT::I32);
         if (n == "#PACK") return rtcall("rt_str_pack", {arg(e, 0)}, VT::I32);
-        if (n == "CHR$") return rtcall("rt_str_chr", {toI(arg(e, 0))}, VT::Str);
-        if (n == "SPACE$") return rtcall("rt_str_space", {toI(arg(e, 0))}, VT::Str);
+        if (n == "CHR$") return rtcall("rt_str_chr", {toI(*e.args[0])}, VT::Str);
+        if (n == "SPACE$") return rtcall("rt_str_space", {toI(*e.args[0])}, VT::Str);
         if (n == "LEFT$" || n == "RIGHT$") {
             Reg s = arg(e, 0);
-            Reg k = argc > 1 ? toI(arg(e, 1)) : constI(1);
+            Reg k = argc > 1 ? toI(*e.args[1]) : constI(1);
             return rtcall(n == "LEFT$" ? "rt_str_left" : "rt_str_right", {s, k}, VT::Str);
         }
         if (n == "MID$") {
             Reg s = arg(e, 0);
-            Reg from = toI(arg(e, 1));
-            Reg len = argc > 2 ? toI(arg(e, 2)) : constI(32767);
+            Reg from = toI(*e.args[1]);
+            Reg len = argc > 2 ? toI(*e.args[2]) : constI(32767);
             return rtcall("rt_str_mid", {s, from, len}, VT::Str);
         }
         if (n == "STRING$") {
-            Reg k = toI(arg(e, 0));
+            Reg k = toI(*e.args[0]);
             Reg u = arg(e, 1);
             if (u.type != VT::Str) u = rtcall("rt_str_chr", {toI(u)}, VT::Str);
             return rtcall("rt_str_string", {k, u}, VT::Str);
@@ -1787,18 +1796,18 @@ private:
             }
             return rtcall("rt_lib_call", {constI(f.lib), constI(f.lvo)}, VT::I32);
         }
-        if (n == "WINDOW" || n == "SCREEN") return rtcall(n == "WINDOW" ? "rt_window" : "rt_screen", {toI(arg(e, 0))}, VT::I32);
+        if (n == "WINDOW" || n == "SCREEN") return rtcall(n == "WINDOW" ? "rt_window" : "rt_screen", {toI(*e.args[0])}, VT::I32);
         if (n == "MOUSEX" || n == "MOUSEY" || n == "MOUSEK")  // D29
             return rtcall("rt_mouse", {constI(n == "MOUSEX" ? 0 : n == "MOUSEY" ? 1 : 2)}, VT::I32);
-        if (n == "STICK" || n == "STRIG") return rtcall(n == "STICK" ? "rt_stick" : "rt_strig", {toI(arg(e, 0))}, VT::I32);
-        if (n == "DIR$") return rtcall("rt_dirstr", {toI(arg(e, 0))}, VT::Str);
+        if (n == "STICK" || n == "STRIG") return rtcall(n == "STICK" ? "rt_stick" : "rt_strig", {toI(*e.args[0])}, VT::I32);
+        if (n == "DIR$") return rtcall("rt_dirstr", {toI(*e.args[0])}, VT::Str);
         if (n == "FRE") {
             if (!e.args.empty()) expr(*e.args[0]);
             return rtcall("rt_fre", {}, VT::I32);
         }
         if (n == "POINT") {
-            Reg x = toI(arg(e, 0));
-            return rtcall("rt_gfx_point", {x, toI(arg(e, 1))}, VT::I32);
+            Reg x = toI(*e.args[0]);
+            return rtcall("rt_gfx_point", {x, toI(*e.args[1])}, VT::I32);
         }
         if (n == "CRSCOL" || n == "CRSLIN") return rtcall(n == "CRSCOL" ? "rt_crscol" : "rt_crslin", {}, VT::I32);
         if (n == "TIMER") return rtcall("plat_timer", {}, VT::I32);
@@ -1806,11 +1815,11 @@ private:
             if (e.args[0]->type == Type::Str) {
                 Reg a = arg(e, 0);
                 Reg b = arg(e, 1);
-                if (argc > 2) return rtcall("rt_str_rinstr", {a, b, toI(arg(e, 2))}, VT::I32);
+                if (argc > 2) return rtcall("rt_str_rinstr", {a, b, toI(*e.args[2])}, VT::I32);
                 Reg x = op("add", rtcall("rt_str_len", {a}, VT::I32), constI(1));
                 return rtcall("rt_str_rinstr", {a, b, x}, VT::I32);
             }
-            Reg x = toI(arg(e, 0));
+            Reg x = toI(*e.args[0]);
             Reg a = arg(e, 1);
             return rtcall("rt_str_rinstr", {a, arg(e, 2), x}, VT::I32);
         }
@@ -1818,10 +1827,10 @@ private:
             if (e.args[0]->type == Type::Str) {
                 Reg a = arg(e, 0);
                 Reg b = arg(e, 1);
-                Reg from = argc > 2 ? toI(arg(e, 2)) : constI(1);
+                Reg from = argc > 2 ? toI(*e.args[2]) : constI(1);
                 return rtcall("rt_str_instr", {a, b, from}, VT::I32);
             }
-            Reg from = toI(arg(e, 0));
+            Reg from = toI(*e.args[0]);
             Reg a = arg(e, 1);
             Reg b = arg(e, 2);
             return rtcall("rt_str_instr", {a, b, from}, VT::I32);
@@ -1837,24 +1846,24 @@ private:
         }
         if (n == "STR$" && argc == 2) {
             Reg x = arg(e, 0);
-            return rtcall("rt_str_n", {x, toI(arg(e, 1))}, VT::Str);
+            return rtcall("rt_str_n", {x, toI(*e.args[1])}, VT::Str);
         }
         if (n == "STR$") {
             Reg x = arg(e, 0);
-            Reg y = toI(arg(e, 1));
-            return rtcall("rt_str_fmt", {x, y, toI(arg(e, 2))}, VT::Str);
+            Reg y = toI(*e.args[1]);
+            return rtcall("rt_str_fmt", {x, y, toI(*e.args[2])}, VT::Str);
         }
         if (n == "HEX$" || n == "BIN$" || n == "OCT$") {
-            Reg v = toI(arg(e, 0));
+            Reg v = toI(*e.args[0]);
             Reg base = constI(n == "HEX$" ? 16 : n == "BIN$" ? 2 : 8);
-            Reg w = argc > 1 ? toI(arg(e, 1)) : constI(0);
+            Reg w = argc > 1 ? toI(*e.args[1]) : constI(0);
             return rtcall("rt_str_radix", {v, base, w}, VT::Str);
         }
         if ((n == "PRED" || n == "SUCC") && e.type == Type::Str) {
             Reg c = rtcall("rt_str_asc", {arg(e, 0)}, VT::I32);
             return rtcall("rt_str_chr", {op(n == "PRED" ? "sub" : "add", c, constI(1))}, VT::Str);
         }
-        if (n == "PRED" || n == "SUCC") return op(n == "PRED" ? "sub" : "add", toI(arg(e, 0)), constI(1));
+        if (n == "PRED" || n == "SUCC") return op(n == "PRED" ? "sub" : "add", toI(*e.args[0]), constI(1));
         unsupported(n);
     }
 };

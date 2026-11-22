@@ -111,6 +111,14 @@ Auf einem CPC (rund 4 MHz) wären das für `bench_float` etwa 10 Minuten, für `
     Ein kleines Grafikprogramm mit `LINE INPUT`, `INKEY$`, `READ` in Strings und `STR$` von
     Ganzzahlen: Laufzeit 18 461 → 14 698 Byte (−20 %). Die 40 Testprogramme auf `cpc`: 454 835 →
     437 778 Byte (−3,7 %).
+13. Ganzzahlige Operanden ohne Umweg über Fließkomma: Wo die Laufzeit eine Ganzzahl erwartet
+    (Feldindex, `MID$`-Position, Grafikkoordinate, `ADD`/`SUB`/`MUL`/`DIV`, Kanalnummer …),
+    wurde der Operand als Fließkommazahl ausgerechnet und mit `fp_to_i32` gewandelt, auch wenn er
+    schon eine Ganzzahl war (`fp_from_i32` und zurück) oder eine Konstante (`1#` zur Laufzeit
+    gewandelt). Jetzt nimmt `toI` dieselben Abkürzungen wie `Op::ToInt`: eine Ganzzahl direkt, eine
+    ganzzahlige Konstante als Konstante, `a+b`/`a-b`/`a*b` und Ketten daraus in 32 Bit (D16).
+    Bitgleich, weil `fp_to_i32` einer exakt darstellbaren Ganzzahl sie selbst ist. `bench_string`:
+    Z80 −70 % T-States und −24 % Bytes, 68000 −29 % Befehle; die 41 Testprogramme auf `cpc` −2,2 %.
 
 Werkzeug dafür: `BASIC_Z80_PROFILE=1 BASIC_Z80_PROGRAM=<datei> build/tests/test_z80_programs` zeigt
 die T-States je Routine (Marke im Quelltext; `modul__x` zählt zum Modul, Programmcode als
